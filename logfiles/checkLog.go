@@ -9,7 +9,7 @@ func CheckLog(dir string, filename string) {
 	// Check to see if the log file forum.log exist. If it doesn't create it. If it does rename old file with date and create a new one.
 	if _, err := os.Stat(dir + filename); os.IsNotExist(err) {
 		// Create new file
-		file, err := os.Create(filename)
+		file, err := os.Create(dir + filename)
 		if err != nil {
 			panic(err)
 		}

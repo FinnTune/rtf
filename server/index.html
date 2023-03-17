@@ -1,12 +1,121 @@
 <!DOCTYPE html>
-<hmtl lang="en">
+<html>
+  <head>
+    <title>Forum</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  </head>
+  <body>
+    <div class="header">
+      <h1>Real-Time-Forum</h1>
+  
+    
+      <!-- Logged In Message -->
+      <div id="logged-in-message" style="display: none;">
+        You are logged in.
+        <form id="logout-form" method="post">
+          <button type="submit" id="logout-button">Logout</button>
+        </form>
+      </div>
+    </div>
+                  <!-- Login/Register Form -->
+                  <form class="login-form" id="login-form" method="post">
+                    <label for="username">Login</label>
+                    <input type="text" name="username" id="username" placeholder="Enter your login" required>
+                  
+                    <label for="password">Password</label>
+                    <input type="password" name="password" id="password" placeholder="Enter your password" required>
+                  
+                    <button type="submit" id="login-button">Login</button>
+                    <button type="button" id="register-button">Register</button>
+                  </form>
 
-<head>
+                    <!-- Register Form -->
+          <form class="register-form" method="post" style="display: none;">
+            <label for="firstname">First Name: </label>
+            <input type="text" name="firstname" placeholder="First Name" required><br>
+        
+            <label for="lastname">Last Name: </label>
+            <input type="text" name="lastname" placeholder="Last Name" required><br>
+        
+            <label for="username">Username: </label>
+            <input type="text" name="username" placeholder="Username" required><br>
+        
+            <label for="email">Email: </label>
+            <input type="email" name="email" placeholder="Email" required><br>
+        
+            <label for="age">Age: </label>
+            <input type="number" name="age" placeholder="Age" min="0" max="150" required><br>
+        
+            <label for="gender">Gender: </label>
+            <select name="gender">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+            </select><br>
+        
+            <label for="password">Password: </label>
+            <input type="password" name="password" placeholder="Password" required><br>
+        
+            <label for="confpassword">Confirm Password: </label>
+            <input type="password" name="confpassword" placeholder="Confirm Password" required><br>
+        
+            <button type="submit" id="register-submit-button">Register</button>
+            <br>
+            <button type="submit" id="login-switch-button">Back to Login</button>
+        </form>
 
-</head>
+    <div class="container">
+      <div class="left-sidebar">
+        <ul>
+        </ul>
+      </div>
+      <div class="main-content">
+        <div class="new-post-form">
+          <h3>New Post</h3>
+          <form id="new-post-form">
+            <input type="text" name="title" placeholder="Title" required>
+            <textarea name="content" placeholder="Post content" required></textarea>
+            <button type="submit">Create Post</button>
+          </form>
+        </div>
+        <div class="posts">
+          <h3>Welcome Message?</h3>
+          <div class="post">
+            <h4 class="post-title">Post Title</h4>
+            <p class="post-content">Example post text just writing something to have somethingh here...</p>
+            <div class="post-meta">
+              <span class="post-author">Posted by Teetor</span>
+              <span class="post-date">March 16, 2023</span>
+              <button class="comment-btn">Comment</button>
+            </div>
+            <div class="comments">
+              <div class="comment">
+                <p class="comment-content">This is a comment on the post.</p>
+                <div class="comment-meta">
+                  <span class="comment-author">Commented by Teetor</span>
+                  <span class="comment-date">March 16, 2023</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      
+        
+      </div>
+      <div class="right-sidebar">
+        <h2>Private Messages</h2>
+        <ul>
+          <li><a href="#">Message 1</a></li>
+          <li><a href="#">Message 2</a></li>
+          <li><a href="#">Message 3</a></li>
+        </ul>
 
-<body>
-<p>Hello there my dear.</p>
-</body>
-
-</hmtl>
+      <div id="user-list">
+        <h2>Users Online</h2>
+      </div>
+    </div>
+    </div>
+  </body>
+  <script src="js/forms.js"></script>
+</html>
