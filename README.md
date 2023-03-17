@@ -8,12 +8,3 @@ This project was written as a learning objective in order to understand various 
 
 ## Instructions: How To Run
 ![Screenshot](picture_test.png)
-
-
-
-
-
-
-
-
-
