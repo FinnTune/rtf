@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"rtForum/backend"
 	"rtForum/logfiles"
 	"time"
 )
@@ -41,6 +42,8 @@ func startFileServers() {
 
 func startHandlers() {
 	log.Println("Handlers Started.")
+	http.HandleFunc("/login", backend.LoginHandler)
+	http.HandleFunc("/register", backend.RegisterHandler)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		println("Handling request.")
 		http.ServeFile(w, r, "./frontend/index.html")
