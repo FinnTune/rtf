@@ -31,10 +31,10 @@ func quitServer() {
 
 func startFileServers() {
 	log.Println("File Servers Started.")
-	cssFS := http.FileServer(http.Dir("./server/css"))
+	cssFS := http.FileServer(http.Dir("./frontend/css"))
 	http.Handle("/css/", http.StripPrefix("/css/", cssFS))
 
-	jsFS := http.FileServer(http.Dir("./server/js"))
+	jsFS := http.FileServer(http.Dir("./frontend/js"))
 	http.Handle("/js/", http.StripPrefix("/js/", jsFS))
 	// imgFS := http.FileServer(http.Dir("./server/img"))
 }
@@ -43,7 +43,7 @@ func startHandlers() {
 	log.Println("Handlers Started.")
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		println("Handling request.")
-		http.ServeFile(w, r, "./server/index.html")
+		http.ServeFile(w, r, "./frontend/index.html")
 	})
 }
 
