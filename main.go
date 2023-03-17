@@ -1,12 +1,33 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"rtForum/logfiles"
 	"time"
 )
+
+// InitMessage prints a message when the server starts
+func initMessage() {
+	fmt.Printf("===============================================\n")
+	fmt.Printf("Starting Realtime Forum\n")
+	fmt.Printf("Server is running on port: " + "443\n")
+	fmt.Printf("===============================================\n")
+}
+
+// quitServer prompts user to type 'x' and 'enter' to quit server.
+func quitServer() {
+	xpressed := ""
+	fmt.Println("Type 'x' and 'enter' to quit server.")
+	fmt.Scan(&xpressed)
+	if xpressed == "x" {
+		os.Exit(0)
+	} else {
+		quitServer()
+	}
+}
 
 func startFileServers() {
 	log.Println("File Servers Started.")
@@ -27,9 +48,21 @@ func startHandlers() {
 }
 
 func startServer() {
+	// Declare and initialize server struct
+	ser := &http.Server{
+		Addr:    ":443",
+		Handler: http.DefaultServeMux,
+	}
+
+	// localhost.crt and localhost.key files were created using the following CLI commands:
+	// openssl req  -new  -newkey rsa:2048  -nodes  -keyout localhost.key  -out localhost.csr
+	// openssl  x509  -req  -days 365  -in localhost.csr  -signkey localhost.key  -out localhost.crt
 	log.Println("Server Started and listening on port 8080.")
 	println("Listening on port 8080.")
-	http.ListenAndServe(":8080", nil)
+	err := ser.ListenAndServeTLS("localhost.crt", "localhost.key")
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
 func main() {
@@ -52,6 +85,11 @@ func main() {
 	// Log to the file that new forum server has started with timestamp
 	newForumBegunDate := time.Now()
 	log.Printf("New Forum Begun: %s", newForumBegunDate)
+
+	initMessage()
+
+	// Run go routine to prompt quit server function.
+	go quitServer()
 
 	startFileServers()
 	startHandlers()
