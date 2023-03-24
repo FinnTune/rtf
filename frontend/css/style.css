@@ -14,15 +14,38 @@
     padding: 0;
     background-color: #3d0f8c;
     }
-    
+
     /* Header styles */
     .header {
+    display: flex;
+    align-items: stretch;
     background-color: var(--primary-color);
     color: #fff;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
+    }
+
+    h1 {
+    margin-left: 10px;
+    flex-grow: 5;
+    width: 30%;
+    font-size: 24px;
+    }
+
+    .header-btns{
+      margin: 10px;
+      padding: 0px;
+      border: var(--quinary-color);
+      flex-grow: 1;
+      border-style: solid;
+      border-width: 2px;
+      border-radius: 10px;
+      background-color: var(--primary-color);
+      color: #fff;
+      font-size: 16px;
+      cursor: pointer;
+      }
+
+    #logout-button {
+      display: none;
     }
     
     /* Container styles */
@@ -176,6 +199,7 @@
     
     /* Login form */
     .login-form {
+    display: none;
     max-width: 300px;
     margin: 0 auto;
     padding: 20px;
@@ -213,21 +237,21 @@
   cursor: pointer;
   }
   
-  .login-form button#register-button {
-  background-color: var(--quaternary-color);
-  margin-top: 10px;
-  }
+.login-form button#register-button {
+background-color: var(--quaternary-color);
+margin-top: 10px;
+}
   
-    /* Register form */
-    .register-form {
-      max-width: 300px;
-      margin: 0 auto;
-      padding: 20px;
-      margin-top: 50px;
-      border: 1px solid #ccc;
-      border-radius: 10;
-      background-color: var(--tertiary-color);
-    }
+/* Register form */
+.register-form {
+max-width: 300px;
+margin: 0 auto;
+padding: 20px;
+margin-top: 50px;
+border: 1px solid #ccc;
+border-radius: 10;
+background-color: var(--tertiary-color);
+}
     
     .register-form label {
     display: block;
