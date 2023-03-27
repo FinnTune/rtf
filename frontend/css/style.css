@@ -237,7 +237,7 @@
   cursor: pointer;
   }
   
-.login-form button#register-button {
+.login-form button#register-switch-button {
 background-color: var(--quaternary-color);
 margin-top: 10px;
 }

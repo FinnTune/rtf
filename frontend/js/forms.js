@@ -23,20 +23,28 @@ document.addEventListener('DOMContentLoaded', function() {
       xhr.send(new FormData(this));
     });
   
-    // Add event listener to the register button
-    document.getElementById('register-button').addEventListener('click', function() {
-      document.getElementById('login-form').style.display = 'none';
-      document.querySelector('.register-form').style.display = 'block';
-    });
-  
-    // Add event listener to the login switch button
-    document.getElementById('login-switch-button').addEventListener('click', function() {
-      document.getElementById('login-form').style.display = 'block';
-      document.querySelector('.register-form').style.display = 'none';
-    });
-  
-    // Add event listener to the register form
-    document.getElementById('register-form').addEventListener('submit', function(e) {
+
+document.getElementById('register-button').addEventListener('click', function() {
+  document.getElementById('login-form').style.display = 'none';
+  document.getElementById('register-form').style.display = 'block';
+});
+
+document.getElementById('login-button').addEventListener('click', function() {
+  document.getElementById('login-form').style.display = 'block';
+  document.getElementById('register-form').style.display = 'none';
+});
+
+document.getElementById('login-switch-button').addEventListener('click', function() {
+  document.getElementById('login-form').style.display = 'block';
+  document.querySelector('.register-form').style.display = 'none';
+});
+
+document.getElementById('register-switch-button').addEventListener('click', function() {
+  document.getElementById('login-form').style.display = 'none';
+  document.querySelector('.register-form').style.display = 'block';
+});
+
+document.getElementById('register-form').addEventListener('submit', function(e) {
       e.preventDefault(); // prevent the default form submission
   
       // Send the form data to the server using AJAX
@@ -53,10 +61,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       };
       xhr.send(new FormData(this));
-    });
+});
   
-    // Add event listener to the logout form
-    document.getElementById('logout-form').addEventListener('submit', function(e) {
+    
+
+document.getElementById('logout-form').addEventListener('submit', function(e) {
       e.preventDefault(); // prevent the default form submission
   
       // Send the logout request to the server using AJAX
@@ -71,10 +80,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
       };
       xhr.send();
-    });
+});
   
-    // Add event listener to the register-submit-button
-    document.getElementById('register-submit-button').addEventListener('click', function(e) {
+
+
+document.getElementById('register-submit-button').addEventListener('click', function(e) {
       e.preventDefault(); // prevent the default form submission
   
       // Send the form data to the server using AJAX
@@ -93,10 +103,11 @@ document.addEventListener('DOMContentLoaded', function() {
       xhr.send(new FormData(document.querySelector('.register-form')));
     });
   
-  });
-  
-  // Function to check if the user is logged in
-  function checkLoggedIn() {
+});
+
+
+// Function to check if the user is logged in
+function checkLoggedIn() {
 // Send a request
 // to the server to check if the user is logged in
   var xhr = new XMLHttpRequest();

@@ -1,6 +1,0 @@
-2023/03/17 14:20:06 Main begun. Log file checked, opened, and set.
-2023/03/17 14:20:06 New Forum Begun: 2023-03-17 14:20:06.486986907 +0200 EET m=+0.001045586
-2023/03/17 14:20:06 File Servers Started.
-2023/03/17 14:20:06 Handlers Started.
-2023/03/17 14:20:06 Server Started and listening on port 8080.
-2023/03/17 14:20:13 http: TLS handshake error from 127.0.0.1:59014: remote error: tls: bad certificate

@@ -14,52 +14,51 @@
       <button type="submit" class="header-btns" id="login-button">Login</button>
       <button type="submit" class="header-btns" id="logout-button">Logout</button>
     </header>
-                  <!-- Login/Register Form -->
-                  <form class="login-form" id="login-form" method="post">
-                    <label for="username">Login</label>
-                    <input type="text" name="username" id="username" placeholder="Enter your login" required>
-                  
-                    <label for="password">Password</label>
-                    <input type="password" name="password" id="password" placeholder="Enter your password" required>
-                  
-                    <button type="submit" id="login-button">Login</button>
-                    <button type="button" id="register-button">Register</button>
-                  </form>
+      <!-- Login/Register Form -->
+      <form class="login-form" id="login-form" method="post" style="display: none">
+        <label for="username">Login</label>
+        <input type="text" name="username" id="username" placeholder="Enter your login" required>
+      
+        <label for="password">Password</label>
+        <input type="password" name="password" id="password" placeholder="Enter your password" required>
+      
+        <button type="submit" id="login-button">Login</button>
+        <button type="button" id="register-switch-button">Register</button>
+      </form>
 
-                    <!-- Register Form -->
-          <form class="register-form" method="post" style="display: none;">
-            <label for="firstname">First Name: </label>
-            <input type="text" name="firstname" placeholder="First Name" required><br>
-        
-            <label for="lastname">Last Name: </label>
-            <input type="text" name="lastname" placeholder="Last Name" required><br>
-        
-            <label for="username">Username: </label>
-            <input type="text" name="username" placeholder="Username" required><br>
-        
-            <label for="email">Email: </label>
-            <input type="email" name="email" placeholder="Email" required><br>
-        
-            <label for="age">Age: </label>
-            <input type="number" name="age" placeholder="Age" min="0" max="150" required><br>
-        
-            <label for="gender">Gender: </label>
-            <select name="gender">
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-            </select><br>
-        
-            <label for="password">Password: </label>
-            <input type="password" name="password" placeholder="Password" required><br>
-        
-            <label for="confpassword">Confirm Password: </label>
-            <input type="password" name="confpassword" placeholder="Confirm Password" required><br>
-        
-            <button type="submit" id="register-submit-button">Register</button>
-            <br>
-            <button type="submit" id="login-switch-button">Back to Login</button>
-        </form>
+      <!-- Register Form -->
+      <form class="register-form" id="register-form" method="post" style="display: none;">
+        <label for="firstname">First Name: </label>
+        <input type="text" name="firstname" placeholder="First Name" required><br>
+    
+        <label for="lastname">Last Name: </label>
+        <input type="text" name="lastname" placeholder="Last Name" required><br>
+    
+        <label for="username">Username: </label>
+        <input type="text" name="username" placeholder="Username" required><br>
+    
+        <label for="email">Email: </label>
+        <input type="email" name="email" placeholder="Email" required><br>
+    
+        <label for="age">Age: </label>
+        <input type="number" name="age" placeholder="Age" min="0" max="150" required><br>
+    
+        <label for="gender">Gender: </label>
+        <select name="gender">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+        </select><br>
+    
+        <label for="password">Password: </label>
+        <input type="password" name="password" placeholder="Password" required><br>
+    
+        <label for="confpassword">Confirm Password: </label>
+        <input type="password" name="confpassword" placeholder="Confirm Password" required><br>
+    
+        <button type="submit" id="register-submit-button">Register</button>
+        <button type="submit" id="login-switch-button">Back to Login</button>
+      </form>
 
     <div class="container">
       <div class="left-sidebar">

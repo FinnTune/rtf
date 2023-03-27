@@ -1,6 +1,0 @@
-2023/03/23 15:00:13 Main begun. Log file checked, opened, and set.
-2023/03/23 15:00:13 New Forum Begun: 2023-03-23 15:00:13.278276894 +0200 EET m=+0.000696168
-2023/03/23 15:00:13 File Servers Started.
-2023/03/23 15:00:13 Handlers Started.
-2023/03/23 15:00:13 Server Started and listening on port 8080.
-2023/03/23 15:00:13 listen tcp :443: bind: permission denied
