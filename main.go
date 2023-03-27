@@ -63,7 +63,6 @@ func startServer() {
 	// openssl req  -new  -newkey rsa:2048  -nodes  -keyout localhost.key  -out localhost.csr
 	// openssl  x509  -req  -days 365  -in localhost.csr  -signkey localhost.key  -out localhost.crt
 	log.Println("Server Started and listening on port 443.")
-	println("Listening on port 443.")
 	err := ser.ListenAndServeTLS("localhost.crt", "localhost.key")
 	if err != nil {
 		log.Fatalln(err)
