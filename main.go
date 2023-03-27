@@ -37,7 +37,9 @@ func startFileServers() {
 
 	jsFS := http.FileServer(http.Dir("./frontend/js"))
 	http.Handle("/js/", http.StripPrefix("/js/", jsFS))
-	// imgFS := http.FileServer(http.Dir("./server/img"))
+
+	imgFS := http.FileServer(http.Dir("./frontend/img"))
+	http.Handle("/img/", http.StripPrefix("/img/", imgFS))
 }
 
 func startHandlers() {
@@ -60,8 +62,8 @@ func startServer() {
 	// localhost.crt and localhost.key files were created using the following CLI commands:
 	// openssl req  -new  -newkey rsa:2048  -nodes  -keyout localhost.key  -out localhost.csr
 	// openssl  x509  -req  -days 365  -in localhost.csr  -signkey localhost.key  -out localhost.crt
-	log.Println("Server Started and listening on port 8080.")
-	println("Listening on port 8080.")
+	log.Println("Server Started and listening on port 443.")
+	println("Listening on port 443.")
 	err := ser.ListenAndServeTLS("localhost.crt", "localhost.key")
 	if err != nil {
 		log.Fatalln(err)
