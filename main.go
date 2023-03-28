@@ -7,7 +7,7 @@ import (
 	"os"
 	"rtForum/backend"
 	"rtForum/logfiles"
-	"time"
+	"rtForum/websocket"
 )
 
 // InitMessage prints a message when the server starts
@@ -30,7 +30,8 @@ func quitServer() {
 	}
 }
 
-func startFileServers() {
+func startServer() {
+	// Start file servers
 	log.Println("File Servers Started.")
 	cssFS := http.FileServer(http.Dir("./frontend/css"))
 	http.Handle("/css/", http.StripPrefix("/css/", cssFS))
@@ -40,25 +41,22 @@ func startFileServers() {
 
 	imgFS := http.FileServer(http.Dir("./frontend/img"))
 	http.Handle("/img/", http.StripPrefix("/img/", imgFS))
-}
 
-func startHandlers() {
+	// Start handlers
 	log.Println("Handlers Started.")
-	http.HandleFunc("/login", backend.LoginHandler)
-	http.HandleFunc("/register", backend.RegisterHandler)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		println("Handling request.")
+		log.Println("Handling request \"/\" and serving index.html")
 		http.ServeFile(w, r, "./frontend/index.html")
 	})
-}
+	http.HandleFunc("/login", backend.LoginHandler)
+	http.HandleFunc("/register", backend.RegisterHandler)
+	http.HandleFunc("/ws", websocket.StartWebSocket)
 
-func startServer() {
-	// Declare and initialize server struct
+	// Declare and initialize server struct then listen and serve
 	ser := &http.Server{
 		Addr:    ":443",
 		Handler: http.DefaultServeMux,
 	}
-
 	// localhost.crt and localhost.key files were created using the following CLI commands:
 	// openssl req  -new  -newkey rsa:2048  -nodes  -keyout localhost.key  -out localhost.csr
 	// openssl  x509  -req  -days 365  -in localhost.csr  -signkey localhost.key  -out localhost.crt
@@ -67,6 +65,7 @@ func startServer() {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
 }
 
 func main() {
@@ -87,16 +86,12 @@ func main() {
 	log.Println("Main begun. Log file checked, opened, and set.")
 
 	// Log to the file that new forum server has started with timestamp
-	newForumBegunDate := time.Now()
-	log.Printf("New Forum Begun: %s", newForumBegunDate)
+	log.Println("New Forum Begun")
 
 	initMessage()
 
 	// Run go routine to prompt quit server function.
 	go quitServer()
 
-	startFileServers()
-	startHandlers()
 	startServer()
-
 }

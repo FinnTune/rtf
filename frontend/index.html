@@ -1,20 +1,30 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title></title>
+    <title>For-theloveof-Rum</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/style.css">
     <link rel="icon" href="img/favglobe.png" type="image/png">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   </head>
   <body>
+    <!-- Navgation header -->
     <header class="header">
-      <h1 id="title"><a href="index.html">Real-Time-Forum</a></h1>
+      <h1 id="title"><a href="index.html">For-theloveof-Rum</a></h1>
       <button type="submit" class="header-btns" id="register-button">Register</button>
       <button type="submit" class="header-btns" id="login-button">Login</button>
       <button type="submit" class="header-btns" id="logout-button">Logout</button>
     </header>
+
+    <!--Introductory remarks-->
+    <div class="intro" id="intro">
+      <h2>Welcome to For-theloveof-Rum Forum</h2>
+      <p>For-theloveof-Rum has nothing to do with rum. <br>
+        If you love rum, post with said title and find rum lovers who share your liquid fetish. <br><br>
+        Whether your interests go beyond rum or not, please feel free to bombard us with you frivolous conversation. <br><br>
+        If you are not yet a member, you can register for free. <br>
+        If you already have an account, you can login. If neither, look in the mirror; the non-existence of a reflection will indicate your vampiric nature.</p>
+    </div>
 
     <!-- Login/Register Form -->
     <form class="login-form" id="login-form" method="post" style="display: none">
@@ -63,7 +73,7 @@
     </form>
 
     <!-- Main Content -->
-    <div class="main-content">
+    <div class="main-content" id="main-content">
       <div class="main-content-body">
         <div class="main-content-body-left">
           <h3>Latest Posts</h3>
@@ -101,6 +111,8 @@
 
   </body>
 
+<script src="js/main.js"></script>
 <script src="js/forms.js"></script>
+<script src="js/chat.js"></script>
 
 </html>
