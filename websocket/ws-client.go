@@ -26,9 +26,9 @@ func newClient(conn *websocket.Conn, manager *Manager) *Client {
 
 func (c *Client) readMessages() {
 	defer func() {
-		//clean up connection and remove client from manager
-		c.manager.removeClient(c)
+		//clean up - close connection and remove client from manager
 		c.connection.Close()
+		c.manager.removeClient(c)
 	}()
 	for {
 		msgType, msg, err := c.connection.ReadMessage()
