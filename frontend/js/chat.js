@@ -1,14 +1,11 @@
-function sendmessage (message) {
+//Import conn from main.js
+import {conn} from './main.js';
+
+export function sendMessage (message) {
     var newmessage = document.getElementById('new-message');
     if(newmessage != null) {
-        console.log(newmessage)
+        conn.send(newmessage.value);
+        console.log(newmessage);
     }
-
-    var data = {
-        message: message,
-        room: room
-    };
-
-    socket.emit('sendmessage', data);
     return false
 }

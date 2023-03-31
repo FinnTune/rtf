@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -11,33 +12,8 @@ var (
 	websocketUpgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
-		CheckOrigin: func(r *http.Request) bool {
-			return true
-		},
 	}
 )
-
-type Client struct {
-	// id     string
-	connection *websocket.Conn
-	send       chan []byte
-}
-
-type Manager struct {
-	clients    map[*Client]bool
-	broadcast  chan []byte
-	register   chan *Client
-	unregister chan *Client
-}
-
-func newManager() *Manager {
-	return &Manager{
-		broadcast:  make(chan []byte),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		clients:    make(map[*Client]bool),
-	}
-}
 
 func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := websocketUpgrader.Upgrade(w, r, nil)
@@ -46,20 +22,18 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("New client connected.")
+	client := newClient(conn, m)
 
-	client := &Client{connection: conn, send: make(chan []byte)}
-	m.register <- client
-	// go client.read()
-	// go client.write()
-
-	conn.Close()
+	m.addClient(client)
+	fmt.Println("Client:", client.connection.RemoteAddr(), "added to manager.")
+	//Start client routines for reading and writing messages
+	go client.readMessages()
 }
 
 func StartWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	// Start websocket and manager
-	log.Println("Websocket and Manager Started.")
+	log.Println("Websocket started.")
 	manager := newManager()
 
 	manager.ServeWS(w, r)

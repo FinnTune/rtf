@@ -10,7 +10,7 @@ import (
 	"rtForum/websocket"
 )
 
-// InitMessage prints a message when the server starts
+// initMessage prints a message when the server starts
 func initMessage() {
 	fmt.Printf("===============================================\n")
 	fmt.Printf("Starting Realtime Forum\n")
@@ -57,6 +57,7 @@ func startServer() {
 		Addr:    ":443",
 		Handler: http.DefaultServeMux,
 	}
+
 	// localhost.crt and localhost.key files were created using the following CLI commands:
 	// openssl req  -new  -newkey rsa:2048  -nodes  -keyout localhost.key  -out localhost.csr
 	// openssl  x509  -req  -days 365  -in localhost.csr  -signkey localhost.key  -out localhost.crt
@@ -74,24 +75,20 @@ func main() {
 	filename := "forum.log"
 	logfiles.CheckLog(dir, filename)
 
-	// Open the file for appending and defer close
+	// Declare and open the log file for appending, defer close, and set for output
 	logFile, err := os.OpenFile(dir+filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		panic(err)
 	}
 	defer logFile.Close()
-
-	// Set the output for the log package to the file
 	log.SetOutput(logFile)
-	log.Println("Main begun. Log file checked, opened, and set.")
 
 	// Log to the file that new forum server has started with timestamp
+	log.Println("Main begun. Log file checked, opened, and set.")
 	log.Println("New Forum Begun")
 
+	// Initialize server start message, run go routine to prompt quit server function, and start server.
 	initMessage()
-
-	// Run go routine to prompt quit server function.
 	go quitServer()
-
 	startServer()
 }

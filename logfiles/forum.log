@@ -1,5 +1,13 @@
-2023/03/28 15:56:12 Main begun. Log file checked, opened, and set.
-2023/03/28 15:56:12 New Forum Begun
-2023/03/28 15:56:12 File Servers Started.
-2023/03/28 15:56:12 Handlers Started.
-2023/03/28 15:56:12 Server Started and listening on port 443.
+2023/03/31 14:28:02 Main begun. Log file checked, opened, and set.
+2023/03/31 14:28:02 New Forum Begun
+2023/03/31 14:28:02 File Servers Started.
+2023/03/31 14:28:02 Handlers Started.
+2023/03/31 14:28:02 Server Started and listening on port 443.
+2023/03/31 14:28:07 Handling request "/" and serving index.html
+2023/03/31 14:28:07 Websocket started.
+2023/03/31 14:28:07 Manager factory function called.
+2023/03/31 14:28:07 New client connected.
+2023/03/31 14:28:11 Handling request "/" and serving index.html
+2023/03/31 14:28:12 Websocket started.
+2023/03/31 14:28:12 Manager factory function called.
+2023/03/31 14:28:12 New client connected.
