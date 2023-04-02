@@ -1,13 +1,43 @@
-2023/03/31 14:28:02 Main begun. Log file checked, opened, and set.
-2023/03/31 14:28:02 New Forum Begun
-2023/03/31 14:28:02 File Servers Started.
-2023/03/31 14:28:02 Handlers Started.
-2023/03/31 14:28:02 Server Started and listening on port 443.
-2023/03/31 14:28:07 Handling request "/" and serving index.html
-2023/03/31 14:28:07 Websocket started.
-2023/03/31 14:28:07 Manager factory function called.
-2023/03/31 14:28:07 New client connected.
-2023/03/31 14:28:11 Handling request "/" and serving index.html
-2023/03/31 14:28:12 Websocket started.
-2023/03/31 14:28:12 Manager factory function called.
-2023/03/31 14:28:12 New client connected.
+2023/04/01 13:44:19 Main begun. Log file checked, opened, and set.
+2023/04/01 13:44:19 New Forum Begun
+2023/04/01 13:44:19 File Servers Started.
+2023/04/01 13:44:19 Handlers Started.
+2023/04/01 13:44:19 Server Started and listening on port 443.
+2023/04/01 13:44:25 http: TLS handshake error from 127.0.0.1:51738: remote error: tls: bad certificate
+2023/04/01 13:44:29 Handling request "/" and serving index.html
+2023/04/01 13:44:29 Websocket started.
+2023/04/01 13:44:29 Manager factory function called.
+2023/04/01 13:44:29 New client connected.
+2023/04/01 13:44:29 Client: 127.0.0.1:42094 added to manager.
+2023/04/01 14:21:59 Client: 127.0.0.1:42094 removed from manager.
+2023/04/01 14:21:59 Handling request "/" and serving index.html
+2023/04/01 14:21:59 Websocket started.
+2023/04/01 14:21:59 Manager factory function called.
+2023/04/01 14:21:59 New client connected.
+2023/04/01 14:21:59 Client: 127.0.0.1:39628 added to manager.
+2023/04/01 14:22:28 Client: 127.0.0.1:39628 removed from manager.
+2023/04/01 14:22:28 Handling request "/" and serving index.html
+2023/04/01 14:22:28 Websocket started.
+2023/04/01 14:22:28 Manager factory function called.
+2023/04/01 14:22:28 New client connected.
+2023/04/01 14:22:28 Client: 127.0.0.1:47970 added to manager.
+2023/04/01 14:23:08 Client: 127.0.0.1:47970 removed from manager.
+2023/04/01 14:23:08 Handling request "/" and serving index.html
+2023/04/01 14:23:09 Websocket started.
+2023/04/01 14:23:09 Manager factory function called.
+2023/04/01 14:23:09 New client connected.
+2023/04/01 14:23:09 Client: 127.0.0.1:48132 added to manager.
+2023/04/01 14:23:24 Client: 127.0.0.1:48132 removed from manager.
+2023/04/01 14:23:24 Handling request "/" and serving index.html
+2023/04/01 14:23:24 Websocket started.
+2023/04/01 14:23:24 Manager factory function called.
+2023/04/01 14:23:24 New client connected.
+2023/04/01 14:23:24 Client: 127.0.0.1:38588 added to manager.
+2023/04/01 14:23:31 Message sent to client: 127.0.0.1:38588
+2023/04/01 14:27:36 Client: 127.0.0.1:38588 removed from manager.
+2023/04/01 14:27:36 Handling request "/index.html" and serving index.html
+2023/04/01 14:27:36 Handling request "/" and serving index.html
+2023/04/01 14:27:36 Websocket started.
+2023/04/01 14:27:36 Manager factory function called.
+2023/04/01 14:27:36 New client connected.
+2023/04/01 14:27:36 Client: 127.0.0.1:52276 added to manager.

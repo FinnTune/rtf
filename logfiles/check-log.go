@@ -1,6 +1,7 @@
 package logfiles
 
 import (
+	"log"
 	"os"
 	"time"
 )
@@ -11,8 +12,9 @@ func CheckLog(dir string, filename string) {
 		// Create new file
 		file, err := os.Create(dir + filename)
 		if err != nil {
-			panic(err)
+			log.Fatalf("Log file could not be created: %s", err)
 		}
+		log.Printf("Log file created.")
 		defer file.Close()
 	} else {
 		// Rename existing file with timestamp in filename
@@ -20,13 +22,14 @@ func CheckLog(dir string, filename string) {
 		newFilename := "forum_" + timestamp + ".log"
 		err := os.Rename(dir+filename, dir+newFilename)
 		if err != nil {
-			panic(err)
+			log.Fatalf("Log file could not be renamed: %s", err)
 		}
 		// Create new file
 		file, err := os.Create(dir + filename)
 		if err != nil {
-			panic(err)
+			log.Fatalf("Log file could not be created after renaming: %s", err)
 		}
+		log.Printf("Previous log file renamed and new log created.")
 		defer file.Close()
 	}
 }

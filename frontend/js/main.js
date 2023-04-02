@@ -7,7 +7,7 @@ window.onload = function () {
     // document.getElementById('new-message').onsubmit = sendMessage;
 
     document.getElementById('message-submit').addEventListener('click', function(e) {
-        e.preventDefault(); // prevent the default form submission
+        e.preventDefault(); // prevent the default form behaviour, i.e. reloading the page
         sendMessage();
     });
 

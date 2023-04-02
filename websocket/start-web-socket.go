@@ -1,7 +1,6 @@
 package websocket
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 
@@ -25,9 +24,10 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	client := newClient(conn, m)
 
 	m.addClient(client)
-	fmt.Println("Client:", client.connection.RemoteAddr(), "added to manager.")
+
 	//Start client routines for reading and writing messages
 	go client.readMessages()
+	go client.writeMesssage()
 }
 
 func StartWebSocket(w http.ResponseWriter, r *http.Request) {

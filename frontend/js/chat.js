@@ -7,5 +7,6 @@ export function sendMessage (message) {
         conn.send(newmessage.value);
         console.log(newmessage);
     }
+    newmessage.value = "";
     return false
 }

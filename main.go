@@ -43,9 +43,11 @@ func startServer() {
 	http.Handle("/img/", http.StripPrefix("/img/", imgFS))
 
 	// Start handlers
-	log.Println("Handlers Started.")
+	log.Printf("Handlers Started.")
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Handling request \"/\" and serving index.html")
+		//get request URL and store in variable
+		url := r.URL.Path
+		log.Printf("Handling request \"%s\" and serving index.html", url)
 		http.ServeFile(w, r, "./frontend/index.html")
 	})
 	http.HandleFunc("/login", backend.LoginHandler)
@@ -54,7 +56,7 @@ func startServer() {
 
 	// Declare and initialize server struct then listen and serve
 	ser := &http.Server{
-		Addr:    ":443",
+		Addr:    ":443", // Port 443 is used for HTTPS
 		Handler: http.DefaultServeMux,
 	}
 
@@ -64,7 +66,7 @@ func startServer() {
 	log.Println("Server Started and listening on port 443.")
 	err := ser.ListenAndServeTLS("localhost.crt", "localhost.key")
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatalf("ListenAndServeTLS error: %s", err)
 	}
 
 }
@@ -78,7 +80,7 @@ func main() {
 	// Declare and open the log file for appending, defer close, and set for output
 	logFile, err := os.OpenFile(dir+filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		panic(err)
+		log.Fatalf("Log file could not be opened: %s", err)
 	}
 	defer logFile.Close()
 	log.SetOutput(logFile)

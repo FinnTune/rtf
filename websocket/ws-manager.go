@@ -12,7 +12,7 @@ type Manager struct {
 
 // Factory function for manager
 func newManager() *Manager {
-	log.Println("Manager factory function called.")
+	log.Println("Manager created.")
 	return &Manager{
 		clients: make(Clientlist),
 	}
@@ -23,6 +23,7 @@ func (m *Manager) addClient(client *Client) {
 	defer m.Unlock()
 
 	m.clients[client] = true //Add client to manager
+	log.Println("Client:", client.connection.RemoteAddr(), "added to manager.")
 }
 
 func (m *Manager) removeClient(client *Client) {
@@ -32,5 +33,6 @@ func (m *Manager) removeClient(client *Client) {
 	if _, ok := m.clients[client]; ok { //Checko if client exists in manager
 		client.connection.Close()
 		delete(m.clients, client)
+		log.Println("Client:", client.connection.RemoteAddr(), "removed from manager.")
 	}
 }
