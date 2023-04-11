@@ -3,6 +3,7 @@ package websocket
 import (
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -17,6 +18,11 @@ type Client struct {
 	egress chan Event
 }
 
+var (
+	pongWait     = 10 * time.Second
+	pingInterval = (pongWait * 9) / 10
+)
+
 // Factory function for client
 func newClient(conn *websocket.Conn, manager *Manager) *Client {
 	log.Println("New client connected.")
@@ -27,6 +33,11 @@ func newClient(conn *websocket.Conn, manager *Manager) *Client {
 	}
 }
 
+func (c *Client) pongHandler(string) error {
+	log.Println("Pong received, handler called, timer reset.")
+	return c.connection.SetReadDeadline(time.Now().Add(pongWait))
+}
+
 func (c *Client) readMessages() {
 	log.Println("Client IP and client port num.: ", c.connection.RemoteAddr())
 	defer func() {
@@ -34,6 +45,16 @@ func (c *Client) readMessages() {
 		c.connection.Close()
 		c.manager.removeClient(c)
 	}()
+
+	//Set read deadline
+	if err := c.connection.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+		log.Printf("Client SetReadDeadline() error: %s", err)
+		return
+	}
+
+	//Set pong handler
+	c.connection.SetPongHandler(c.pongHandler)
+
 	for {
 		_, msg, err := c.connection.ReadMessage()
 		log.Println("Client begin for loop: ", c.connection.RemoteAddr())
@@ -86,6 +107,9 @@ func (c *Client) writeMesssage() {
 		c.connection.Close()
 		c.manager.removeClient(c)
 	}()
+
+	ticker := time.NewTicker(pingInterval)
+
 	for {
 		select {
 		case msg, ok := <-c.egress:
@@ -107,6 +131,14 @@ func (c *Client) writeMesssage() {
 				log.Printf("Error when writing msg payload to client: %s", err)
 			}
 			log.Println("Message sent to client:", c.connection.RemoteAddr())
+
+		case <-ticker.C:
+			log.Printf("Ping sent to client: %s", c.connection.RemoteAddr())
+			if err := c.connection.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("Error when writing 'ping' message to client: %s", err)
+				return
+			}
+
 		}
 	}
 }

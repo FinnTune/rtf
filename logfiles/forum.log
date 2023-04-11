@@ -1,22 +1,23 @@
-2023/04/10 13:45:45 Main begun. Log file checked, opened, and set.
-2023/04/10 13:45:45 New Forum Begun
-2023/04/10 13:45:45 File Servers Started.
-2023/04/10 13:45:45 Handlers Started.
-2023/04/10 13:45:45 Server Started and listening on port :443.
-2023/04/10 13:45:58 Handling request "/" and serving index.html
-2023/04/10 13:45:59 Websocket started.
-2023/04/10 13:45:59 Manager created.
-2023/04/10 13:45:59 New client connected.
-2023/04/10 13:45:59 Client: 127.0.0.1:56172 added to manager.
-2023/04/10 13:45:59 Client IP and client port num.:  127.0.0.1:56172
-2023/04/10 13:46:10 Client begin for loop:  127.0.0.1:56172
-2023/04/10 13:46:10 Event/message sent: {new-message "hello there"}
-2023/04/10 13:46:23 Client begin for loop:  127.0.0.1:56172
-2023/04/10 13:46:23 Client Made an Error:  websocket: close 1001 (going away)
-2023/04/10 13:46:23 Client: 127.0.0.1:56172 removed from manager.
-2023/04/10 13:46:23 Handling request "/" and serving index.html
-2023/04/10 13:46:24 Websocket started.
-2023/04/10 13:46:24 Manager created.
-2023/04/10 13:46:24 New client connected.
-2023/04/10 13:46:24 Client: 127.0.0.1:40962 added to manager.
-2023/04/10 13:46:24 Client IP and client port num.:  127.0.0.1:40962
+2023/04/11 12:32:57 Main begun. Log file checked, opened, and set.
+2023/04/11 12:32:57 New Forum Begun
+2023/04/11 12:32:57 File Servers Started.
+2023/04/11 12:32:57 Handlers Started.
+2023/04/11 12:32:57 Server Started and listening on port :443.
+2023/04/11 12:33:33 Handling request "/" and serving index.html
+2023/04/11 12:33:34 Websocket started.
+2023/04/11 12:33:34 Manager created.
+2023/04/11 12:33:34 New client connected.
+2023/04/11 12:33:34 Client: 127.0.0.1:59622 added to manager.
+2023/04/11 12:33:34 Client IP and client port num.:  127.0.0.1:59622
+2023/04/11 12:33:43 Ping sent to client: 127.0.0.1:59622
+2023/04/11 12:33:43 Pong received, handler called, timer reset.
+2023/04/11 12:33:52 Ping sent to client: 127.0.0.1:59622
+2023/04/11 12:33:52 Pong received, handler called, timer reset.
+2023/04/11 12:34:01 Ping sent to client: 127.0.0.1:59622
+2023/04/11 12:34:01 Pong received, handler called, timer reset.
+2023/04/11 12:34:10 Ping sent to client: 127.0.0.1:59622
+2023/04/11 12:34:10 Pong received, handler called, timer reset.
+2023/04/11 12:34:11 Client begin for loop:  127.0.0.1:59622
+2023/04/11 12:34:11 Event/message sent: {new-message "khbkhsnh"}
+2023/04/11 12:34:19 Ping sent to client: 127.0.0.1:59622
+2023/04/11 12:34:19 Pong received, handler called, timer reset.
