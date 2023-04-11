@@ -63,12 +63,11 @@ func startServer() {
 	// localhost.crt and localhost.key files were created using the following CLI commands:
 	// openssl req  -new  -newkey rsa:2048  -nodes  -keyout localhost.key  -out localhost.csr
 	// openssl  x509  -req  -days 365  -in localhost.csr  -signkey localhost.key  -out localhost.crt
-	log.Println("Server Started and listening on port 443.")
+	log.Printf("Server Started and listening on port %s.", ser.Addr)
 	err := ser.ListenAndServeTLS("localhost.crt", "localhost.key")
 	if err != nil {
 		log.Fatalf("ListenAndServeTLS error: %s", err)
 	}
-
 }
 
 func main() {

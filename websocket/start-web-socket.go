@@ -14,6 +14,7 @@ var (
 	}
 )
 
+// Serve websocket, upgrade incoming requests, and begin client routines for reading and writing messages
 func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := websocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {

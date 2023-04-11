@@ -22,31 +22,6 @@ document.addEventListener('DOMContentLoaded', function() {
       };
       xhr.send(new FormData(this));
     });
-  
-
-document.getElementById('register-button').addEventListener('click', function() {
-  document.getElementById('login-form').style.display = 'none';
-  document.getElementById('intro').style.display = 'none';
-  document.getElementById('main-content').style.display = 'none';
-  document.getElementById('register-form').style.display = 'block';
-});
-
-document.getElementById('login-button').addEventListener('click', function() {
-  document.getElementById('login-form').style.display = 'block';
-  document.getElementById('intro').style.display = 'none';
-  document.getElementById('main-content').style.display = 'none';
-  document.getElementById('register-form').style.display = 'none';
-});
-
-document.getElementById('login-switch-button').addEventListener('click', function() {
-  document.getElementById('login-form').style.display = 'block';
-  document.querySelector('.register-form').style.display = 'none';
-});
-
-document.getElementById('register-switch-button').addEventListener('click', function() {
-  document.getElementById('login-form').style.display = 'none';
-  document.querySelector('.register-form').style.display = 'block';
-});
 
 document.getElementById('register-form').addEventListener('submit', function(e) {
       e.preventDefault(); // prevent the default form submission
@@ -65,9 +40,7 @@ document.getElementById('register-form').addEventListener('submit', function(e) 
         }
       };
       xhr.send(new FormData(this));
-});
-  
-    
+}); 
 
 document.getElementById('logout-button').addEventListener('submit', function(e) {
       e.preventDefault(); // prevent the default form submission
@@ -85,8 +58,6 @@ document.getElementById('logout-button').addEventListener('submit', function(e) 
       };
       xhr.send();
 });
-  
-
 
 document.getElementById('register-submit-button').addEventListener('click', function(e) {
       e.preventDefault(); // prevent the default form submission
