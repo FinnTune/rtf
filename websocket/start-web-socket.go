@@ -9,10 +9,22 @@ import (
 
 var (
 	websocketUpgrader = websocket.Upgrader{
+		CheckOrigin:     checkOrigin,
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
 )
+
+func checkOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	log.Printf("Checking origin: %s", origin)
+	switch origin {
+	case "https://localhost":
+		return true
+	default:
+		return false
+	}
+}
 
 // Serve websocket, upgrade incoming requests, and begin client routines for reading and writing messages
 func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {

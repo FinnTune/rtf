@@ -54,13 +54,16 @@ func (c *Client) readMessages() {
 		return
 	}
 
+	//Set limit for message size.
+	c.connection.SetReadLimit(512)
+
 	//Set pong handler function for connection
 	c.connection.SetPongHandler(c.pongHandler)
 
 	//Go routine for server to read incoming messages from client.
 	for {
 		_, msg, err := c.connection.ReadMessage()
-		log.Println("Client begin for loop: ", c.connection.RemoteAddr())
+		log.Println("Client read message from: ", c.connection.RemoteAddr())
 		if err != nil {
 			log.Println("Client Made an Error: ", err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
