@@ -32,7 +32,6 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 }
 
 func StartWebSocket(w http.ResponseWriter, r *http.Request) {
-
 	// Start websocket and manager
 	log.Println("Websocket started.")
 	manager := newManager()

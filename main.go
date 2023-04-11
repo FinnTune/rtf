@@ -24,6 +24,7 @@ func quitServer() {
 	fmt.Println("Type 'x' and 'enter' to quit server.")
 	fmt.Scan(&xpressed)
 	if xpressed == "x" {
+		log.Println("Server stopped.")
 		os.Exit(0)
 	} else {
 		quitServer()
@@ -76,13 +77,14 @@ func main() {
 	filename := "forum.log"
 	logfiles.CheckLog(dir, filename)
 
-	// Declare and open the log file for appending, defer close, and set for output
+	// Declare and open the log file for appending, defer close, and set for output, set flags for log file lines.
 	logFile, err := os.OpenFile(dir+filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatalf("Log file could not be opened: %s", err)
 	}
 	defer logFile.Close()
 	log.SetOutput(logFile)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
 
 	// Log to the file that new forum server has started with timestamp
 	log.Println("Main begun. Log file checked, opened, and set.")

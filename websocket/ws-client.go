@@ -18,6 +18,7 @@ type Client struct {
 	egress chan Event
 }
 
+// Initializing variables for ping/pong heartbeat.
 var (
 	pongWait     = 10 * time.Second
 	pingInterval = (pongWait * 9) / 10
@@ -33,6 +34,7 @@ func newClient(conn *websocket.Conn, manager *Manager) *Client {
 	}
 }
 
+// Function to reset timer after pong is received.
 func (c *Client) pongHandler(string) error {
 	log.Println("Pong received, handler called, timer reset.")
 	return c.connection.SetReadDeadline(time.Now().Add(pongWait))
@@ -41,20 +43,21 @@ func (c *Client) pongHandler(string) error {
 func (c *Client) readMessages() {
 	log.Println("Client IP and client port num.: ", c.connection.RemoteAddr())
 	defer func() {
-		//clean up - close connection and remove client from manager
+		//connection clean up - close connection and remove client from manager
 		c.connection.Close()
 		c.manager.removeClient(c)
 	}()
 
-	//Set read deadline
+	//Set read deadline for pong wait.
 	if err := c.connection.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
 		log.Printf("Client SetReadDeadline() error: %s", err)
 		return
 	}
 
-	//Set pong handler
+	//Set pong handler function for connection
 	c.connection.SetPongHandler(c.pongHandler)
 
+	//Go routine for server to read incoming messages from client.
 	for {
 		_, msg, err := c.connection.ReadMessage()
 		log.Println("Client begin for loop: ", c.connection.RemoteAddr())
@@ -108,8 +111,10 @@ func (c *Client) writeMesssage() {
 		c.manager.removeClient(c)
 	}()
 
+	//Declare new ticker channel with pingInterval
 	ticker := time.NewTicker(pingInterval)
 
+	//Go routine for server select case action for incoming channels (msg, ticker...???)
 	for {
 		select {
 		case msg, ok := <-c.egress:

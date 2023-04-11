@@ -1,23 +1,6 @@
-2023/04/11 12:32:57 Main begun. Log file checked, opened, and set.
-2023/04/11 12:32:57 New Forum Begun
-2023/04/11 12:32:57 File Servers Started.
-2023/04/11 12:32:57 Handlers Started.
-2023/04/11 12:32:57 Server Started and listening on port :443.
-2023/04/11 12:33:33 Handling request "/" and serving index.html
-2023/04/11 12:33:34 Websocket started.
-2023/04/11 12:33:34 Manager created.
-2023/04/11 12:33:34 New client connected.
-2023/04/11 12:33:34 Client: 127.0.0.1:59622 added to manager.
-2023/04/11 12:33:34 Client IP and client port num.:  127.0.0.1:59622
-2023/04/11 12:33:43 Ping sent to client: 127.0.0.1:59622
-2023/04/11 12:33:43 Pong received, handler called, timer reset.
-2023/04/11 12:33:52 Ping sent to client: 127.0.0.1:59622
-2023/04/11 12:33:52 Pong received, handler called, timer reset.
-2023/04/11 12:34:01 Ping sent to client: 127.0.0.1:59622
-2023/04/11 12:34:01 Pong received, handler called, timer reset.
-2023/04/11 12:34:10 Ping sent to client: 127.0.0.1:59622
-2023/04/11 12:34:10 Pong received, handler called, timer reset.
-2023/04/11 12:34:11 Client begin for loop:  127.0.0.1:59622
-2023/04/11 12:34:11 Event/message sent: {new-message "khbkhsnh"}
-2023/04/11 12:34:19 Ping sent to client: 127.0.0.1:59622
-2023/04/11 12:34:19 Pong received, handler called, timer reset.
+2023/04/11 13:54:19 main.go:90: Main begun. Log file checked, opened, and set.
+2023/04/11 13:54:19 main.go:91: New Forum Begun
+2023/04/11 13:54:19 main.go:36: File Servers Started.
+2023/04/11 13:54:19 main.go:47: Handlers Started.
+2023/04/11 13:54:19 main.go:67: Server Started and listening on port :443.
+2023/04/11 13:54:23 main.go:27: Server stopped.
