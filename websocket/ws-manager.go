@@ -1,24 +1,28 @@
 package websocket
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"sync"
+	"time"
 )
 
 type Manager struct {
-	clients Clientlist
+	clients ClientsMapList
 	sync.RWMutex
 	eventHandlers map[string]EventHandler
+	otps          otpsMap
 }
 
 // Factory function for manager
-func newManager() *Manager {
+func newManager(ctx context.Context) *Manager {
 	log.Println("Manager created.")
 	m := &Manager{
-		clients:       make(Clientlist),
+		clients:       make(ClientsMapList),
 		eventHandlers: make(map[string]EventHandler),
+		otps:          newOtpsMap(ctx, 5*time.Second),
 	}
 
 	//Register event handlers
@@ -27,14 +31,15 @@ func newManager() *Manager {
 	return m
 }
 
-func (m *Manager) RegisterEventHandlers() {
-	m.eventHandlers[EventSendMessage] = sendMessage
-}
-
+// Send message handler function
 func sendMessage(event Event, c *Client) error {
 	fmt.Println("Message sent: ", event.Payload)
 	log.Printf("Event/message sent: %s", event)
 	return nil
+}
+
+func (m *Manager) RegisterEventHandlers() {
+	m.eventHandlers[EventSendMessage] = sendMessage
 }
 
 func (m *Manager) routeEvent(event Event, c *Client) error {

@@ -1,0 +1,13 @@
+2023/04/13 16:27:06 main.go:89: Main begun. Log file checked, opened, and set.
+2023/04/13 16:27:06 main.go:90: New Forum Begun
+2023/04/13 16:27:06 main.go:35: File Servers Started.
+2023/04/13 16:27:06 main.go:46: Handlers Started.
+2023/04/13 16:27:06 main.go:66: Server Started and listening on port :443.
+2023/04/13 16:27:09 main.go:50: Handling request "/" and serving index.html
+2023/04/13 16:27:15 start-web-socket.go:105: Websocket started.
+2023/04/13 16:27:15 ws-manager.go:21: Manager created.
+2023/04/13 16:27:15 start-web-socket.go:76: OTP is empty.
+2023/04/13 16:27:15 start-web-socket.go:105: Websocket started.
+2023/04/13 16:27:15 ws-manager.go:21: Manager created.
+2023/04/13 16:27:15 start-web-socket.go:82: OTP is invalid.
+2023/04/13 17:05:50 main.go:26: Server stopped.

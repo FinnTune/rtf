@@ -8,10 +8,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type Clientlist map[*Client]bool
+type ClientsMapList map[*Client]bool
 
 type Client struct {
-	// id     string
 	connection *websocket.Conn
 	manager    *Manager
 	//egress is used to avoid concurrent writes to websocket connection
@@ -82,8 +81,8 @@ func (c *Client) readMessages() {
 		}
 
 		//Hack to make sure egress is working
-		// for wsclients := range c.manager.clients {
-		// 	wsclients.egress <- msg
+		// for wsMClientsMapList := range c.manager.MClientsMapList {
+		// 	wsMClientsMapList.egress <- msg
 		// }
 
 		// fmt.Println("Client: ", c.connection.RemoteAddr())

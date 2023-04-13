@@ -1,7 +1,7 @@
 //Messaging events and functions
 
 //Import websocket conn from main.js
-import {conn} from './main.js';
+import {conn} from './websocket.js';
 
 class Event {
     constructor(type, payload) {
