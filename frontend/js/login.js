@@ -23,8 +23,8 @@ export function login() {
         mode: 'cors',
         headers: {
             'Content-Type': 'application/json'
-        }
-    }).then((response) => {
+        }}
+    ).then((response) => {
         if(response.ok){
             return response.json();
         } else {

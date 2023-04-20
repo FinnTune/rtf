@@ -28,7 +28,13 @@ func checkOrigin(r *http.Request) bool {
 	}
 }
 
-func (m *Manager) loginHandler(w http.ResponseWriter, r *http.Request) {
+var (
+	ctx     = context.Background()
+	manager = newManager(ctx)
+)
+
+func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
+	log.Println("Login handler reached.")
 	type userLoginRequest struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -41,6 +47,7 @@ func (m *Manager) loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	//Check if user is valid by hardcoding username and password
 	if req.Username == "admin" && req.Password == "123" {
+		log.Println("Authentication condition reached.")
 		type userLoginResponse struct {
 			OTP string `json:"otp"`
 		}
@@ -64,6 +71,10 @@ func (m *Manager) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusUnauthorized)
+}
+
+func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	manager.serveLogin(w, r)
 }
 
 // Serve websocket, upgrade incoming requests, and begin client routines for reading and writing messages
@@ -100,15 +111,11 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	go client.writeMesssage()
 }
 
-func StartWebSocket(w http.ResponseWriter, r *http.Request) {
-	// Start websocket and manager
-	log.Println("Websocket started.")
-
-	ctx := context.Background()
-
-	manager := newManager(ctx)
-
-	manager.loginHandler(w, r)
-
+// Catch manager and send to ServeWS
+func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	manager.ServeWS(w, r)
 }
+
+// func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+
+// }

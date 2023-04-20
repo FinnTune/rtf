@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -33,13 +34,34 @@ func newManager(ctx context.Context) *Manager {
 
 // Send message handler function
 func sendMessage(event Event, c *Client) error {
-	fmt.Println("Message sent: ", event.Payload)
 	log.Printf("Event/message sent: %s", event)
+	var chatEvent ReceiveMessageEvent
+	if err := json.Unmarshal(event.Payload, &chatEvent); err != nil {
+		return fmt.Errorf("event unmarshalling error: %s", err)
+	}
+	var broadCastMessage SendMessageEvent
+	broadCastMessage.Sent = time.Now()
+	broadCastMessage.Message = chatEvent.Message
+	broadCastMessage.From = chatEvent.From
+
+	data, err := json.Marshal(broadCastMessage)
+	if err != nil {
+		return fmt.Errorf("failed to marshal broadcast message error: %s", err)
+	}
+	outgoingEvent := Event{
+		Payload: data,
+		Type:    EventSendMessage,
+	}
+
+	for c := range c.manager.clients {
+		c.egress <- outgoingEvent
+	}
+
 	return nil
 }
 
 func (m *Manager) RegisterEventHandlers() {
-	m.eventHandlers[EventSendMessage] = sendMessage
+	m.eventHandlers[EventReceiveMessage] = sendMessage
 }
 
 func (m *Manager) routeEvent(event Event, c *Client) error {

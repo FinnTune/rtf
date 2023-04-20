@@ -1,0 +1,6 @@
+# Ignore private key certificate (*.crt), private key (*.key) files, and certificate signing requests (*.csr) files.
+# Ignore any file that ends with .pem???, .crt, .key, or .csr.
+*.pem
+*.crt
+*.key
+*.csr

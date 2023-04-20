@@ -1,6 +1,9 @@
 package websocket
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 type Event struct {
 	Type    string          `json:"type"`
@@ -11,10 +14,16 @@ type EventHandler func(event Event, c *Client) error
 
 const (
 	// Event types
-	EventSendMessage = "new-message"
+	EventReceiveMessage = "new-message"
+	EventSendMessage    = "sent-message"
 )
 
-// type SendMessageEvent struct {
-// 	Message string `json:"message"`
-// 	From    string `json:"from"`
-// }
+type ReceiveMessageEvent struct {
+	Message string `json:"message"`
+	From    string `json:"from"`
+}
+
+type SendMessageEvent struct {
+	ReceiveMessageEvent
+	Sent time.Time `json:"sent"`
+}

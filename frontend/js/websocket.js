@@ -1,4 +1,6 @@
 export let conn
+import {routeEvent} from './chat.js'
+import { Event } from './chat.js';
 
 export function connectWebSocket(otp) {
     if(window["WebSocket"]) {

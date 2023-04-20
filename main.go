@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"rtForum/backend"
 	"rtForum/logfiles"
 	"rtForum/websocket"
 )
@@ -20,6 +19,7 @@ func initMessage() {
 
 // quitServer prompts user to type 'x' and 'enter' to quit server.
 func quitServer() {
+quitPrompt:
 	xpressed := ""
 	fmt.Println("Type 'x' and 'enter' to quit server.")
 	fmt.Scan(&xpressed)
@@ -27,7 +27,7 @@ func quitServer() {
 		log.Println("Server stopped.")
 		os.Exit(0)
 	} else {
-		quitServer()
+		goto quitPrompt // Go back to quitPrompt if anything but 'x' and 'enter' is pressed.
 	}
 }
 
@@ -45,15 +45,16 @@ func startServer() {
 
 	// Start handlers
 	log.Printf("Handlers Started.")
+	//Serve index.html for all root requests to comply with Single Page Application (SPA) design
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		//get request URL and store in variable
+		//get request URL and store in variable to be used in log message
 		url := r.URL.Path
 		log.Printf("Handling request \"%s\" and serving index.html", url)
 		http.ServeFile(w, r, "./frontend/index.html")
 	})
-	http.HandleFunc("/login", backend.LoginHandler)
-	http.HandleFunc("/register", backend.RegisterHandler)
-	http.HandleFunc("/ws", websocket.StartWebSocket)
+	// http.HandleFunc("/register", backend.RegisterHandler)
+	http.HandleFunc("/login", websocket.LoginHandler)
+	http.HandleFunc("/ws", websocket.WebsocketHandler)
 
 	// Declare and initialize server struct then listen and serve
 	ser := &http.Server{
