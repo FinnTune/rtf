@@ -2,9 +2,12 @@ package websocket
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
+	"rtForum/database"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -31,6 +34,7 @@ func checkOrigin(r *http.Request) bool {
 var (
 	ctx     = context.Background()
 	manager = newManager(ctx)
+	ForumDB *sql.DB
 )
 
 func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +50,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//Check if user is valid by hardcoding username and password
+	//Harcoded username and password???
 	if req.Username == "admin" && req.Password == "123" {
 		log.Println("Authentication condition reached.")
 		type userLoginResponse struct {
@@ -116,6 +121,67 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	manager.ServeWS(w, r)
 }
 
-// func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+func registerUser(w http.ResponseWriter, r *http.Request) {
+	log.Printf("Registering user: %s", r.Body)
+	// CREATE TABLE user (
+	// 	id INTEGER NOT NULL PRIMARY KEY,
+	// 	username VARCHAR(30) NOT NULL,
+	// 	passwrd VARCHAR(100) NOT NULL,
+	// 	email VARCHAR(30) NOT NULL,
+	// 	fname VARCHAR(30) NOT NULL,
+	// 	lname VARCHAR(30) NOT NULL,
+	// 	age INTEGER NOT NULL,
+	// 	gender VARCHAR(10) NOT NULL,
+	// 	created_at DATETIME NOT NULL
+	//    );
+	// type RegUser struct {
+	// 	fname  string `json:"fname"`
+	// 	lname  string `json:"lname"`
+	// 	uname  string `json:"uname"`
+	// 	email  string `json:"email"`
+	// 	age    int    `json:"age"`
+	// 	gender string `json:"gender"`
+	// 	pass   string `json:"pass"`
+	// }
 
-// }
+	var user = RegUser{}
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		log.Printf("Error decoding request body: %s", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	timeReg := time.Now().Format("2006-01-02 15:04:05")
+	result, err := database.ForumDB.Exec(`
+			INSERT INTO user (	fname,  
+								lname,
+								uname, 
+								email, 
+								age,
+								gender,
+								pass,
+								created_at
+							)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, user.Fname,
+		user.Lname,
+		user.Uname,
+		user.Email,
+		user.Age,
+		user.Gender,
+		user.Pass,
+		timeReg,
+	)
+	if err != nil {
+		log.Printf("Error executing user query: %s", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	log.Printf("DbResult: %s", result)
+	w.WriteHeader(http.StatusOK)
+	//Send message to w that registration was successful
+	w.Write([]byte("Registration successful."))
+}
+
+func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
+	registerUser(w, r)
+}

@@ -1,13 +1,12 @@
 CREATE TABLE user (
  id INTEGER NOT NULL PRIMARY KEY,
- privilege INTEGER NOT NULL,
- username VARCHAR(30) NOT NULL,
- passwrd VARCHAR(100) NOT NULL,
- email VARCHAR(30) NOT NULL,
  fname VARCHAR(30) NOT NULL,
  lname VARCHAR(30) NOT NULL,
+ uname VARCHAR(30) NOT NULL,
+ email VARCHAR(30) NOT NULL,
  age INTEGER NOT NULL,
  gender VARCHAR(10) NOT NULL,
+ pass VARCHAR(30) NOT NULL,
  created_at DATETIME NOT NULL
 );
 
@@ -86,48 +85,48 @@ CREATE TABLE message (
 );
 
 
-INSERT INTO user (id, privilege, username, passwrd, email, fname, lname, age, gender, created_at)
-VALUES
-    (1, 1, 'admin', 'admin', 'admin@admin.com', 'fname', 'lname', 99, 'male', DateTime('now', 'localtime')),
-    (2, 1, 'user', 'user', 'user@user.com', 'fname', 'lname', 11, 'female', DateTime('now', 'localtime')),
-    (3, 1, 'user2', 'user2', 'user2@user2.com', 'fname2', 'lname2', 12, 'female', DateTime('now', 'localtime')),
-    (4, 1, 'user3', 'user3', 'user3@user3.com', 'fname3', 'lname3', 13, 'female', DateTime('now', 'localtime'));
+-- INSERT INTO user (id, username, passwrd, email, fname, lname, age, gender, created_at)
+-- VALUES
+--     (1, 'admin', 'admin', 'admin@admin.com', 'fname', 'lname', 99, 'male', DateTime('now', 'localtime')),
+--     (2, 'user', 'user', 'user@user.com', 'fname', 'lname', 11, 'female', DateTime('now', 'localtime')),
+--     (3, 'user2', 'user2', 'user2@user2.com', 'fname2', 'lname2', 12, 'female', DateTime('now', 'localtime')),
+--     (4, 'user3', 'user3', 'user3@user3.com', 'fname3', 'lname3', 13, 'female', DateTime('now', 'localtime'));
 
-INSERT INTO category (id,category_name,descript,created_at)
-VALUES
-    (1,'Cuisines','Recommendation regarding food in Mariehamn',DateTime('now','localtime')),
-    (2,'Places','Places worth a visit in Mariehamn',DateTime('now','localtime')),
-    (3,'Activities','Interesting events happening in Mariehamn',DateTime('now','localtime'));
+-- INSERT INTO category (id,category_name,descript,created_at)
+-- VALUES
+--     (1,'Cuisines','Recommendation regarding food in Mariehamn',DateTime('now','localtime')),
+--     (2,'Places','Places worth a visit in Mariehamn',DateTime('now','localtime')),
+--     (3,'Activities','Interesting events happening in Mariehamn',DateTime('now','localtime'));
 
-INSERT INTO post (id,user_id,title,content,created_at,updated_at,liked_no,disliked_no,img_url,approved,dummy)
-VALUES
-    (1,1,'Welcome to the Cuisines category!','Be the first to post in this category!',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',0,1),
-    (2,2,'Welcome to the Places category!','Be the first to post in this category!',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',0,1),
-    (3,3,'Welcome to the Activities category!','Be the first to post in this category!',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',0,1),
-    (4,2,'Asian Food','Thai Khun Mom serves very typical Asian food in Mariehamn',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',1,0),
-    (5,3,'Swedish Class','Swedish class occurs every Tuesday and Thursday from 4pm',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',1,0),
-    (6,4,'Best Sushi','Fina Fisken is the best sushi in Mariehamn',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',1,0),
-    (7,5,'Poker Night','Poker Game Night occurs every Friday from 8pm',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',1,0),
-    (8,1,'Real Embassy','Brazilian Real Embassy is now in Mariehamn',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',1,0);
+-- INSERT INTO post (id,user_id,title,content,created_at,updated_at,liked_no,disliked_no,img_url,approved,dummy)
+-- VALUES
+--     (1,1,'Welcome to the Cuisines category!','Be the first to post in this category!',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',0,1),
+--     (2,2,'Welcome to the Places category!','Be the first to post in this category!',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',0,1),
+--     (3,3,'Welcome to the Activities category!','Be the first to post in this category!',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',0,1),
+--     (4,2,'Asian Food','Thai Khun Mom serves very typical Asian food in Mariehamn',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',1,0),
+--     (5,3,'Swedish Class','Swedish class occurs every Tuesday and Thursday from 4pm',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',1,0),
+--     (6,4,'Best Sushi','Fina Fisken is the best sushi in Mariehamn',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',1,0),
+--     (7,5,'Poker Night','Poker Game Night occurs every Friday from 8pm',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',1,0),
+--     (8,1,'Real Embassy','Brazilian Real Embassy is now in Mariehamn',DateTime('now','localtime'),DateTime('now','localtime'),0,0,'',1,0);
 
-INSERT INTO category_relation (id,category_id,post_id)
-VALUES
-    (1,1,1),
-    (2,2,2),
-    (3,3,3),
-    (4,1,4),
-    (5,1,6),
-    (6,2,4),
-    (7,2,6),
-    (8,2,8),
-    (9,3,5),
-    (10,3,7);
+-- INSERT INTO category_relation (id,category_id,post_id)
+-- VALUES
+--     (1,1,1),
+--     (2,2,2),
+--     (3,3,3),
+--     (4,1,4),
+--     (5,1,6),
+--     (6,2,4),
+--     (7,2,6),
+--     (8,2,8),
+--     (9,3,5),
+--     (10,3,7);
 
-INSERT INTO message (id,from_user,to_user,is_read,message,created_at)
-VALUES
-    (1,1,2,1,'Hello user!',DateTime('now','localtime')),
-    (2,2,1,1,'Hello admin!',DateTime('now','localtime')),
-    (3,1,3,1,'Hello user2!',DateTime('now','localtime')),
-    (4,3,1,1,'Hello admin!',DateTime('now','localtime')),
-    (5,1,4,1,'Hello user3!',DateTime('now','localtime')),
-    (6,4,1,1,'Hello admin!',DateTime('now','localtime'));
+-- INSERT INTO message (id,from_user,to_user,is_read,message,created_at)
+-- VALUES
+--     (1,1,2,1,'Hello user!',DateTime('now','localtime')),
+--     (2,2,1,1,'Hello admin!',DateTime('now','localtime')),
+--     (3,1,3,1,'Hello user2!',DateTime('now','localtime')),
+--     (4,3,1,1,'Hello admin!',DateTime('now','localtime')),
+--     (5,1,4,1,'Hello user3!',DateTime('now','localtime')),
+--     (6,4,1,1,'Hello admin!',DateTime('now','localtime'));

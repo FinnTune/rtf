@@ -26,6 +26,8 @@ export function login() {
         }}
     ).then((response) => {
         if(response.ok){
+            document.getElementById('intro').innerHTML = 'You are now logged in.';
+            document.getElementById('intro').style.display = 'block';
             return response.json();
         } else {
             // throw new Error('Unauthorized');

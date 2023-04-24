@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"rtForum/database"
 	"rtForum/logfiles"
 	"rtForum/websocket"
 )
@@ -31,7 +32,35 @@ quitPrompt:
 	}
 }
 
+//Databse version control???
+/* Gets the database internal version number
+* @returns int
+ */
+// func getDBVersion() int {
+// 	row := ForumDB.QueryRow("PRAGMA user_version;")
+// 	if row == nil {
+// 		fmt.Println("Error: Could not get version from database")
+// 	}
+// 	v := -1
+// 	row.Scan(&v)
+// 	return v
+// }
+
+/* Gets the database internal version number
+* @param v - The version number
+ */
+// func updateVersion(v int) {
+// 	_, err := ForumDB.Exec("PRAGMA user_version = " + strconv.Itoa(v) + ";")
+// 	if err != nil {
+// 		fmt.Println("Version error:", err.Error())
+// 	}
+// }
+
 func startServer() {
+	//Open database
+	database.ForumDB = database.OpenDB()
+	defer database.ForumDB.Close()
+
 	// Start file servers
 	log.Println("File Servers Started.")
 	cssFS := http.FileServer(http.Dir("./frontend/css"))
@@ -52,7 +81,7 @@ func startServer() {
 		log.Printf("Handling request \"%s\" and serving index.html", url)
 		http.ServeFile(w, r, "./frontend/index.html")
 	})
-	// http.HandleFunc("/register", backend.RegisterHandler)
+	http.HandleFunc("/register", websocket.RegistrationHandler)
 	http.HandleFunc("/login", websocket.LoginHandler)
 	http.HandleFunc("/ws", websocket.WebsocketHandler)
 
