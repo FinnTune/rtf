@@ -7,7 +7,7 @@ type RegUser struct {
 	Email  string `json:"email"`
 	Age    string `json:"age"`
 	Gender string `json:"gender"`
-	Pass   string `json:"pass"`
+	Pass   string `json:"password"`
 }
 
 type AllPosts struct {

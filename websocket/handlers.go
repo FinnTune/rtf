@@ -2,7 +2,6 @@ package websocket
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -34,7 +33,6 @@ func checkOrigin(r *http.Request) bool {
 var (
 	ctx     = context.Background()
 	manager = newManager(ctx)
-	ForumDB *sql.DB
 )
 
 func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
@@ -150,19 +148,12 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	log.Printf("User: %s", user)
+	log.Printf("User: %T", user.Age)
+
 	timeReg := time.Now().Format("2006-01-02 15:04:05")
-	result, err := database.ForumDB.Exec(`
-			INSERT INTO user (	fname,  
-								lname,
-								uname, 
-								email, 
-								age,
-								gender,
-								pass,
-								created_at
-							)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-		`, user.Fname,
+	query := `INSERT INTO user (fname,lname,uname,email,age,gender,pass,created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`
+	result, err := database.ForumDB.Exec(query, user.Fname,
 		user.Lname,
 		user.Uname,
 		user.Email,

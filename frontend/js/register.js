@@ -1,6 +1,6 @@
 import { connectWebSocket } from './websocket.js';
 
-export function register() {
+export async function register() {
      //Check if password and confirm password are the same
      let password = document.getElementById('regpassword').value;
      console.log(password);
@@ -24,7 +24,7 @@ export function register() {
     // console.log(loginFormData);
     console.log(formData);
 
-    fetch('register', {
+    await fetch('register', {
         method: 'POST',
         body: JSON.stringify(formData),
         mode: 'cors',

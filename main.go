@@ -59,8 +59,10 @@ quitPrompt:
 func startServer() {
 	//Open database
 	database.ForumDB = database.OpenDB()
-	defer database.ForumDB.Close()
-
+	defer func() {
+		database.ForumDB.Close()
+		log.Println("Database closed.")
+	}()
 	// Start file servers
 	log.Println("File Servers Started.")
 	cssFS := http.FileServer(http.Dir("./frontend/css"))

@@ -11,7 +11,7 @@ import (
 var ForumDB *sql.DB
 
 func OpenDB() *sql.DB {
-	dataBase, err := sql.Open("sqlite3", "forum.db")
+	dataBase, err := sql.Open("sqlite3", "./database/forum.db")
 	if err != nil {
 		log.Fatalf("Error opening database: %s", err)
 	}
