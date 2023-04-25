@@ -28,6 +28,8 @@ export function login() {
         if(response.ok){
             document.getElementById('intro').innerHTML = 'You are now logged in.';
             document.getElementById('intro').style.display = 'block';
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('main-content').style.display = 'block'; 
             return response.json();
         } else {
             // throw new Error('Unauthorized');

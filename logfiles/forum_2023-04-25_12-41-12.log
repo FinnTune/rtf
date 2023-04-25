@@ -1,0 +1,12 @@
+2023/04/24 18:05:32 main.go:122: Main begun. Log file checked, opened, and set.
+2023/04/24 18:05:32 main.go:123: New Forum Begun
+2023/04/24 18:05:32 sqlFuncs.go:18: Database opened successfully.
+2023/04/24 18:05:32 main.go:67: File Servers Started.
+2023/04/24 18:05:32 main.go:78: Handlers Started.
+2023/04/24 18:05:32 main.go:99: Server Started and listening on port :443.
+2023/04/24 18:05:37 main.go:83: Handling request "/" and serving index.html
+2023/04/24 18:05:57 handlers.go:123: Registering user: &{[] %!s(*http.http2stream=&{0xc0000831e0 33 0xc00011c480 0xc000142240 0xc00011e370 0x4f8560 109 109 {[] 12582912 0xc000083260} {[] 1048467 0xc000083270} 3 false false false <nil> <nil> <nil> map[] map[]}) %!s(*http.http2serverConn=&{0xc0000ac190 0xc0000f8000 0xc00011a000 0xc0000a4318 {0xc00009b380 0xc00011a000 {0xc0000f8000}} 0xc00009b710 0xc0000f4620 0xc00008e3c0 0xc00008e300 0xc0001ba5a0 0xc0001ba660 0xc00008e360 0xc0001ba600 {[] 12497283 <nil>} {[] 1048467 <nil>} 0xc0000d8370 127.0.0.1:35450 0xc0000f4540 0 true false true false 0 0 4294967295 250 1 0 33 0 map[33:0xc0001502c0] 131072 16384 0 map[dnt:Dnt pragma:Pragma sec-fetch-dest:Sec-Fetch-Dest sec-fetch-mode:Sec-Fetch-Mode sec-fetch-site:Sec-Fetch-Site sec-fetch-user:Sec-Fetch-User te:Te upgrade-insecure-requests:Upgrade-Insecure-Requests] 984 false false false false false false 0 <nil> <nil> {[136 211 95 145 53 35 152 172 119 170 69 233 49 44 58 15 42 87 49 15 87 108 150 220 52 253 40 0 169 13 118 40 32 9 149 2 27 130 13 193 60 166 45 27 255 92 132 113 241 52 15 193] 0 0} 0xc0000f6480 {0 {0 0}}}) {%!s(uint32=0) {%!s(int32=0) %!s(uint32=0)}} %!s(bool=false) %!s(*http.http2pipe=&{{0 0} {{} 0xc00011c480 {0 0 0 <nil> <nil>} 824634885304} 0xc00012c280 0 0xb12750 <nil> <nil> 0x6c0e20}) %!s(bool=false)}
+2023/04/24 18:05:57 handlers.go:151: User: {John Doe JD JD@gmail.com 6 male 123}
+2023/04/24 18:05:57 handlers.go:152: User: string
+2023/04/24 18:05:57 handlers.go:170: DbResult: {%!s(*sql.driverConn=&{0xc0000a0f70 {13909865069425603494 24225459368 0xb56b40} {0 0} 0xc0000267e0 true false false map[] false {13909865069430491852 24230347168 0xb56b40} [] false}) %!s(*sqlite3.SQLiteResult=&{1 1})}
+2023/04/24 18:06:43 main.go:28: Server stopped.

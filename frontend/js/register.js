@@ -35,6 +35,8 @@ export async function register() {
         if(response.ok){
             document.getElementById('intro').innerHTML = 'You are now registered. Please login.';
             document.getElementById('intro').style.display = 'block';
+            document.getElementById('registration-form').style.display = 'none';
+        document.getElementById('main-content').style.display = 'block';
             return;
         } else {
             // throw new Error('Unauthorized');

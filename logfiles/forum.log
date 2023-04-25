@@ -1,12 +1,129 @@
-2023/04/24 18:05:32 main.go:122: Main begun. Log file checked, opened, and set.
-2023/04/24 18:05:32 main.go:123: New Forum Begun
-2023/04/24 18:05:32 sqlFuncs.go:18: Database opened successfully.
-2023/04/24 18:05:32 main.go:67: File Servers Started.
-2023/04/24 18:05:32 main.go:78: Handlers Started.
-2023/04/24 18:05:32 main.go:99: Server Started and listening on port :443.
-2023/04/24 18:05:37 main.go:83: Handling request "/" and serving index.html
-2023/04/24 18:05:57 handlers.go:123: Registering user: &{[] %!s(*http.http2stream=&{0xc0000831e0 33 0xc00011c480 0xc000142240 0xc00011e370 0x4f8560 109 109 {[] 12582912 0xc000083260} {[] 1048467 0xc000083270} 3 false false false <nil> <nil> <nil> map[] map[]}) %!s(*http.http2serverConn=&{0xc0000ac190 0xc0000f8000 0xc00011a000 0xc0000a4318 {0xc00009b380 0xc00011a000 {0xc0000f8000}} 0xc00009b710 0xc0000f4620 0xc00008e3c0 0xc00008e300 0xc0001ba5a0 0xc0001ba660 0xc00008e360 0xc0001ba600 {[] 12497283 <nil>} {[] 1048467 <nil>} 0xc0000d8370 127.0.0.1:35450 0xc0000f4540 0 true false true false 0 0 4294967295 250 1 0 33 0 map[33:0xc0001502c0] 131072 16384 0 map[dnt:Dnt pragma:Pragma sec-fetch-dest:Sec-Fetch-Dest sec-fetch-mode:Sec-Fetch-Mode sec-fetch-site:Sec-Fetch-Site sec-fetch-user:Sec-Fetch-User te:Te upgrade-insecure-requests:Upgrade-Insecure-Requests] 984 false false false false false false 0 <nil> <nil> {[136 211 95 145 53 35 152 172 119 170 69 233 49 44 58 15 42 87 49 15 87 108 150 220 52 253 40 0 169 13 118 40 32 9 149 2 27 130 13 193 60 166 45 27 255 92 132 113 241 52 15 193] 0 0} 0xc0000f6480 {0 {0 0}}}) {%!s(uint32=0) {%!s(int32=0) %!s(uint32=0)}} %!s(bool=false) %!s(*http.http2pipe=&{{0 0} {{} 0xc00011c480 {0 0 0 <nil> <nil>} 824634885304} 0xc00012c280 0 0xb12750 <nil> <nil> 0x6c0e20}) %!s(bool=false)}
-2023/04/24 18:05:57 handlers.go:151: User: {John Doe JD JD@gmail.com 6 male 123}
-2023/04/24 18:05:57 handlers.go:152: User: string
-2023/04/24 18:05:57 handlers.go:170: DbResult: {%!s(*sql.driverConn=&{0xc0000a0f70 {13909865069425603494 24225459368 0xb56b40} {0 0} 0xc0000267e0 true false false map[] false {13909865069430491852 24230347168 0xb56b40} [] false}) %!s(*sqlite3.SQLiteResult=&{1 1})}
-2023/04/24 18:06:43 main.go:28: Server stopped.
+2023/04/25 12:41:12 main.go:122: Main begun. Log file checked, opened, and set.
+2023/04/25 12:41:12 main.go:123: New Forum Begun
+2023/04/25 12:41:12 sqlFuncs.go:18: Database opened successfully.
+2023/04/25 12:41:12 main.go:67: File Servers Started.
+2023/04/25 12:41:12 main.go:78: Handlers Started.
+2023/04/25 12:41:12 main.go:99: Server Started and listening on port :443.
+2023/04/25 12:41:18 main.go:83: Handling request "/" and serving index.html
+2023/04/25 12:42:16 handlers.go:123: Registering user: &{[] %!s(*http.http2stream=&{0xc000007860 33 0xc0002c2480 0xc000280540 0xc0002a6410 0x4f8560 115 115 {[] 12582912 0xc0000078e0} {[] 1048461 0xc0000078f0} 3 false false false <nil> <nil> <nil> map[] map[]}) %!s(*http.http2serverConn=&{0xc0001001e0 0xc000170000 0xc000184000 0xc000012060 {0xc0001800c0 0xc000184000 {0xc000170000}} 0xc000180450 0xc0001b60e0 0xc000024240 0xc000024180 0xc0001b2180 0xc0001b2240 0xc0000241e0 0xc0001b21e0 {[] 12497283 <nil>} {[] 1048461 <nil>} 0xc0001b40b0 127.0.0.1:34680 0xc0001b6000 0 true false true false 0 0 4294967295 250 1 0 33 0 map[33:0xc0002c4370] 131072 16384 0 map[dnt:Dnt pragma:Pragma sec-fetch-dest:Sec-Fetch-Dest sec-fetch-mode:Sec-Fetch-Mode sec-fetch-site:Sec-Fetch-Site sec-fetch-user:Sec-Fetch-User te:Te upgrade-insecure-requests:Upgrade-Insecure-Requests] 984 false false false false false false 0 <nil> <nil> {[136 211 95 145 53 35 152 172 119 170 69 233 49 44 58 15 42 87 49 15 87 108 150 220 52 253 40 0 169 13 118 40 32 9 149 2 27 130 13 193 60 166 45 27 255 92 132 113 241 52 15 97 150 223 105 126 148 19 106 67 93 138 8 2 101 64 63 113 160 220 16 20 197 163 127] 0 0} 0xc000182100 {0 {0 0}}}) {%!s(uint32=0) {%!s(int32=0) %!s(uint32=0)}} %!s(bool=false) %!s(*http.http2pipe=&{{0 0} {{} 0xc0002c2480 {0 0 0 <nil> <nil>} 824636613816} 0xc00028d700 0 0xb12750 <nil> <nil> 0x6c0e20}) %!s(bool=false)}
+2023/04/25 12:42:16 handlers.go:147: User registered result: {%!s(*sql.driverConn=&{0xc00011eea0 {13909936987683342247 63327573506 0xb56b40} {0 0} 0xc0001b2720 true false false map[] false {13909936987688863983 63333095242 0xb56b40} [] false}) %!s(*sqlite3.SQLiteResult=&{2 1})}
+2023/04/25 12:43:59 main.go:83: Handling request "/" and serving index.html
+2023/04/25 12:44:51 handlers.go:123: Registering user: &{[] %!s(*http.http2stream=&{0xc000082680 33 0xc00021c510 0xc000102360 0xc000100640 0x4f8560 112 112 {[] 12582912 0xc000082700} {[] 1048464 0xc000082710} 3 false false false <nil> <nil> <nil> map[] map[]}) %!s(*http.http2serverConn=&{0xc0001001e0 0xc000170000 0xc0000de000 0xc000090408 {0xc0000b24b0 0xc0000de000 {0xc000170000}} 0xc0000b28a0 0xc0000fa0e0 0xc0000a62a0 0xc0000a61e0 0xc0000f6720 0xc0000f67e0 0xc0000a6240 0xc0000f6780 {[] 12497277 <nil>} {[] 1048464 <nil>} 0xc0000d6160 127.0.0.1:47970 0xc0000fa000 0 true false true false 0 0 4294967295 250 1 0 33 0 map[33:0xc000150580] 131072 16384 0 map[dnt:Dnt pragma:Pragma sec-fetch-dest:Sec-Fetch-Dest sec-fetch-mode:Sec-Fetch-Mode sec-fetch-site:Sec-Fetch-Site te:Te upgrade-insecure-requests:Upgrade-Insecure-Requests] 856 false false false false false false 0 <nil> <nil> {[136 211 95 145 53 35 152 172 119 170 69 233 49 44 58 15 42 87 49 15 87 108 150 220 52 253 40 0 169 13 118 40 32 9 149 2 27 130 13 193 60 166 45 27 255 92 132 113 241 52 15 97 150 223 105 126 148 19 106 67 93 138 8 2 101 64 63 113 166 174 0 42 98 209 191] 0 0} 0xc0000dc200 {0 {0 0}}}) {%!s(uint32=0) {%!s(int32=0) %!s(uint32=0)}} %!s(bool=false) %!s(*http.http2pipe=&{{0 0} {{} 0xc00021c510 {0 0 0 <nil> <nil>} 824635934024} 0xc00014c3c0 0 0xb12750 <nil> <nil> 0x6c0e20}) %!s(bool=false)}
+2023/04/25 12:44:51 handlers.go:147: User registered result: {%!s(*sql.driverConn=&{0xc00011eea0 {13909936987683342247 63327573506 0xb56b40} {0 0} 0xc0001b2720 true false false map[] false {13909937154549671647 218763920256 0xb56b40} [] false}) %!s(*sqlite3.SQLiteResult=&{3 1})}
+2023/04/25 12:45:15 handlers.go:123: Registering user: &{[] %!s(*http.http2stream=&{0xc000082680 35 0xc000186ab0 0xc000024600 0xc0001886e0 0x4f8560 112 112 {[] 12582912 0xc000082700} {[] 1048464 0xc000082710} 3 false false false <nil> <nil> <nil> map[] map[]}) %!s(*http.http2serverConn=&{0xc0001001e0 0xc000170000 0xc0000de000 0xc000090408 {0xc0000b24b0 0xc0000de000 {0xc000170000}} 0xc0000b28a0 0xc0000fa0e0 0xc0000a62a0 0xc0000a61e0 0xc0000f6720 0xc0000f67e0 0xc0000a6240 0xc0000f6780 {[] 12497253 <nil>} {[] 1048464 <nil>} 0xc0000d6160 127.0.0.1:47970 0xc0000fa000 0 true false true false 0 0 4294967295 250 1 0 35 0 map[35:0xc0001b4630] 131072 16384 0 map[dnt:Dnt pragma:Pragma sec-fetch-dest:Sec-Fetch-Dest sec-fetch-mode:Sec-Fetch-Mode sec-fetch-site:Sec-Fetch-Site te:Te upgrade-insecure-requests:Upgrade-Insecure-Requests] 856 false false false false false false 0 <nil> <nil> {[136 95 146 73 124 165 138 232 25 170 251 80 147 142 196 21 48 90 153 86 123 92 2 50 52 97 150 223 105 126 148 19 106 67 93 138 8 2 101 64 63 113 166 174 54 21 49 104 223] 0 0} 0xc0000dc200 {0 {0 0}}}) {%!s(uint32=0) {%!s(int32=0) %!s(uint32=0)}} %!s(bool=false) %!s(*http.http2pipe=&{{0 0} {{} 0xc000186ab0 {0 0 0 <nil> <nil>} 824635321064} 0xc000072540 0 0xb12750 <nil> <nil> 0x6c0e20}) %!s(bool=false)}
+2023/04/25 12:45:15 handlers.go:147: User registered result: {%!s(*sql.driverConn=&{0xc00011eea0 {13909936987683342247 63327573506 0xb56b40} {0 0} 0xc0001b2720 true false false map[] false {13909937179953554048 242397998811 0xb56b40} [] false}) %!s(*sqlite3.SQLiteResult=&{4 1})}
+2023/04/25 12:45:16 handlers.go:123: Registering user: &{[] %!s(*http.http2stream=&{0xc000082680 37 0xc000186bd0 0xc000024660 0xc000188780 0x4f8560 112 112 {[] 12582912 0xc000082700} {[] 1048464 0xc000082710} 3 false false false <nil> <nil> <nil> map[] map[]}) %!s(*http.http2serverConn=&{0xc0001001e0 0xc000170000 0xc0000de000 0xc000090408 {0xc0000b24b0 0xc0000de000 {0xc000170000}} 0xc0000b28a0 0xc0000fa0e0 0xc0000a62a0 0xc0000a61e0 0xc0000f6720 0xc0000f67e0 0xc0000a6240 0xc0000f6780 {[] 12497229 <nil>} {[] 1048464 <nil>} 0xc0000d6160 127.0.0.1:47970 0xc0000fa000 0 true false true false 0 0 4294967295 250 1 0 37 0 map[37:0xc0001b46e0] 131072 16384 0 map[dnt:Dnt pragma:Pragma sec-fetch-dest:Sec-Fetch-Dest sec-fetch-mode:Sec-Fetch-Mode sec-fetch-site:Sec-Fetch-Site te:Te upgrade-insecure-requests:Upgrade-Insecure-Requests] 856 false false false false false false 0 <nil> <nil> {[136 192 191 97 150 223 105 126 148 19 106 67 93 138 8 2 101 64 63 113 166 238 5 181 49 104 223] 0 0} 0xc0000dc200 {0 {0 0}}}) {%!s(uint32=0) {%!s(int32=0) %!s(uint32=0)}} %!s(bool=false) %!s(*http.http2pipe=&{{0 0} {{} 0xc000186bd0 {0 0 0 <nil> <nil>} 824635321352} 0xc0000725c0 0 0xb12750 <nil> <nil> 0x6c0e20}) %!s(bool=false)}
+2023/04/25 12:45:16 handlers.go:147: User registered result: {%!s(*sql.driverConn=&{0xc00011eea0 {13909936987683342247 63327573506 0xb56b40} {0 0} 0xc0001b2720 true false false map[] false {13909937181331395669 243702099098 0xb56b40} [] false}) %!s(*sqlite3.SQLiteResult=&{5 1})}
+2023/04/25 12:45:17 handlers.go:123: Registering user: &{[] %!s(*http.http2stream=&{0xc000082680 39 0xc000186d80 0xc0000246c0 0xc000188820 0x4f8560 112 112 {[] 12582912 0xc000082700} {[] 1048464 0xc000082710} 3 false false false <nil> <nil> <nil> map[] map[]}) %!s(*http.http2serverConn=&{0xc0001001e0 0xc000170000 0xc0000de000 0xc000090408 {0xc0000b24b0 0xc0000de000 {0xc000170000}} 0xc0000b28a0 0xc0000fa0e0 0xc0000a62a0 0xc0000a61e0 0xc0000f6720 0xc0000f67e0 0xc0000a6240 0xc0000f6780 {[] 12497205 <nil>} {[] 1048464 <nil>} 0xc0000d6160 127.0.0.1:47970 0xc0000fa000 0 true false true false 0 0 4294967295 250 1 0 39 0 map[39:0xc0001b48f0] 131072 16384 0 map[dnt:Dnt pragma:Pragma sec-fetch-dest:Sec-Fetch-Dest sec-fetch-mode:Sec-Fetch-Mode sec-fetch-site:Sec-Fetch-Site te:Te upgrade-insecure-requests:Upgrade-Insecure-Requests] 856 false false false false false false 0 <nil> <nil> {[136 193 192 97 150 223 105 126 148 19 106 67 93 138 8 2 101 64 63 113 166 238 5 197 49 104 223] 0 0} 0xc0000dc200 {0 {0 0}}}) {%!s(uint32=0) {%!s(int32=0) %!s(uint32=0)}} %!s(bool=false) %!s(*http.http2pipe=&{{0 0} {{} 0xc000186d80 {0 0 0 <nil> <nil>} 824635321784} 0xc000072640 0 0xb12750 <nil> <nil> 0x6c0e20}) %!s(bool=false)}
+2023/04/25 12:45:17 handlers.go:147: User registered result: {%!s(*sql.driverConn=&{0xc00011eea0 {13909936987683342247 63327573506 0xb56b40} {0 0} 0xc0001b2720 true false false map[] false {13909937182750014592 245046976267 0xb56b40} [] false}) %!s(*sqlite3.SQLiteResult=&{6 1})}
+2023/04/25 12:45:18 handlers.go:123: Registering user: &{[] %!s(*http.http2stream=&{0xc000082680 41 0xc000186f30 0xc000024720 0xc0001888c0 0x4f8560 112 112 {[] 12582912 0xc000082700} {[] 1048464 0xc000082710} 3 false false false <nil> <nil> <nil> map[] map[]}) %!s(*http.http2serverConn=&{0xc0001001e0 0xc000170000 0xc0000de000 0xc000090408 {0xc0000b24b0 0xc0000de000 {0xc000170000}} 0xc0000b28a0 0xc0000fa0e0 0xc0000a62a0 0xc0000a61e0 0xc0000f6720 0xc0000f67e0 0xc0000a6240 0xc0000f6780 {[] 12497181 <nil>} {[] 1048464 <nil>} 0xc0000d6160 127.0.0.1:47970 0xc0000fa000 0 true false true false 0 0 4294967295 250 1 0 41 0 map[41:0xc0001b4b00] 131072 16384 0 map[dnt:Dnt pragma:Pragma sec-fetch-dest:Sec-Fetch-Dest sec-fetch-mode:Sec-Fetch-Mode sec-fetch-site:Sec-Fetch-Site te:Te upgrade-insecure-requests:Upgrade-Insecure-Requests] 856 false false false false false false 0 <nil> <nil> {[136 194 193 97 150 223 105 126 148 19 106 67 93 138 8 2 101 64 63 113 166 238 5 213 49 104 223] 0 0} 0xc0000dc200 {0 {0 0}}}) {%!s(uint32=0) {%!s(int32=0) %!s(uint32=0)}} %!s(bool=false) %!s(*http.http2pipe=&{{0 0} {{} 0xc000186f30 {0 0 0 <nil> <nil>} 824635322216} 0xc0000726c0 0 0xb12750 <nil> <nil> 0x6c0e20}) %!s(bool=false)}
+2023/04/25 12:45:18 handlers.go:147: User registered result: {%!s(*sql.driverConn=&{0xc00011eea0 {13909936987683342247 63327573506 0xb56b40} {0 0} 0xc0001b2720 true false false map[] false {13909937183019877758 245243097050 0xb56b40} [] false}) %!s(*sqlite3.SQLiteResult=&{7 1})}
+2023/04/25 12:45:18 main.go:83: Handling request "/" and serving index.html
+2023/04/25 12:47:03 handlers.go:39: Login handler reached.
+2023/04/25 12:47:03 handlers.go:53: Authentication condition reached.
+2023/04/25 12:47:03 handlers.go:101: Serving websocket.
+2023/04/25 12:47:03 handlers.go:24: Checking origin: https://localhost
+2023/04/25 12:47:03 ws-client.go:28: New client connected.
+2023/04/25 12:47:03 ws-manager.go:85: Client: 127.0.0.1:57874 added to manager.
+2023/04/25 12:47:03 ws-client.go:43: Client IP and client port num.:  127.0.0.1:57874
+2023/04/25 12:47:07 ws-client.go:65: Client read message from:  127.0.0.1:57874
+2023/04/25 12:47:07 ws-manager.go:37: Event/message sent: {new-message {"message":"kjnsdg","from":"Client"}}
+2023/04/25 12:47:07 ws-client.go:140: Message sent to client: 127.0.0.1:57874
+2023/04/25 12:47:09 ws-client.go:65: Client read message from:  127.0.0.1:57874
+2023/04/25 12:47:09 ws-manager.go:37: Event/message sent: {new-message {"message":"sfkjnsg","from":"Client"}}
+2023/04/25 12:47:09 ws-client.go:140: Message sent to client: 127.0.0.1:57874
+2023/04/25 12:47:12 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:47:12 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:47:21 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:47:21 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:47:30 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:47:30 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:47:39 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:47:39 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:47:48 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:47:48 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:47:57 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:47:57 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:48:06 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:48:06 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:48:15 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:48:15 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:48:24 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:48:24 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:48:33 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:48:33 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:48:42 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:48:42 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:48:51 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:48:51 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:49:00 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:49:00 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:49:09 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:49:09 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:49:18 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:49:18 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:49:27 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:49:27 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:49:36 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:49:36 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:49:45 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:49:45 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:49:54 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:49:54 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:50:03 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:50:03 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:50:12 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:50:12 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:50:21 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:50:21 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:50:30 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:50:30 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:50:39 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:50:39 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:50:48 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:50:48 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:50:57 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:50:57 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:51:06 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:51:06 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:51:15 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:51:15 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:51:24 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:51:24 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:51:33 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:51:33 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:51:42 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:51:42 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:51:51 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:51:51 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:52:00 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:52:00 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:52:09 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:52:09 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:52:18 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:52:18 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:52:27 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:52:27 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:52:36 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:52:36 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:52:45 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:52:45 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:52:50 handlers.go:123: Registering user: &{[] %!s(*http.http2stream=&{0xc000582680 15 0xc0000aa240 0xc0002803c0 0xc0000922d0 0x4f8560 110 110 {[] 12582912 0xc000582700} {[] 1048466 0xc000582710} 3 false false false <nil> <nil> <nil> map[] map[]}) %!s(*http.http2serverConn=&{0xc0001001e0 0xc000170000 0xc0000de380 0xc0003fa0c0 {0xc0000b2060 0xc0000de380 {0xc000170000}} 0xc0000b24e0 0xc0004427e0 0xc0002802a0 0xc000280120 0xc000288d80 0xc000288e40 0xc0002801e0 0xc000288de0 {[] 12582912 <nil>} {[] 1048466 <nil>} 0xc000150370 127.0.0.1:53490 0xc000442700 0 true false true false 1 0 4294967295 250 1 0 15 0 map[15:0xc000150420] 131072 16384 0 map[dnt:Dnt pragma:Pragma sec-fetch-dest:Sec-Fetch-Dest sec-fetch-mode:Sec-Fetch-Mode sec-fetch-site:Sec-Fetch-Site te:Te] 706 false false false false false false 0 <nil> <nil> {[] 0 0} 0xc000182180 {0 {0 0}}}) {%!s(uint32=0) {%!s(int32=0) %!s(uint32=0)}} %!s(bool=false) %!s(*http.http2pipe=&{{0 0} {{} 0xc0000aa240 {0 0 0 <nil> <nil>} 824634417784} 0xc000072100 0 0xb12750 <nil> <nil> 0x6c0e20}) %!s(bool=false)}
+2023/04/25 12:52:50 handlers.go:147: User registered result: {%!s(*sql.driverConn=&{0xc00011eea0 {13909936987683342247 63327573506 0xb56b40} {0 0} 0xc0001b2720 true false false map[] false {13909937668858038300 697749953144 0xb56b40} [] false}) %!s(*sqlite3.SQLiteResult=&{8 1})}
+2023/04/25 12:52:54 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:52:54 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:53:03 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:53:03 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:53:12 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:53:12 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:53:21 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:53:21 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:53:30 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:53:30 ws-client.go:38: Pong received, handler called, timer reset.
+2023/04/25 12:53:36 ws-client.go:65: Client read message from:  127.0.0.1:57874
+2023/04/25 12:53:36 ws-client.go:67: Client Made an Error:  websocket: close 1001 (going away)
+2023/04/25 12:53:36 ws-manager.go:95: Client: 127.0.0.1:57874 removed from manager.
+2023/04/25 12:53:36 main.go:83: Handling request "/" and serving index.html
+2023/04/25 12:53:39 ws-client.go:143: Ping sent to client: 127.0.0.1:57874
+2023/04/25 12:53:39 ws-client.go:145: Error when writing 'ping' message to client: websocket: close sent
+2023/04/25 13:46:48 main.go:28: Server stopped.

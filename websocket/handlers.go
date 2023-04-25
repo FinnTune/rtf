@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"rtForum/database"
+	"rtForum/utility"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -121,26 +122,6 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 
 func registerUser(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Registering user: %s", r.Body)
-	// CREATE TABLE user (
-	// 	id INTEGER NOT NULL PRIMARY KEY,
-	// 	username VARCHAR(30) NOT NULL,
-	// 	passwrd VARCHAR(100) NOT NULL,
-	// 	email VARCHAR(30) NOT NULL,
-	// 	fname VARCHAR(30) NOT NULL,
-	// 	lname VARCHAR(30) NOT NULL,
-	// 	age INTEGER NOT NULL,
-	// 	gender VARCHAR(10) NOT NULL,
-	// 	created_at DATETIME NOT NULL
-	//    );
-	// type RegUser struct {
-	// 	fname  string `json:"fname"`
-	// 	lname  string `json:"lname"`
-	// 	uname  string `json:"uname"`
-	// 	email  string `json:"email"`
-	// 	age    int    `json:"age"`
-	// 	gender string `json:"gender"`
-	// 	pass   string `json:"pass"`
-	// }
 
 	var user = RegUser{}
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
@@ -148,12 +129,11 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	log.Printf("User: %s", user)
-	log.Printf("User: %T", user.Age)
-
+	user.Pass = utility.HashPassword(user.Pass)
 	timeReg := time.Now().Format("2006-01-02 15:04:05")
 	query := `INSERT INTO user (fname,lname,uname,email,age,gender,pass,created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`
-	result, err := database.ForumDB.Exec(query, user.Fname,
+	result, err := database.ForumDB.Exec(query,
+		user.Fname,
 		user.Lname,
 		user.Uname,
 		user.Email,
@@ -167,7 +147,7 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	log.Printf("DbResult: %s", result)
+	log.Printf("User registered result: %s", result)
 	w.WriteHeader(http.StatusOK)
 	//Send message to w that registration was successful
 	w.Write([]byte("Registration successful."))
