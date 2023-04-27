@@ -48,7 +48,10 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 
+	//create struct to hold login request data
 	var req userLoginRequest
+
+	//Check if request is POST and decode request body into struct above
 	if r.Method == http.MethodPost {
 		log.Println("Login POST request received.")
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -57,8 +60,10 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		//Create instance of User struct to hold user info from databse
 		userInfo := User{}
 
+		//Query database for user info, scan into struct, and check if password matches
 		err := database.ForumDB.QueryRow("SELECT id, uname, email, pass, created_at FROM user WHERE uname = $1 OR email = $1", req.Username).Scan(&userInfo.ID, &userInfo.Username, &userInfo.Email, &userInfo.Password, &userInfo.Joined)
 		if err != nil {
 			log.Printf("Error querying database: %s", err)
@@ -66,17 +71,23 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 				log.Printf("User not found: %+v\n", userInfo)
 			}
 		} else if utility.CheckPasswordHash(req.Password, userInfo.Password) {
+
 			log.Printf("User found: %+v\n", userInfo)
 			log.Println("Authentication condition reached.")
+
+			//OTP response struct
 			type userLoginResponse struct {
 				OTP string `json:"otp"`
 			}
+
+			//Create new OTP and store in manager otps map
 			otp := m.otps.newOtp()
 
 			resp := userLoginResponse{
 				OTP: otp.Key,
 			}
 
+			//Marhsal response otp struct into JSON and write to 'w'.
 			//Encode response to JSON using json.Encode or marhsalling. Difference???
 			// err := json.NewEncoder(w).Encode(resp)
 			data, err := json.Marshal(resp)
