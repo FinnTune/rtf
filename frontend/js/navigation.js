@@ -2,7 +2,7 @@
 document.getElementById('title').addEventListener('click', function() {
     document.getElementById('login-form').style.display = 'none';
     document.getElementById('intro').style.display = '';
-    document.getElementById('main-content').style.display = 'block';
+    document.getElementById('main-content').style.display = 'none';
     document.getElementById('registration-form').style.display = 'none';
 });
 

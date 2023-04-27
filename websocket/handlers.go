@@ -48,14 +48,6 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}
 
-	type userInfo struct {
-		ID        int
-		Username  string
-		Email     string
-		FirstName string
-		LastName  string
-	}
-
 	var req userLoginRequest
 	if r.Method == http.MethodPost {
 		log.Println("Login POST request received.")
@@ -65,9 +57,9 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		userInfo := userInfo{}
+		userInfo := User{}
 
-		err := database.ForumDB.QueryRow("SELECT id, fname, lname, uname, email FROM user WHERE uname = $1 OR email = $1", req.Username).Scan(&userInfo.ID, &userInfo.FirstName, &userInfo.LastName, &userInfo.Username, &userInfo.Email)
+		err := database.ForumDB.QueryRow("SELECT id, uname, email, pass, created_at FROM user WHERE uname = $1 OR email = $1", req.Username).Scan(&userInfo.ID, &userInfo.Username, &userInfo.Email, &userInfo.Password, &userInfo.Joined)
 		if err != nil {
 			log.Printf("Error querying database: %s", err)
 			if err == sql.ErrNoRows {

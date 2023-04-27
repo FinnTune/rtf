@@ -1,33 +1,7 @@
-2023/04/27 13:20:26 main.go:122: Main begun. Log file checked, opened, and set.
-2023/04/27 13:20:26 main.go:123: New Forum Begun
-2023/04/27 13:20:26 sqlFuncs.go:18: Database opened successfully.
-2023/04/27 13:20:26 main.go:67: File Servers Started.
-2023/04/27 13:20:26 main.go:78: Handlers Started.
-2023/04/27 13:20:26 main.go:99: Server Started and listening on port :443.
-2023/04/27 13:20:33 main.go:83: Handling request "/" and serving index.html
-2023/04/27 13:20:40 handlers.go:41: Login handler reached.
-2023/04/27 13:20:40 handlers.go:61: Login POST request received.
-2023/04/27 13:20:40 handlers.go:77: User found: {ID:1 Username:John Email:john@example.com FirstName:John LastName:Doe}
-2023/04/27 13:20:40 handlers.go:78: Authentication condition reached.
-2023/04/27 13:20:40 handlers.go:158: Serving websocket.
-2023/04/27 13:20:40 handlers.go:26: Checking origin: https://localhost
-2023/04/27 13:20:40 ws-client.go:28: New client connected.
-2023/04/27 13:20:40 ws-manager.go:85: Client: 127.0.0.1:57816 added to manager.
-2023/04/27 13:20:40 ws-client.go:43: Client IP and client port num.:  127.0.0.1:57816
-2023/04/27 13:20:46 ws-client.go:65: Client read message from:  127.0.0.1:57816
-2023/04/27 13:20:46 ws-manager.go:37: Event/message sent: {new-message {"message":"jknssdg","from":"Client"}}
-2023/04/27 13:20:46 ws-client.go:140: Message sent to client: 127.0.0.1:57816
-2023/04/27 13:20:47 ws-client.go:65: Client read message from:  127.0.0.1:57816
-2023/04/27 13:20:47 ws-manager.go:37: Event/message sent: {new-message {"message":"kjksndg","from":"Client"}}
-2023/04/27 13:20:47 ws-client.go:140: Message sent to client: 127.0.0.1:57816
-2023/04/27 13:20:49 ws-client.go:143: Ping sent to client: 127.0.0.1:57816
-2023/04/27 13:20:49 ws-client.go:38: Pong received, handler called, timer reset.
-2023/04/27 13:20:58 ws-client.go:143: Ping sent to client: 127.0.0.1:57816
-2023/04/27 13:20:58 ws-client.go:38: Pong received, handler called, timer reset.
-2023/04/27 13:21:07 ws-client.go:143: Ping sent to client: 127.0.0.1:57816
-2023/04/27 13:21:07 ws-client.go:38: Pong received, handler called, timer reset.
-2023/04/27 13:21:16 ws-client.go:143: Ping sent to client: 127.0.0.1:57816
-2023/04/27 13:21:16 ws-client.go:38: Pong received, handler called, timer reset.
-2023/04/27 13:21:25 ws-client.go:143: Ping sent to client: 127.0.0.1:57816
-2023/04/27 13:21:25 ws-client.go:38: Pong received, handler called, timer reset.
-2023/04/27 13:21:26 main.go:28: Server stopped.
+2023/04/27 15:02:44 main.go:124: Main begun. Log file checked, opened, and set.
+2023/04/27 15:02:44 main.go:125: New Forum Begun
+2023/04/27 15:02:44 sqlFuncs.go:18: Database opened successfully.
+2023/04/27 15:02:44 main.go:68: File Servers Started.
+2023/04/27 15:02:44 main.go:79: Handlers Started.
+2023/04/27 15:02:44 main.go:101: Server Started and listening on port :443.
+2023/04/27 15:02:51 main.go:29: Server stopped.

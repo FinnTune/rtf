@@ -36,9 +36,9 @@ type Comment struct {
 }
 
 type User struct {
-	Id             int
+	ID             int
+	Username       string
 	Email          string
-	UserName       string
 	Joined         string
 	Password       string
 	Session        string

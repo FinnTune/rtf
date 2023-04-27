@@ -26,10 +26,16 @@ export function login() {
         }}
     ).then((response) => {
         if(response.ok){
+            document.getElementById('all-posts-button').style.display = "block"
+            document.getElementById('create-post-button').style.display = "block"
+            document.getElementById('login-button').style.display = "none"
+            document.getElementById('logout-button').style.display = "block"
+            document.getElementById('register-button').style.display = "none"
             document.getElementById('intro').innerHTML = 'You are now logged in.';
             document.getElementById('intro').style.display = 'block';
             document.getElementById('login-form').style.display = 'none';
             document.getElementById('main-content').style.display = 'block'; 
+            document.getElementById('chat').style.display = "block";
             return response.json();
         } else {
             // throw new Error('Unauthorized');

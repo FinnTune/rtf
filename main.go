@@ -7,6 +7,7 @@ import (
 	"os"
 	"rtForum/database"
 	"rtForum/logfiles"
+	"rtForum/utility"
 	"rtForum/websocket"
 )
 
@@ -81,6 +82,7 @@ func startServer() {
 		//get request URL and store in variable to be used in log message
 		url := r.URL.Path
 		log.Printf("Handling request \"%s\" and serving index.html", url)
+		utility.CreateCookie(w, r)
 		http.ServeFile(w, r, "./frontend/index.html")
 	})
 	http.HandleFunc("/register", websocket.RegistrationHandler)
