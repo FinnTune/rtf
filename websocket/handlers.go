@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -38,41 +39,66 @@ var (
 
 func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 	log.Println("Login handler reached.")
+	//Check if user is already logged in
+	// if utility.CheckCookieExist(w, r) {
+	// 	log.Println("User already logged in.")
+	// 	http.Redirect(w, r, "/", http.StatusSeeOther)
 	type userLoginRequest struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	}
-	var req userLoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+
+	type userInfo struct {
+		ID        int
+		Username  string
+		Email     string
+		FirstName string
+		LastName  string
 	}
 
-	//Check if user is valid by hardcoding username and password
-	//Harcoded username and password???
-	if req.Username == "admin" && req.Password == "123" {
-		log.Println("Authentication condition reached.")
-		type userLoginResponse struct {
-			OTP string `json:"otp"`
-		}
-		otp := m.otps.newOtp()
-
-		resp := userLoginResponse{
-			OTP: otp.Key,
-		}
-
-		//Encode response to JSON using json.Encode or marhsalling. Difference???
-		// err := json.NewEncoder(w).Encode(resp)
-		data, err := json.Marshal(resp)
-		if err != nil {
-			log.Printf("Error marshalling response: %s", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+	var req userLoginRequest
+	if r.Method == http.MethodPost {
+		log.Println("Login POST request received.")
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			log.Printf("Error decoding request: %s", err)
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		w.WriteHeader(http.StatusOK)
-		w.Write(data)
-		return
+		userInfo := userInfo{}
+
+		err := database.ForumDB.QueryRow("SELECT id, fname, lname, uname, email FROM user WHERE uname = $1 OR email = $1", req.Username).Scan(&userInfo.ID, &userInfo.FirstName, &userInfo.LastName, &userInfo.Username, &userInfo.Email)
+		if err != nil {
+			log.Printf("Error querying database: %s", err)
+			if err == sql.ErrNoRows {
+				log.Printf("User not found: %+v\n", userInfo)
+			}
+		} else {
+			log.Printf("User found: %+v\n", userInfo)
+			log.Println("Authentication condition reached.")
+			type userLoginResponse struct {
+				OTP string `json:"otp"`
+			}
+			otp := m.otps.newOtp()
+
+			resp := userLoginResponse{
+				OTP: otp.Key,
+			}
+
+			//Encode response to JSON using json.Encode or marhsalling. Difference???
+			// err := json.NewEncoder(w).Encode(resp)
+			data, err := json.Marshal(resp)
+			if err != nil {
+				log.Printf("Error marshalling response: %s", err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+			w.Write(data)
+			return
+		}
+
 	}
 	w.WriteHeader(http.StatusUnauthorized)
 }
@@ -123,13 +149,18 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 func registerUser(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Registering user: %s", r.Body)
 
+	//Decode request body to struct
 	var user = RegUser{}
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		log.Printf("Error decoding request body: %s", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	//Hash password in user struct
 	user.Pass = utility.HashPassword(user.Pass)
+
+	//Insert user into database
 	timeReg := time.Now().Format("2006-01-02 15:04:05")
 	query := `INSERT INTO user (fname,lname,uname,email,age,gender,pass,created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`
 	result, err := database.ForumDB.Exec(query,
@@ -148,8 +179,9 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("User registered result: %s", result)
-	w.WriteHeader(http.StatusOK)
+
 	//Send message to w that registration was successful
+	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Registration successful."))
 }
 
