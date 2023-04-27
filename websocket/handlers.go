@@ -65,7 +65,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			if err == sql.ErrNoRows {
 				log.Printf("User not found: %+v\n", userInfo)
 			}
-		} else {
+		} else if utility.CheckPasswordHash(req.Password, userInfo.Password) {
 			log.Printf("User found: %+v\n", userInfo)
 			log.Println("Authentication condition reached.")
 			type userLoginResponse struct {

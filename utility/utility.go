@@ -2,6 +2,7 @@ package utility
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// HashPassword hashes the password
 func HashPassword(password string) string {
 	byt, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	if err != nil {
@@ -17,12 +19,14 @@ func HashPassword(password string) string {
 	return string(byt)
 }
 
+// CheckPasswordHash compares the password and hash
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	if err != nil {
-		fmt.Println("Could not compare password", err.Error())
+		log.Printf("Error comparing password and hash: %s", err.Error())
 		return false
 	}
+	log.Println("Password and hash match.")
 	return true
 }
 
