@@ -33,30 +33,7 @@ quitPrompt:
 	}
 }
 
-//Databse version control???
-/* Gets the database internal version number
-* @returns int
- */
-// func getDBVersion() int {
-// 	row := ForumDB.QueryRow("PRAGMA user_version;")
-// 	if row == nil {
-// 		fmt.Println("Error: Could not get version from database")
-// 	}
-// 	v := -1
-// 	row.Scan(&v)
-// 	return v
-// }
-
-/* Gets the database internal version number
-* @param v - The version number
- */
-// func updateVersion(v int) {
-// 	_, err := ForumDB.Exec("PRAGMA user_version = " + strconv.Itoa(v) + ";")
-// 	if err != nil {
-// 		fmt.Println("Version error:", err.Error())
-// 	}
-// }
-
+// Opens database, starts file servers, starts handlers, and starts server
 func startServer() {
 	//Open database
 	database.ForumDB = database.OpenDB()

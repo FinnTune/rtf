@@ -1,26 +1,9 @@
-2023/04/27 15:09:25 main.go:124: Main begun. Log file checked, opened, and set.
-2023/04/27 15:09:25 main.go:125: New Forum Begun
-2023/04/27 15:09:25 sqlFuncs.go:18: Database opened successfully.
-2023/04/27 15:09:25 main.go:68: File Servers Started.
-2023/04/27 15:09:25 main.go:79: Handlers Started.
-2023/04/27 15:09:25 main.go:101: Server Started and listening on port :443.
-2023/04/27 15:09:29 main.go:84: Handling request "/" and serving index.html
-2023/04/27 15:09:36 handlers.go:41: Login handler reached.
-2023/04/27 15:09:36 handlers.go:53: Login POST request received.
-2023/04/27 15:09:36 utility.go:29: Password and hash match.
-2023/04/27 15:09:36 handlers.go:69: User found: {ID:1 Username:John Email:john@example.com Joined:2023-04-27 13:23:06 Password:$2a$12$SN6NPelql2gsTiPrUT9RUe/Us7g6/dNsTOwkhGCtUtqysIikv50gy Session: NumberComments:0 NumberPosts:0}
-2023/04/27 15:09:36 handlers.go:70: Authentication condition reached.
-2023/04/27 15:09:36 handlers.go:120: Serving websocket.
-2023/04/27 15:09:36 handlers.go:26: Checking origin: https://localhost
-2023/04/27 15:09:36 ws-client.go:28: New client connected.
-2023/04/27 15:09:36 ws-manager.go:85: Client: 127.0.0.1:37134 added to manager.
-2023/04/27 15:09:36 ws-client.go:43: Client IP and client port num.:  127.0.0.1:37134
-2023/04/27 15:09:45 ws-client.go:143: Ping sent to client: 127.0.0.1:37134
-2023/04/27 15:09:45 ws-client.go:38: Pong received, handler called, timer reset.
-2023/04/27 15:09:54 ws-client.go:143: Ping sent to client: 127.0.0.1:37134
-2023/04/27 15:09:54 ws-client.go:38: Pong received, handler called, timer reset.
-2023/04/27 15:10:03 ws-client.go:143: Ping sent to client: 127.0.0.1:37134
-2023/04/27 15:10:03 ws-client.go:38: Pong received, handler called, timer reset.
-2023/04/27 15:10:12 ws-client.go:143: Ping sent to client: 127.0.0.1:37134
-2023/04/27 15:10:12 ws-client.go:38: Pong received, handler called, timer reset.
-2023/04/27 15:10:20 main.go:29: Server stopped.
+2023/04/28 11:30:13 main.go:124: Main begun. Log file checked, opened, and set.
+2023/04/28 11:30:13 main.go:125: New Forum Begun
+2023/04/28 11:30:13 sqlFuncs.go:18: Database opened successfully.
+2023/04/28 11:30:13 main.go:68: File Servers Started.
+2023/04/28 11:30:13 main.go:79: Handlers Started.
+2023/04/28 11:30:13 main.go:101: Server Started and listening on port :443.
+2023/04/28 11:30:18 main.go:84: Handling request "/" and serving index.html
+2023/04/28 11:30:52 main.go:84: Handling request "/" and serving index.html
+2023/04/28 15:04:57 main.go:29: Server stopped.

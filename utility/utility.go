@@ -32,13 +32,16 @@ func CheckPasswordHash(password, hash string) bool {
 
 // Create Cookie for user logging in
 func CreateCookie(w http.ResponseWriter, r *http.Request) {
-	sessionToken := uuid.Must(uuid.NewV4()).String()
+	sessionID := uuid.Must(uuid.NewV4()).String()
 
 	http.SetCookie(w, &http.Cookie{
-		Name:    "session_token",
-		Value:   sessionToken,
-		Path:    "/",
-		Expires: time.Now().Add(1000 * time.Second),
+		Name:     "session_id",
+		Value:    sessionID,
+		Path:     "/",
+		Expires:  time.Now().Add(24 * time.Hour),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
 	})
 	//Different struct for user info???
 	// sql.UpdateUser(data.User{Id: userId, Session: sessionToken}, true)

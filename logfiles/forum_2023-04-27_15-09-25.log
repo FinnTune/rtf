@@ -1,7 +1,0 @@
-2023/04/27 15:02:44 main.go:124: Main begun. Log file checked, opened, and set.
-2023/04/27 15:02:44 main.go:125: New Forum Begun
-2023/04/27 15:02:44 sqlFuncs.go:18: Database opened successfully.
-2023/04/27 15:02:44 main.go:68: File Servers Started.
-2023/04/27 15:02:44 main.go:79: Handlers Started.
-2023/04/27 15:02:44 main.go:101: Server Started and listening on port :443.
-2023/04/27 15:02:51 main.go:29: Server stopped.

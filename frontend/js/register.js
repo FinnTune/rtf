@@ -31,10 +31,12 @@ export function register() {
         }}
     ).then((response) => {
         if(response.ok){
-            document.getElementById('intro').innerHTML = 'You are now registered. Please login.';
-            document.getElementById('intro').style.display = 'block';
+            document.getElementById('msg').innerHTML = 'You are now registered. Please login.';
+            document.getElementById('msg').style.display = "block"
+            document.getElementById('intro').style.display = 'flex';
             document.getElementById('registration-form').style.display = 'none';
-            document.getElementById('main-content').style.display = 'block';
+            document.getElementById('chat').style.display = 'none';
+            document.getElementById('main-content').style.display = 'none';
             return;
         } else {
             // throw new Error('Unauthorized');
