@@ -13,8 +13,10 @@ type ClientsMapList map[*Client]bool
 type Client struct {
 	connection *websocket.Conn
 	manager    *Manager
+	sessionID  string
 	//egress is used to avoid concurrent writes to websocket connection
-	egress chan Event
+	egress   chan Event
+	loggedIn bool
 }
 
 // Initializing variables for ping/pong heartbeat.
@@ -24,12 +26,14 @@ var (
 )
 
 // Factory function for client
-func newClient(conn *websocket.Conn, manager *Manager) *Client {
+func newClient(conn *websocket.Conn, manager *Manager, session_id string) *Client {
 	log.Println("New client connected.")
 	return &Client{
 		connection: conn,
 		manager:    manager,
+		sessionID:  session_id,
 		egress:     make(chan Event),
+		loggedIn:   false,
 	}
 }
 

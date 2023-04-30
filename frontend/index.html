@@ -8,121 +8,16 @@
     <link rel="icon" href="img/favglobe.ico" type="image/png">
   </head>
   <body>
-    <!-- Navgation header -->
-    <header class="header">
-      <h1 id="title"><a>theDialectic</a></h1>
-      <button type="submit" class="header-btns" id="register-button">Register</button>
-      <button type="submit" class="header-btns" id="login-button">Login</button>
-      <button type="submit" class="header-btns" id="all-posts-button" style="display: none">Posts</button>
-      <button type="submit" class="header-btns" id="create-post-button" style="display: none">New Post</button>
-      <button type="submit" class="header-btns" id="logout-button">Logout</button>
-    </header>
-
-    <!-- <div id="msg">
-    </div> -->
-
-    <!--Introductory remarks-->
-    <div class="intro" id="intro">
-      <h2>Welcome to theDialectic</h2>
-      <p>
-        Please feel free to bombard us with your conversation.<br><br>
-        If you are not yet a member, please oblige us and register.<br>
-        If you already have an account, login and converse.<br><br>
-      </p>
-    </div>
-
-    <!-- Login/Register Form -->
-    <form class="login-form" id="login-form" method="post" style="display: none">
-      <label for="username">Login</label>
-      <input type="text" name="username" id="username" placeholder="Enter your login" required>
-    
-      <label for="password">Password</label>
-      <input type="password" name="password" id="password" placeholder="Enter your password" required>
-    
-      <button type="submit" id="login-button">Login</button>
-      <button type="button" id="register-switch-button">Go to registration</button>
-    </form>
-
-    <!-- Registration Form -->
-    <form class="register-form" id="registration-form" method="post" style="display: none;">
-      <label for="firstname">First Name: </label>
-      <input type="text" name="firstname" id="regfname" placeholder="First Name" required><br>
-  
-      <label for="lastname">Last Name: </label>
-      <input type="text" name="lastname" id="reglname" placeholder="Last Name" required><br>
-  
-      <label for="username">Username: </label>
-      <input type="text" name="username" id="reguname" placeholder="Username" required><br>
-  
-      <label for="email">Email: </label>
-      <input type="email" name="email" id="regemail"placeholder="Email" required><br>
-  
-      <label for="age">Age: </label>
-      <input type="number" name="age" id="regage" placeholder="Age" min="0" max="150" required><br>
-  
-      <label for="gender">Gender: </label>
-      <select name="gender" id="reggender">
-          <option value="male">Male</option>
-          <option value="female">Female</option>
-          <option value="other">Other</option>
-      </select><br>
-  
-      <label for="password">Password: </label>
-      <input type="password" name="password" id="regpassword" placeholder="Password" required><br>
-  
-      <label for="confpassword">Confirm Password: </label>
-      <input type="password" name="confpassword" id="regconfpassword" placeholder="Confirm Password" required><br>
-  
-      <button type="submit" id="register-submit-button">Register</button>
-      <button type="submit" id="login-switch-button">Go to login</button>
-    </form>
-
-    <!-- Main Content -->
-    <div class="main-content" id="main-content" style="display: none">
-      <div class="main-content-body">
-        <div class="main-content-body-left">
-          <h3>Latest Posts</h3>
-          <div class="latest-posts">
-            <div class="latest-post">
-              <h4>Post Title</h4>
-              <p>Post Content</p>
-            </div>
-          </div>
-        </div>
-        <div class="main-content-body-right">
-          <h3>Latest Comments</h3>
-          <div class="latest-comments">
-            <div class="latest-comment">
-              <h4>Comment Title</h4>
-              <p>Comment Content</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-      <div class="chat" id ="chat" style="display: none">
-        <div class="chat-body">
-          <div class="chat-body-messages">
-            <textarea name="chat-messages" id="chat-messages" cols="30" rows="10"></textarea>
-          </div>
-        </div>
-        <div class="chat-footer">
-          <!-- If using a from tag in an SPA (single page application) you must suppress the form reloading the whole page. -->
-          <form>
-            <input type="text" id="new-message" name="new-message" placeholder="Type your message">
-            <button id="message-submit" type="submit">Send</button>
-          </form>
-        </div>
-      </div>
-
+    <div id="main"></div>
   </body>
 
   <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/chat.js"></script>
+  <script type="module" src="js/mainHTML.js"></script>
+  <script type="module" src="js/loggedInHTML.js"></script>
   <script type="module" src="js/navigation.js"></script>
   <script type="module" src="js/login.js"></script>
+  <script type="module" src="js/register.js"></script>
   <script type="module" src="js/websocket.js"></script>
-  <script type="module" src="js/chat.js"></script>
-<!-- <script type="module" src="js/forms.js"></script> -->
 
 </html>

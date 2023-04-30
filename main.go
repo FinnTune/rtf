@@ -59,9 +59,17 @@ func startServer() {
 		//get request URL and store in variable to be used in log message
 		url := r.URL.Path
 		log.Printf("Handling request \"%s\" and serving index.html", url)
-		utility.CreateCookie(w, r)
-		http.ServeFile(w, r, "./frontend/index.html")
+
+		//Check if cookie exists and create if not
+		if utility.CheckCookieExist(w, r) {
+			log.Println("Cookie exists.")
+		} else {
+			log.Println("Cookie does not exist. Creating cookie.")
+			utility.CreateCookie(w, r)
+		}
+		http.ServeFile(w, r, "./frontend/original.html")
 	})
+	http.HandleFunc("/checkLogin", websocket.CheckLoginHandler)
 	http.HandleFunc("/register", websocket.RegistrationHandler)
 	http.HandleFunc("/login", websocket.LoginHandler)
 	http.HandleFunc("/ws", websocket.WebsocketHandler)

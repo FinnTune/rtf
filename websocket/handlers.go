@@ -37,6 +37,49 @@ var (
 	manager = newManager(ctx)
 )
 
+func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
+	// Get the session cookie from the request
+	sessionCookie, err := r.Cookie("sessionID")
+	if err != nil {
+		// If the cookie is not set, the user is not logged in
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(struct {
+			LoggedIn bool `json:"loggedIn"`
+		}{
+			LoggedIn: false,
+		})
+		return
+	}
+
+	// Find the client with the matching session ID
+	manager.Lock()
+	defer manager.Unlock()
+	for client := range manager.clients {
+		if client.sessionID == sessionCookie.Value {
+			// Send the login status to the client
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(struct {
+				LoggedIn bool `json:"loggedIn"`
+			}{
+				LoggedIn: client.loggedIn,
+			})
+			return
+		}
+	}
+
+	// If no client was found with the matching session ID, the user is not logged in
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(struct {
+		LoggedIn bool `json:"loggedIn"`
+	}{
+		LoggedIn: false,
+	})
+}
+
+func CheckLoginHandler(w http.ResponseWriter, r *http.Request) {
+	manager.checkLogin(w, r)
+}
+
 func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 	log.Println("Login handler reached.")
 	//Check if user is already logged in
@@ -135,8 +178,23 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := newClient(conn, m)
+	//Get cookie from request
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		log.Printf("Error getting cookie: %s", err)
+		return
+	}
 
+	//Get cookie value
+	sessionID := cookie.Value
+
+	//Create new client
+	client := newClient(conn, m, sessionID)
+
+	//Set client loggedIn to true
+	client.loggedIn = true
+
+	//Add client to manager
 	m.addClient(client)
 
 	//Start client routines for reading and writing messages
