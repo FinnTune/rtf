@@ -39,9 +39,11 @@ var (
 
 func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	// Get the session cookie from the request
-	sessionCookie, err := r.Cookie("sessionID")
+	log.Println("Checking login status.")
+	sessionCookie, err := r.Cookie("session_id")
 	if err != nil {
 		// If the cookie is not set, the user is not logged in
+		log.Println("No session cookie found. User not logged in.")
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(struct {
 			LoggedIn bool `json:"loggedIn"`
@@ -56,6 +58,7 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	defer manager.Unlock()
 	for client := range manager.clients {
 		if client.sessionID == sessionCookie.Value {
+			log.Println("Session cookie found. User logged in.")
 			// Send the login status to the client
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(struct {
@@ -68,6 +71,7 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If no client was found with the matching session ID, the user is not logged in
+	log.Println("No client found with matching session ID. User not logged in.")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(struct {
 		LoggedIn bool `json:"loggedIn"`

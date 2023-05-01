@@ -59,7 +59,7 @@ function sendEvent(eventName, payload) {
     conn.send(JSON.stringify(event));
 }
 
-function sendMessage (message) {
+export function sendMessage (message) {
     var newmessage = document.getElementById('new-message');
     if(newmessage != null) {
         //Hard-coded value of the username needs to be changed???
@@ -70,12 +70,3 @@ function sendMessage (message) {
     newmessage.value = "";
     return false
 }
-
-
-// Event listener for message sending
-// This onsubmit uses the form to reload the page and the websocket gets reloaded which is why you cant see the message
-// document.getElementById('new-message').onsubmit = sendMessage;
-document.getElementById('message-submit').addEventListener('click', function(e) {
-    e.preventDefault(); // prevent the default form behaviour, i.e. reloading the page
-    sendMessage();
-});

@@ -67,7 +67,7 @@ func startServer() {
 			log.Println("Cookie does not exist. Creating cookie.")
 			utility.CreateCookie(w, r)
 		}
-		http.ServeFile(w, r, "./frontend/original.html")
+		http.ServeFile(w, r, "./frontend/index.html")
 	})
 	http.HandleFunc("/checkLogin", websocket.CheckLoginHandler)
 	http.HandleFunc("/register", websocket.RegistrationHandler)

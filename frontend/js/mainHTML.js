@@ -1,243 +1,112 @@
+import { login } from "./login.js";
+import { register } from "./register.js";
+
 export function createMainHTML() {
     const mainDiv = document.getElementById("main");
+    mainDiv.innerHTML = `
+    <!-- Navgation header -->
+    <header class="header">
+      <h1 id="title"><a>theDialectic</a></h1>
+      <button type="submit" class="header-btns" id="register-button">Register</button>
+      <button type="submit" class="header-btns" id="login-button">Login</button>
+    </header>
+
+    <div id="msg">
+    </div>
+
+    <!--Introductory remarks-->
+    <div class="intro" id="intro">
+      <h2>Welcome to theDialectic</h2>
+      <p>
+        Please feel free to bombard us with your conversation.<br><br>
+        If you are not yet a member, please oblige us and register.<br>
+        If you already have an account, login and converse.<br><br>
+      </p>
+    </div>
+
+    <!-- Login/Register Form -->
+    <form class="login-form" id="login-form" method="post" style="display: none">
+      <label for="username">Login</label>
+      <input type="text" name="username" id="username" placeholder="Enter your login" required>
+    
+      <label for="password">Password</label>
+      <input type="password" name="password" id="password" placeholder="Enter your password" required>
+    
+      <button type="submit" id="login-button">Login</button>
+      <button type="button" id="register-switch-button">Go to registration</button>
+    </form>
+
+    <!-- Registration Form -->
+    <form class="register-form" id="registration-form" method="post" style="display: none;">
+      <label for="firstname">First Name: </label>
+      <input type="text" name="firstname" id="regfname" placeholder="First Name" required><br>
   
-    // Navgation header
-    const header = document.createElement("header");
-    header.classList.add("header");
+      <label for="lastname">Last Name: </label>
+      <input type="text" name="lastname" id="reglname" placeholder="Last Name" required><br>
   
-    const h1 = document.createElement("h1");
-    h1.setAttribute("id", "title");
+      <label for="username">Username: </label>
+      <input type="text" name="username" id="reguname" placeholder="Username" required><br>
   
-    const a = document.createElement("a");
-    a.textContent = "theDialectic";
-    h1.appendChild(a);
+      <label for="email">Email: </label>
+      <input type="email" name="email" id="regemail"placeholder="Email" required><br>
   
-    const registerButton = document.createElement("button");
-    registerButton.setAttribute("type", "submit");
-    registerButton.classList.add("header-btns");
-    registerButton.setAttribute("id", "register-button");
-    registerButton.textContent = "Register";
+      <label for="age">Age: </label>
+      <input type="number" name="age" id="regage" placeholder="Age" min="0" max="150" required><br>
   
-    const loginButton = document.createElement("button");
-    loginButton.setAttribute("type", "submit");
-    loginButton.classList.add("header-btns");
-    loginButton.setAttribute("id", "login-button");
-    loginButton.textContent = "Login";
+      <label for="gender">Gender: </label>
+      <select name="gender" id="reggender">
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="other">Other</option>
+      </select><br>
   
-    header.appendChild(h1);
-    header.appendChild(registerButton);
-    header.appendChild(loginButton);
+      <label for="password">Password: </label>
+      <input type="password" name="password" id="regpassword" placeholder="Password" required><br>
   
-    mainDiv.appendChild(header);
+      <label for="confpassword">Confirm Password: </label>
+      <input type="password" name="confpassword" id="regconfpassword" placeholder="Confirm Password" required><br>
   
-    // Message div
-    const messageDiv = document.createElement("div");
-    messageDiv.setAttribute("id", "msg");
-    mainDiv.appendChild(messageDiv);
-  
-    // Introductory remarks
-    const introDiv = document.createElement("div");
-    introDiv.classList.add("intro");
-    introDiv.setAttribute("id", "intro");
-  
-    const h2 = document.createElement("h2");
-    h2.textContent = "Welcome to theDialectic";
-  
-    const p = document.createElement("p");
-    p.innerHTML = "Please feel free to bombard us with your conversation.<br><br>If you are not yet a member, please oblige us and register.<br>If you already have an account, login and converse.<br><br>";
-  
-    introDiv.appendChild(h2);
-    introDiv.appendChild(p);
-  
-    mainDiv.appendChild(introDiv);
-  
-    // Login/Register Form
-    const loginForm = document.createElement("form");
-    loginForm.classList.add("login-form");
-    loginForm.setAttribute("id", "login-form");
-    loginForm.setAttribute("method", "post");
-    loginForm.style.display = "none";
-  
-    const loginLabel = document.createElement("label");
-    loginLabel.setAttribute("for", "username");
-    loginLabel.textContent = "Login";
-  
-    const loginInput = document.createElement("input");
-    loginInput.setAttribute("type", "text");
-    loginInput.setAttribute("name", "username");
-    loginInput.setAttribute("id", "username");
-    loginInput.setAttribute("placeholder", "Enter your login");
-    loginInput.required = true;
-  
-    const passwordLabel = document.createElement("label");
-    passwordLabel.setAttribute("for", "password");
-    passwordLabel.textContent = "Password";
-  
-    const passwordInput = document.createElement("input");
-    passwordInput.setAttribute("type", "password");
-    passwordInput.setAttribute("name", "password");
-    passwordInput.setAttribute("id", "password");
-    passwordInput.setAttribute("placeholder", "Enter your password");
-    passwordInput.required = true;
-  
-    const loginSubmitButton = document.createElement("button");
-    loginSubmitButton.setAttribute("type", "submit");
-    loginSubmitButton.setAttribute("id", "login-button");
-    loginSubmitButton.textContent = "Login";
-  
-    const registerSwitchButton = document.createElement("button");
-    registerSwitchButton.setAttribute("type", "button");
-    registerSwitchButton.setAttribute("id", "register-switch-button");
-    registerSwitchButton.textContent = "Go to registration";
-  
-    loginForm.appendChild(loginLabel);
-    loginForm.appendChild(loginInput);
-    loginForm.appendChild(passwordLabel);
-    loginForm.appendChild(passwordInput);
-    loginForm.appendChild(loginSubmitButton);
-    loginForm.appendChild(registerSwitchButton);
-  
-    //???????
-    mainDiv.appendChild(loginForm);
-  
-  // Registration Form
-  const registrationForm = document.createElement("form");
-  registrationForm.classList.add("register-form");
-  registrationForm.setAttribute("id", "registration-form");
-  registrationForm.setAttribute("method", "post");
-  registrationForm.style.display = "none";
-  
-  const firstnameLabel = document.createElement("label");
-  firstnameLabel.setAttribute("for", "firstname");
-  firstnameLabel.textContent = "First Name: ";
-  
-  const firstnameInput = document.createElement("input");
-  firstnameInput.setAttribute("type", "text");
-  firstnameInput.setAttribute("name", "firstname");
-  firstnameInput.setAttribute("id", "regfname");
-  firstnameInput.setAttribute("placeholder", "First Name");
-  firstnameInput.required = true;
-  
-  const lastnameLabel = document.createElement("label");
-  lastnameLabel.setAttribute("for", "lastname");
-  lastnameLabel.textContent = "Last Name: ";
-  
-  const lastnameInput = document.createElement("input");
-  lastnameInput.setAttribute("type", "text");
-  lastnameInput.setAttribute("name", "lastname");
-  lastnameInput.setAttribute("id", "reglname");
-  lastnameInput.setAttribute("placeholder", "Last Name");
-  lastnameInput.required = true;
-  
-  const usernameLabel = document.createElement("label");
-  usernameLabel.setAttribute("for", "username");
-  usernameLabel.textContent = "Username: ";
-  
-  const usernameInput = document.createElement("input");
-  usernameInput.setAttribute("type", "text");
-  usernameInput.setAttribute("name", "username");
-  usernameInput.setAttribute("id", "reguname");
-  usernameInput.setAttribute("placeholder", "Username");
-  usernameInput.required = true;
-  
-  const emailLabel = document.createElement("label");
-  emailLabel.setAttribute("for", "email");
-  emailLabel.textContent = "Email: ";
-  
-  const emailInput = document.createElement("input");
-  emailInput.setAttribute("type", "email");
-  emailInput.setAttribute("name", "email");
-  emailInput.setAttribute("id", "regemail");
-  emailInput.setAttribute("placeholder", "Email");
-  emailInput.required = true;
-  
-  const ageLabel = document.createElement("label");
-  ageLabel.setAttribute("for", "age");
-  ageLabel.textContent = "Age: ";
-  
-  const ageInput = document.createElement("input");
-  ageInput.setAttribute("type", "number");
-  ageInput.setAttribute("name", "age");
-  ageInput.setAttribute("id", "regage");
-  ageInput.setAttribute("placeholder", "Age");
-  ageInput.setAttribute("min", "0");
-  ageInput.setAttribute("max", "150");
-  ageInput.required = true;
-  
-  const genderLabel = document.createElement("label");
-  genderLabel.setAttribute("for", "gender");
-  genderLabel.textContent = "Gender: ";
-  
-  const genderSelect = document.createElement("select");
-  genderSelect.setAttribute("name", "gender");
-  genderSelect.setAttribute("id", "reggender");
-  
-  const maleOption = document.createElement("option");
-  maleOption.setAttribute("value", "male");
-  maleOption.textContent = "Male";
-  
-  const femaleOption = document.createElement("option");
-  femaleOption.setAttribute("value", "female");
-  femaleOption.textContent = "Female";
-  
-  const otherOption = document.createElement("option");
-  otherOption.setAttribute("value", "other");
-  otherOption.textContent = "Other";
-  
-  genderSelect.appendChild(maleOption);
-  genderSelect.appendChild(femaleOption);
-  genderSelect.appendChild(otherOption);
-  
-  const passwordLabel2 = document.createElement("label");
-  passwordLabel2.setAttribute("for", "password");
-  passwordLabel2.textContent = "Password: ";
-  
-  const passwordInput2 = document.createElement("input");
-  passwordInput2.setAttribute("type", "password");
-  passwordInput2.setAttribute("name", "password");
-  passwordInput2.setAttribute("id", "regpassword");
-  passwordInput2.setAttribute("placeholder", "Password");
-  passwordInput2.required = true;
-  
-  const confpasswordLabel = document.createElement("label");
-  confpasswordLabel.setAttribute("for", "confpassword");
-  confpasswordLabel.textContent = "Confirm Password: ";
-  
-  const confpasswordInput = document.createElement("input");
-  confpasswordInput.setAttribute("type", "password");
-  confpasswordInput.setAttribute("name", "confpassword");
-  confpasswordInput.setAttribute("id", "regconfpassword");
-  confpasswordInput.setAttribute("placeholder", "Confirm Password");
-  confpasswordInput.required = true;
-  
-  const registerSubmitButton = document.createElement("button");
-  registerSubmitButton.setAttribute("type", "submit");
-  registerSubmitButton.setAttribute("id", "register-submit-button");
-  registerSubmitButton.textContent = "Register";
-  
-  const loginSwitchButton = document.createElement("button");
-  loginSwitchButton.setAttribute("type", "submit");
-  loginSwitchButton.setAttribute("id", "login-switch-button");
-  loginSwitchButton.textContent = "Go to login";
-  
-  registrationForm.appendChild(firstnameLabel);
-  registrationForm.appendChild(firstnameInput);
-  registrationForm.appendChild(lastnameLabel);
-  registrationForm.appendChild(lastnameInput);
-  registrationForm.appendChild(usernameLabel);
-  registrationForm.appendChild(usernameInput);
-  registrationForm.appendChild(emailLabel);
-  registrationForm.appendChild(emailInput);
-  registrationForm.appendChild(ageLabel);
-  registrationForm.appendChild(ageInput);
-  registrationForm.appendChild(genderLabel);
-  registrationForm.appendChild(genderSelect);
-  registrationForm.appendChild(passwordLabel2);
-  registrationForm.appendChild(passwordInput2);
-  registrationForm.appendChild(confpasswordLabel);
-  registrationForm.appendChild(confpasswordInput);
-  registrationForm.appendChild(registerSubmitButton);
-  registrationForm.appendChild(loginSwitchButton);
-  
-  mainDiv.appendChild(registrationForm);
+      <button type="submit" id="register-submit-button">Register</button>
+      <button type="submit" id="login-switch-button">Go to login</button>
+    </form>
+    `;
+
+    // Event listeners
+    document.getElementById('title').addEventListener('click', function() {
+      document.getElementById('login-form').style.display = 'none';
+      document.getElementById('intro').style.display = 'flex';
+      document.getElementById('registration-form').style.display = 'none';
+    });
+
+    document.getElementById('register-button').addEventListener('click', function() {
+      document.getElementById('login-form').style.display = 'none';
+      document.getElementById('intro').style.display = 'none';
+      document.getElementById('registration-form').style.display = 'block';
+    });
+
+    document.getElementById('login-button').addEventListener('click', function() {
+      document.getElementById('login-form').style.display = 'block';
+      document.getElementById('intro').style.display = 'none';
+      document.getElementById('registration-form').style.display = 'none';
+    });
+
+    document.getElementById('login-switch-button').addEventListener('click', function() {
+      document.getElementById('login-form').style.display = 'block';
+      document.querySelector('.register-form').style.display = 'none';
+    });
+
+    document.getElementById('register-switch-button').addEventListener('click', function() {
+      document.getElementById('login-form').style.display = 'none';
+      document.querySelector('.register-form').style.display = 'block';
+    });
+
+    document.getElementById('login-form').addEventListener('submit', function(event) {
+      event.preventDefault();
+      login();
+    });
+
+    document.getElementById('registration-form').addEventListener('submit', function(event) {
+      event.preventDefault();
+      register();
+    });
 }

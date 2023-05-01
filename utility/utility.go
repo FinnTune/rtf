@@ -48,7 +48,7 @@ func CreateCookie(w http.ResponseWriter, r *http.Request) {
 }
 
 func CheckCookieExist(w http.ResponseWriter, r *http.Request) bool {
-	_, err := r.Cookie("session_token")
+	_, err := r.Cookie("session_id")
 	//The function returns the opposite of the comparison err != http.ErrNoCookie,
 	//which means it returns true if the cookie exists and false otherwise.
 	return err != http.ErrNoCookie
