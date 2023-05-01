@@ -48,7 +48,7 @@ func (c *Client) readMessages() {
 	defer func() {
 		//connection clean up - close connection and remove client from manager
 		c.connection.Close()
-		c.manager.removeClient(c)
+		c.connection = nil
 	}()
 
 	//Set read deadline for pong wait.
@@ -72,7 +72,7 @@ func (c *Client) readMessages() {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("Client ReadMessage() error: %s", err)
 				c.connection.Close()
-				c.manager.removeClient(c)
+				c.connection = nil
 				//Print address of client connection
 				log.Println("Client Inside Error: ", c.connection.RemoteAddr())
 			}
@@ -114,7 +114,7 @@ func (c *Client) readMessages() {
 func (c *Client) writeMesssage() {
 	defer func() {
 		c.connection.Close()
-		c.manager.removeClient(c)
+		c.connection = nil
 	}()
 
 	//Declare new ticker channel with pingInterval

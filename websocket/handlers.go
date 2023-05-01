@@ -56,8 +56,13 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	// Find the client with the matching session ID
 	manager.Lock()
 	defer manager.Unlock()
+	log.Println("Manger Clients: ", manager.clients)
 	for client := range manager.clients {
+		log.Println("Client session ID: ", client.sessionID)
+		log.Println("Cookie session ID: ", sessionCookie.Value)
 		if client.sessionID == sessionCookie.Value {
+			// If the client is found, the user is logged in
+			client.loggedIn = true
 			log.Println("Session cookie found. User logged in.")
 			// Send the login status to the client
 			w.Header().Set("Content-Type", "application/json")
@@ -191,6 +196,7 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 
 	//Get cookie value
 	sessionID := cookie.Value
+	log.Println("Session Id in WS werve: ", sessionID)
 
 	//Create new client
 	client := newClient(conn, m, sessionID)

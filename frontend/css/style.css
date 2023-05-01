@@ -50,10 +50,6 @@ font-size: 16px;
 cursor: pointer;
 }
 
-#logout-button {
-display: none;
-}
-
 .intro {
 display: flex;
 flex-direction: column;

@@ -6,8 +6,8 @@ export function createLoggedInHTML() {
     <!-- Navgation header -->
     <header class="header">
       <h1 id="title"><a>theDialectic</a></h1>
-      <button type="submit" class="header-btns" id="all-posts-button" style="display: none">Posts</button>
-      <button type="submit" class="header-btns" id="create-post-button" style="display: none">New Post</button>
+      <button type="submit" class="header-btns" id="all-posts-button">Posts</button>
+      <button type="submit" class="header-btns" id="create-post-button">New Post</button>
       <button type="submit" class="header-btns" id="logout-button">Logout</button>
     </header>
 
@@ -25,7 +25,7 @@ export function createLoggedInHTML() {
     </div>
 
     <!-- Main Content -->
-    <div class="main-content" id="main-content" style="display: none">
+    <div class="main-content" id="main-content">
       <div class="main-content-body">
         <div class="main-content-body-left">
           <h3>Latest Posts</h3>
@@ -48,7 +48,7 @@ export function createLoggedInHTML() {
       </div>
     </div>
 
-      <div class="chat" id ="chat" style="display: none">
+      <div class="chat" id ="chat">
         <div class="chat-body">
           <div class="chat-body-messages">
             <textarea name="chat-messages" id="chat-messages" cols="30" rows="10"></textarea>

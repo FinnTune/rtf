@@ -53,10 +53,12 @@ function checkLoginStatus() {
     .then(data => {
       if (data.loggedIn) {
         console.log("User is logged in.")
+        console.log(data.loggedIn)
         // User is logged in
         createLoggedInHTML();
       } else {
         console.log("User is not logged in.")
+        console.log(data.loggedIn)
         // User is not logged in
         createMainHTML();
       }

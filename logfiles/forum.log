@@ -1,15 +1,31 @@
-2023/05/01 12:35:57 main.go:109: Main begun. Log file checked, opened, and set.
-2023/05/01 12:35:57 main.go:110: New Forum Begun
-2023/05/01 12:35:57 sqlFuncs.go:18: Database opened successfully.
-2023/05/01 12:35:57 main.go:45: File Servers Started.
-2023/05/01 12:35:57 main.go:56: Handlers Started.
-2023/05/01 12:35:57 main.go:86: Server Started and listening on port :443.
-2023/05/01 12:36:04 main.go:61: Handling request "/" and serving index.html
-2023/05/01 12:36:04 main.go:67: Cookie does not exist. Creating cookie.
-2023/05/01 12:36:05 handlers.go:42: Checking login status.
-2023/05/01 12:36:05 handlers.go:74: No client found with matching session ID. User not logged in.
-2023/05/01 12:36:24 main.go:61: Handling request "/" and serving index.html
-2023/05/01 12:36:24 main.go:65: Cookie exists.
-2023/05/01 12:36:25 handlers.go:42: Checking login status.
-2023/05/01 12:36:25 handlers.go:74: No client found with matching session ID. User not logged in.
-2023/05/01 12:36:37 main.go:29: Server stopped.
+2023/05/01 16:40:24 main.go:109: Main begun. Log file checked, opened, and set.
+2023/05/01 16:40:24 main.go:110: New Forum Begun
+2023/05/01 16:40:24 sqlFuncs.go:18: Database opened successfully.
+2023/05/01 16:40:24 main.go:45: File Servers Started.
+2023/05/01 16:40:24 main.go:56: Handlers Started.
+2023/05/01 16:40:24 main.go:86: Server Started and listening on port :443.
+2023/05/01 16:40:30 main.go:61: Handling request "/" and serving index.html
+2023/05/01 16:40:30 main.go:65: Cookie exists.
+2023/05/01 16:40:30 handlers.go:42: Checking login status.
+2023/05/01 16:40:30 handlers.go:59: Manger Clients:  map[]
+2023/05/01 16:40:30 handlers.go:79: No client found with matching session ID. User not logged in.
+2023/05/01 16:40:37 handlers.go:93: Login handler reached.
+2023/05/01 16:40:37 handlers.go:108: Login POST request received.
+2023/05/01 16:40:37 utility.go:29: Password and hash match.
+2023/05/01 16:40:37 handlers.go:127: User found: {ID:1 Username:John Email:john@example.com Joined:2023-04-27 13:23:06 Password:$2a$12$SN6NPelql2gsTiPrUT9RUe/Us7g6/dNsTOwkhGCtUtqysIikv50gy Session: NumberComments:0 NumberPosts:0}
+2023/05/01 16:40:37 handlers.go:128: Authentication condition reached.
+2023/05/01 16:40:37 handlers.go:183: Serving websocket.
+2023/05/01 16:40:37 handlers.go:26: Checking origin: https://localhost
+2023/05/01 16:40:37 handlers.go:199: Session Id in WS werve:  968de3ec-54a8-4080-a9e7-9005e09175f3
+2023/05/01 16:40:37 ws-client.go:30: New client connected.
+2023/05/01 16:40:37 ws-manager.go:85: Client: 127.0.0.1:40610 added to manager.
+2023/05/01 16:40:37 ws-client.go:47: Client IP and client port num.:  127.0.0.1:40610
+2023/05/01 16:40:41 ws-client.go:69: Client read message from:  127.0.0.1:40610
+2023/05/01 16:40:41 ws-client.go:71: Client Made an Error:  websocket: close 1001 (going away)
+2023/05/01 16:40:41 main.go:61: Handling request "/" and serving index.html
+2023/05/01 16:40:41 main.go:65: Cookie exists.
+2023/05/01 16:40:42 handlers.go:42: Checking login status.
+2023/05/01 16:40:42 handlers.go:59: Manger Clients:  map[0xc0001932f0:true]
+2023/05/01 16:40:42 handlers.go:61: Client session ID:  968de3ec-54a8-4080-a9e7-9005e09175f3
+2023/05/01 16:40:42 handlers.go:62: Cookie session ID:  968de3ec-54a8-4080-a9e7-9005e09175f3
+2023/05/01 16:40:42 handlers.go:66: Session cookie found. User logged in.

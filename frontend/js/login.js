@@ -1,4 +1,5 @@
 import { connectWebSocket } from './websocket.js';
+import { createLoggedInHTML } from './loggedInHTML.js';
 
 export function login() {
     //Below are two different was to get the form data
@@ -26,17 +27,9 @@ export function login() {
         }}
     ).then((response) => {
         if(response.ok){
-            document.getElementById('msg').innerHTML = 'You are now logged in.';
-            document.getElementById('msg').style.display = "block"
-            document.getElementById('all-posts-button').style.display = "block"
-            document.getElementById('create-post-button').style.display = "block"
-            document.getElementById('login-button').style.display = "none"
-            document.getElementById('logout-button').style.display = "block"
-            document.getElementById('register-button').style.display = "none"
-            document.getElementById('intro').style.display = 'flex';
-            document.getElementById('login-form').style.display = 'none';
-            document.getElementById('main-content').style.display = 'block'; 
-            document.getElementById('chat').style.display = "block";
+        console.log("User logged in.")
+        // User is logged in
+        createLoggedInHTML();
             return response.json();
         } else {
             // throw new Error('Unauthorized');
