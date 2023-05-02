@@ -65,6 +65,8 @@ export function createLoggedInHTML() {
       `;
 
     // Add event listeners to the buttons
+    // This onsubmit uses the form to reload the page and the websocket gets reloaded which is why you cant see the message
+    // document.getElementById('new-message').onsubmit = sendMessage;
     document.getElementById('chat').addEventListener('submit', function(event) {
       event.preventDefault();
       sendMessage();

@@ -56,20 +56,25 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	// Find the client with the matching session ID
 	manager.Lock()
 	defer manager.Unlock()
-	log.Println("Manger Clients: ", manager.clients)
+	log.Println("Manager's clients: ", manager.clients)
 	for client := range manager.clients {
-		log.Println("Client session ID: ", client.sessionID)
-		log.Println("Cookie session ID: ", sessionCookie.Value)
 		if client.sessionID == sessionCookie.Value {
 			// If the client is found, the user is logged in
 			client.loggedIn = true
 			log.Println("Session cookie found. User logged in.")
+
+			// Otp
+			//Create new OTP and store in manager otps map
+			otp := m.otps.newOtp()
+
 			// Send the login status to the client
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(struct {
-				LoggedIn bool `json:"loggedIn"`
+				LoggedIn bool   `json:"loggedIn"`
+				OTP      string `json:"otp"`
 			}{
 				LoggedIn: client.loggedIn,
+				OTP:      otp.Key,
 			})
 			return
 		}
@@ -194,13 +199,26 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//Get cookie value
+	//Get cookie value and check if client already exists
+	//If client exists, set connection to new connection and start client routines
 	sessionID := cookie.Value
-	log.Println("Session Id in WS werve: ", sessionID)
+	log.Println("Session Id in ServeWS: ", sessionID)
+	for c := range m.clients {
+		if c.sessionID == sessionID {
+			log.Println("Client already exists.")
+			c.connection = conn
+			go c.readMessages()
+			go c.writeMesssage()
+			return
+		}
+	}
 
+	//If client does not exist, create new client,
+	//set loggedIn to true, add client to manager,
+	//and start client routines
+	log.Println("Client does not exist.")
 	//Create new client
 	client := newClient(conn, m, sessionID)
-
 	//Set client loggedIn to true
 	client.loggedIn = true
 

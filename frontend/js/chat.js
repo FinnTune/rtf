@@ -51,7 +51,9 @@ function appendChatMsg(event) {
     const formattedMsg = `${date.toLocaleString()}: ${event.message}`;
     let msgArea = document.getElementById('chat-messages');
     msgArea.innerHTML = msgArea.innerHTML + "\n" + formattedMsg;
-    msgArea.scrollTop = msgArea.scrollHeight;
+    //Intrusive for the user attempting to read prevuous messages
+    //because it scrolls to the bottom of the chat area.
+    // msgArea.scrollTop = msgArea.scrollHeight;
 }
 
 function sendEvent(eventName, payload) {

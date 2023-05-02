@@ -1,5 +1,6 @@
 import { createLoggedInHTML } from './loggedInHTML.js';
 import { createMainHTML } from './mainHTML.js';
+import { connectWebSocket } from './websocket.js';
 
 window.onload = function () {
   console.log("Window loaded.")
@@ -19,8 +20,7 @@ window.onload = function () {
     //     register();
     // });
     // }
-    // This onsubmit uses the form to reload the page and the websocket gets reloaded which is why you cant see the message
-    // document.getElementById('new-message').onsubmit = sendMessage;
+
     // if (document.getElementById('chat') != null) {
     //   document.getElementById('chat').addEventListener('submit', function(event) {
     //     event.preventDefault();
@@ -54,8 +54,10 @@ function checkLoginStatus() {
       if (data.loggedIn) {
         console.log("User is logged in.")
         console.log(data.loggedIn)
+        
         // User is logged in
         createLoggedInHTML();
+        connectWebSocket(data.otp);
       } else {
         console.log("User is not logged in.")
         console.log(data.loggedIn)
