@@ -1,3 +1,5 @@
+import { createMainHTML } from "./mainHTML.js";
+
 export function register() {
      //Check if password and confirm password are the same
      let password = document.getElementById('regpassword').value;
@@ -31,12 +33,9 @@ export function register() {
         }}
     ).then((response) => {
         if(response.ok){
+        console.log("User registered.")
+            createMainHTML();
             document.getElementById('msg').innerHTML = 'You are now registered. Please login.';
-            document.getElementById('msg').style.display = "block"
-            document.getElementById('intro').style.display = 'flex';
-            document.getElementById('registration-form').style.display = 'none';
-            document.getElementById('chat').style.display = 'none';
-            document.getElementById('main-content').style.display = 'none';
             return;
         } else {
             // throw new Error('Unauthorized');

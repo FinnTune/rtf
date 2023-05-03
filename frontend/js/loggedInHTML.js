@@ -26,42 +26,29 @@ export function createLoggedInHTML() {
 
     <!-- Main Content -->
     <div class="main-content" id="main-content">
-      <div class="main-content-body">
-        <div class="main-content-body-left">
           <h3>Latest Posts</h3>
-          <div class="latest-posts">
-            <div class="latest-post">
-              <h4>Post Title</h4>
-              <p>Post Content</p>
-            </div>
-          </div>
-        </div>
-        <div class="main-content-body-right">
-          <h3>Latest Comments</h3>
-          <div class="latest-comments">
-            <div class="latest-comment">
-              <h4>Comment Title</h4>
-              <p>Comment Content</p>
-            </div>
-          </div>
-        </div>
-      </div>
+          <table id="posts-table">
+            <tr>
+              <th>Title</th>
+              <th>Content</th>
+              <th>Author</th>
+              <th>Created</th>
+            </tr>
+          </table>
     </div>
 
-      <div class="chat" id ="chat">
-        <div class="chat-body">
-          <div class="chat-body-messages">
-            <textarea name="chat-messages" id="chat-messages" cols="30" rows="10"></textarea>
-          </div>
-        </div>
-        <div class="chat-footer">
-          <!-- If using a from tag in an SPA (single page application) you must suppress the form reloading the whole page. -->
-          <form>
-            <input type="text" id="new-message" name="new-message" placeholder="Type your message">
-            <button id="message-submit" type="submit">Send</button>
-          </form>
-        </div>
+    <!-- Chat -->
+    <div class="chat" id ="chat">
+      <h3>Chat</h3> 
+          <textarea name="chat-messages" id="chat-messages" cols="30" rows="10" style="resize:none"></textarea>
+      <div class="chat-footer">
+        <!-- If using a from tag in an SPA (single page application) you must suppress the form reloading the whole page. -->
+        <form>
+          <textarea type="text" id="new-message" name="new-message" placeholder="Type your message"></textarea>
+          <button id="message-submit" type="submit">Send</button>
+        </form>
       </div>
+    </div>
       `;
 
     // Add event listeners to the buttons

@@ -30,6 +30,7 @@ export function login() {
         console.log("User logged in.")
         // User is logged in
         createLoggedInHTML();
+        document.getElementById('msg').innerHTML = 'You are now logged in.';
             return response.json();
         } else {
             // throw new Error('Unauthorized');
