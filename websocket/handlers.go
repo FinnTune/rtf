@@ -60,23 +60,32 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	for client := range manager.clients {
 		if client.sessionID == sessionCookie.Value {
 			// If the client is found, the user is logged in
-			client.loggedIn = true
-			log.Println("Session cookie found. User logged in.")
+			if client.loggedIn {
+				log.Println("Session cookie found. User logged in.")
+				client.loggedIn = true
 
-			// Otp
-			//Create new OTP and store in manager otps map
-			otp := m.otps.newOtp()
+				// Otp
+				//Create new OTP and store in manager otps map
+				otp := m.otps.newOtp()
 
-			// Send the login status to the client
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(struct {
-				LoggedIn bool   `json:"loggedIn"`
-				OTP      string `json:"otp"`
-			}{
-				LoggedIn: client.loggedIn,
-				OTP:      otp.Key,
-			})
-			return
+				// Send the login status to the client
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(struct {
+					LoggedIn bool   `json:"loggedIn"`
+					OTP      string `json:"otp"`
+				}{
+					LoggedIn: client.loggedIn,
+					OTP:      otp.Key,
+				})
+				return
+			} else if !client.loggedIn {
+				json.NewEncoder(w).Encode(struct {
+					LoggedIn bool `json:"loggedIn"`
+				}{
+					LoggedIn: client.loggedIn,
+				})
+				return
+			}
 		}
 	}
 
@@ -117,7 +126,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		//Create instance of User struct to hold user info from databse
+		//Create instance of User struct to hold user info from database
 		userInfo := User{}
 
 		//Query database for user info, scan into struct, and check if password matches
@@ -134,14 +143,22 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 
 			//OTP response struct
 			type userLoginResponse struct {
-				OTP string `json:"otp"`
+				OTP      string `json:"otp"`
+				ID       int    `json:"id"`
+				Username string `json:"username"`
+				Email    string `json:"email"`
+				Joined   string `json:"joined"`
 			}
 
 			//Create new OTP and store in manager otps map
 			otp := m.otps.newOtp()
 
 			resp := userLoginResponse{
-				OTP: otp.Key,
+				OTP:      otp.Key,
+				ID:       userInfo.ID,
+				Username: userInfo.Username,
+				Email:    userInfo.Email,
+				Joined:   userInfo.Joined,
 			}
 
 			//Marhsal response otp struct into JSON and write to 'w'.
@@ -165,6 +182,53 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	manager.serveLogin(w, r)
+}
+
+func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		log.Println("Logout POST request received.")
+		//Check if user is logged in
+		sessionCookie, err := r.Cookie("session_id")
+		if err != nil {
+			// If the cookie is not set, the user is not logged in
+			log.Println("No session cookie found. User not logged in.")
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(struct {
+				LoggedIn bool `json:"loggedIn"`
+			}{
+				LoggedIn: false,
+			})
+			return
+		}
+		// Find the client with the matching session ID
+		manager.Lock()
+		defer manager.Unlock()
+		log.Println("Manager's clients: ", manager.clients)
+		for client := range manager.clients {
+			if client.sessionID == sessionCookie.Value {
+				if client.loggedIn {
+					// If the client is found, the user is logged in
+					client.loggedIn = false
+					log.Println("Session cookie found. User logged in.")
+					client.connection.Close()
+					client.connection = nil
+
+					// Send the login status to the client
+					w.Header().Set("Content-Type", "application/json")
+					json.NewEncoder(w).Encode(struct {
+						LoggedIn bool `json:"loggedIn"`
+					}{
+						LoggedIn: client.loggedIn,
+					})
+					return
+				}
+			}
+		}
+	}
+}
+
+func LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	manager.serveLogout(w, r)
 }
 
 // Serve websocket, upgrade incoming requests, and begin client routines for reading and writing messages

@@ -1,8 +1,7 @@
-import { sendMessage } from "./chat.js";
 import { logout } from "./logout.js";
-import { addPostHTML } from "./addPostHTML.js";
+import { sendMessage } from "./chat.js";
 
-export function createLoggedInHTML() {
+export function addPostHTML() {
     const mainDiv = document.getElementById("main");
     mainDiv.innerHTML = `
     <!-- Navgation header -->
@@ -15,14 +14,16 @@ export function createLoggedInHTML() {
 
     <div id="msg"></div>
 
-    <!--Introductory remarks-->
-    <div class="intro" id="intro">
-      <h2>Welcome to theDialectic</h2>
-      <p>
-        Please feel free to bombard us with your conversation.<br><br>
-        Create posts and/or comment on others.<br><br>
-        Feel free to start a conversation with the chat.<br><br>
-      </p>
+    <!-- Add Post -->
+    <div class="add-post" id="add-post">
+        <h3>Add Post</h3>
+        <form id="add-post-form">
+            <label for="title">Title:</label><br>
+            <input type="text" id="post-title" name="title"><br>
+            <label for="content">Content:</label><br>
+            <textarea type="text" id="post-content" cols="50" rows="4" name="content"></textarea><br><br>
+            <button type="submit" id="add-post-submit">Submit Post</button>
+        </form>
     </div>
 
     <!-- Main Content -->
@@ -49,10 +50,10 @@ export function createLoggedInHTML() {
           <button id="message-submit" type="submit">Send</button>
         </form>
       </div>
-      <div id ="users">
-        <h3>Users</h3>
-        <ul id="users-list"></ul>
-      </div>
+    </div>
+    <div id ="users">
+      <h3>Users</h3>
+      <ul id="users-list"></ul>
     </div>
       `;
 
@@ -64,14 +65,18 @@ export function createLoggedInHTML() {
       sendMessage();
     });
     document.getElementById('create-post-button').addEventListener('click', function(event) {
-      event.preventDefault();
-      addPostHTML();
+        event.preventDefault();
+        addPostHTML();
     });
     document.getElementById('logout-button').addEventListener('click', function(event) {
       event.preventDefault();
       logout();
     });
-    document.getElementById('title').addEventListener('click', function() {
-      window.location.href = '/';
-    });
+    document.getElementById('add-post-submit').addEventListener('submit', function(event) {
+        event.preventDefault();
+        addPost();
+      });
+      document.getElementById('title').addEventListener('click', function() {
+        window.location.href = '/';
+      });
   }

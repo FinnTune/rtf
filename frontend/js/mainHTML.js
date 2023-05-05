@@ -73,9 +73,7 @@ export function createMainHTML() {
 
     // Event listeners
     document.getElementById('title').addEventListener('click', function() {
-      document.getElementById('login-form').style.display = 'none';
-      document.getElementById('intro').style.display = 'flex';
-      document.getElementById('registration-form').style.display = 'none';
+      window.location.href = '/';
     });
 
     document.getElementById('register-button').addEventListener('click', function() {

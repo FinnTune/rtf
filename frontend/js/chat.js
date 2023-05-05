@@ -48,12 +48,12 @@ export function routeEvent(event) {
 
 function appendChatMsg(event) {
     var date = new Date(event.sent);
-    const formattedMsg = `${date.toLocaleString()}: ${event.message}`;
+    const formattedMsg = `<strong>${event.from} (${date.toLocaleTimeString()}): </strong>${event.message.replace(/\n/g, '<br>')}<br>`;
     let msgArea = document.getElementById('chat-messages');
-    msgArea.innerHTML = msgArea.innerHTML + "\n" + formattedMsg;
-    //Intrusive for the user attempting to read prevuous messages
+    msgArea.innerHTML += formattedMsg;
+     //Intrusive for the user attempting to read prevuous messages
     //because it scrolls to the bottom of the chat area.
-    // msgArea.scrollTop = msgArea.scrollHeight;
+    msgArea.scrollTop = msgArea.scrollHeight;
 }
 
 function sendEvent(eventName, payload) {
@@ -63,9 +63,11 @@ function sendEvent(eventName, payload) {
 
 export function sendMessage (message) {
     var newmessage = document.getElementById('new-message');
+    //Get usernmae from local storage
+    let username = localStorage.getItem('username');
     if(newmessage != null) {
         //Hard-coded value of the username needs to be changed???
-        let outGoingMsg = new SendMessageEvent(newmessage.value, "Client");
+        let outGoingMsg = new SendMessageEvent(newmessage.value, username);
         sendEvent("new-message", outGoingMsg);
         console.log("New Message Print: ", newmessage);
     }

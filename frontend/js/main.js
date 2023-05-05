@@ -6,33 +6,6 @@ window.onload = function () {
   console.log("Window loaded.")
     // Check login status
     checkLoginStatus();
-
-    // Add event listeners to login and registration forms
-    // if (document.getElementById('login-form') != null) {
-    // document.getElementById('login-form').addEventListener('submit', function(event) {
-    //     event.preventDefault();
-    //     login();
-    // });
-    // }
-    // if (document.getElementById('registration-form') != null) {
-    // document.getElementById('registration-form').addEventListener('submit', function(event) {
-    //     event.preventDefault();
-    //     register();
-    // });
-    // }
-
-    // if (document.getElementById('chat') != null) {
-    //   document.getElementById('chat').addEventListener('submit', function(event) {
-    //     event.preventDefault();
-    //     sendMessage();
-    //   });
-    // }
-    // if (document.getElementById('logout') != null) {
-    //   document.getElementById('logout').addEventListener('click', function(event) {
-    //     event.preventDefault();
-    //     logout();
-    //   });
-    // }
 };
 
 

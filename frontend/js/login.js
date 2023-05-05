@@ -30,15 +30,20 @@ export function login() {
         console.log("User logged in.")
         // User is logged in
         createLoggedInHTML();
-        document.getElementById('msg').innerHTML = 'You are now logged in.';
             return response.json();
         } else {
             // throw new Error('Unauthorized');
             throw 'Unauthorized';
         }
     }).then((data) => {
+        //Save data in local storage
+        localStorage.setItem('id', data.id);
+        localStorage.setItem('username', data.username);
+        localStorage.setItem('email', data.email);
+        localStorage.setItem('joined', data.joined);
         //At this point user is authenticated
         connectWebSocket(data.otp);
+        document.getElementById('msg').innerHTML = data.username + ', you are now logged in.';
     }).catch((error) => {
         alert("Err: " + error);
         console.log("Err: ", error);
