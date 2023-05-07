@@ -28,14 +28,6 @@ export function createLoggedInHTML() {
     <!-- Main Content -->
     <div class="main-content" id="main-content">
           <h3>Latest Posts</h3>
-          <table id="posts-table">
-            <tr>
-              <th>Title</th>
-              <th>Content</th>
-              <th>Author</th>
-              <th>Created</th>
-            </tr>
-          </table>
     </div>
 
     <!-- Chat -->
@@ -46,7 +38,7 @@ export function createLoggedInHTML() {
         <!-- If using a from tag in an SPA (single page application) you must suppress the form reloading the whole page. -->
         <form>
           <textarea type="text" id="new-message" name="new-message" placeholder="Type your message"></textarea>
-          <button id="message-submit" type="submit">Send</button>
+          <button id="message-submit" class="btns" type="submit">Send</button>
         </form>
       </div>
       <div id ="users">

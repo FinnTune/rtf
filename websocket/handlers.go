@@ -341,3 +341,36 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 	registerUser(w, r)
 }
+
+func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		log.Println("AllPostsHandler reached.")
+		//Get all posts from database
+		query := `SELECT * FROM post;`
+		rows, err := database.ForumDB.Query(query)
+		if err != nil {
+			log.Printf("Error executing query: %s", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer rows.Close()
+
+		//Create slice of posts
+		posts := []Post{}
+
+		//Iterate through rows and append to posts slice
+		for rows.Next() {
+			var post Post
+			err = rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Category, &post.CategoryId, &post.Created)
+			if err != nil {
+				log.Printf("Error scanning rows: %s", err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			posts = append(posts, post)
+		}
+		//Encode posts slice to json and send to w
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(posts)
+	}
+}

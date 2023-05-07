@@ -1,3 +1,4 @@
+import { getAllPosts } from './getAllPosts.js';
 import { createLoggedInHTML } from './loggedInHTML.js';
 import { createMainHTML } from './mainHTML.js';
 import { connectWebSocket } from './websocket.js';
@@ -30,6 +31,7 @@ function checkLoginStatus() {
         
         // User is logged in
         createLoggedInHTML();
+        getAllPosts();
         connectWebSocket(data.otp);
       } else {
         console.log("User is not logged in.")

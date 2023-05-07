@@ -70,6 +70,7 @@ func startServer() {
 		http.ServeFile(w, r, "./frontend/index.html")
 	})
 	http.HandleFunc("/checkLogin", websocket.CheckLoginHandler)
+	http.HandleFunc("/getAllPosts", websocket.AllPostsHandler)
 	http.HandleFunc("/logout", websocket.LogoutHandler)
 	http.HandleFunc("/register", websocket.RegistrationHandler)
 	http.HandleFunc("/login", websocket.LoginHandler)

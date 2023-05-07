@@ -52,16 +52,13 @@ type Topic struct {
 }
 
 type Post struct {
-	PostId   int
-	UserId   int
-	TopicId  int
-	Creator  string
-	Topic    string
-	Label    string
-	Content  string
-	Created  string
-	Likes    int
-	Dislikes int
+	PostId     int
+	UserId     int
+	Title      string
+	Content    string
+	Category   string
+	CategoryId int
+	Created    string
 }
 
 type Alert struct {

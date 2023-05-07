@@ -1,5 +1,6 @@
 import { logout } from "./logout.js";
 import { sendMessage } from "./chat.js";
+import {addPost} from "./addPost.js";
 
 export function addPostHTML() {
     const mainDiv = document.getElementById("main");

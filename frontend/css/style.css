@@ -191,6 +191,15 @@ margin: 10px;
 padding: 5px;
 }
 
+.post-link {
+color: #fff;
+}
+
+#posts {
+overflow: auto;
+height: 100px; /* set a fixed height to limit the maximum size of the chat area */
+}
+
 #add-post{
 display: flex;
 flex-direction: column;
@@ -274,7 +283,7 @@ padding: 5px;
     height: 200px; /* set a fixed height to limit the maximum size of the chat area */
 }
 
-#message-submit{
+.btns{
     margin: 10px;
     padding: 5px;
     border: var(--quinary-color);
