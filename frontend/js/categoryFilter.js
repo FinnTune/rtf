@@ -1,4 +1,4 @@
-import { createPostsTable, getAllPosts } from "./getAllPosts.js";
+import { createPostsTable, getAllPosts, displaySinglePost } from "./getAllPosts.js";
 
 export function createCategoryFilter() {
     const categoryFilterDiv = document.getElementById('category-selection');
@@ -42,10 +42,10 @@ export function getPostsByCategory(categoryId) {
     document.getElementById('main-content').innerHTML = "";
     console.log("Getting posts by category.")
      // Collect all the selected categories
-     const selectedCategories = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(checkbox => checkbox.value);
+     let selectedCategories = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(checkbox => checkbox.value);
     console.log("Selected categories: ", selectedCategories);
      // If no categories are selected, get all posts instead
-     if (selectedCategories.length === 0) {
+     if (selectedCategories.length == 0) {
          return getAllPosts();
      }
  
@@ -75,6 +75,7 @@ export function getPostsByCategory(categoryId) {
         let tbody = table.querySelector('tbody');
         if (posts.length == 0) {
             table.innerHTML = "No posts for this category."
+            return
         }
         for(let i = 0; i < posts.length; i++){
             let row = tbody.insertRow();

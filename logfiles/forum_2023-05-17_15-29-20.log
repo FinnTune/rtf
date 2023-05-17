@@ -1,0 +1,217 @@
+2023/05/17 15:26:47 main.go:127: Main begun. Log file checked, opened, and set.
+2023/05/17 15:26:47 main.go:128: New Forum Begun
+2023/05/17 15:26:47 sqlFuncs.go:18: Database opened successfully.
+2023/05/17 15:26:47 main.go:57: File Servers Started.
+2023/05/17 15:26:47 main.go:68: Handlers Started.
+2023/05/17 15:26:47 main.go:104: Server Started and listening on port :443.
+2023/05/17 15:26:52 main.go:73: Handling request "/" and serving index.html
+2023/05/17 15:26:52 main.go:77: Cookie exists.
+2023/05/17 15:26:54 handlers.go:43: Checking login status.
+2023/05/17 15:26:54 handlers.go:58: Manager's clients:  map[]
+2023/05/17 15:26:54 handlers.go:88: No client found with matching session ID. User not logged in.
+2023/05/17 15:26:59 handlers.go:43: Checking login status.
+2023/05/17 15:26:59 handlers.go:58: Manager's clients:  map[]
+2023/05/17 15:26:59 handlers.go:88: No client found with matching session ID. User not logged in.
+2023/05/17 15:26:59 handlers.go:102: Login handler reached.
+2023/05/17 15:26:59 handlers.go:118: Login POST request received.
+2023/05/17 15:26:59 utility.go:29: Password and hash match.
+2023/05/17 15:26:59 handlers.go:137: User found: {ID:1 Username:admin Email:admin@example.com Joined:2023-05-14 15:45:56 Password:$2a$12$mbQeGK8W4j6KC4Kpxic/lOyrlByXHgdSyp4htz48uE2PojhVqel2q Session: NumberComments:0 NumberPosts:0}
+2023/05/17 15:26:59 handlers.go:138: Authentication condition reached.
+2023/05/17 15:26:59 handlers.go:355: AllPostsHandler reached.
+2023/05/17 15:26:59 handlers.go:355: AllPostsHandler reached.
+2023/05/17 15:26:59 handlers.go:252: Serving websocket.
+2023/05/17 15:26:59 handlers.go:27: Checking origin: https://localhost
+2023/05/17 15:26:59 handlers.go:260: Decoding request body.
+2023/05/17 15:26:59 handlers.go:261: ServeWS request body:  {}
+2023/05/17 15:26:59 handlers.go:273: Session Id in ServeWS:  32ee7689-000f-4402-9014-1c12573f7f7b
+2023/05/17 15:26:59 handlers.go:287: Client does not exist.
+2023/05/17 15:26:59 ws-client.go:44: New client connected.
+2023/05/17 15:26:59 ws-manager.go:100: Client: 127.0.0.1:51876 added to manager.
+2023/05/17 15:26:59 ws-client.go:65: Client IP and client port num.:  127.0.0.1:51876
+2023/05/17 15:26:59 ws-client.go:89: Client read message from:  127.0.0.1:51876
+2023/05/17 15:26:59 ws-manager.go:64: Adding user info: {user-connect {"otp":"75b423e9-200f-4bc5-8452-6c2fb9162a5f","id":1,"username":"admin","email":"admin@example.com","joined":"2023-05-14 15:45:56","loggedIn":false}}
+2023/05/17 15:27:01 handlers.go:590: GetComments Rows:  &{0xc0001247e0 0x6d8440 0xc0003d4c60 <nil> <nil> {{0 0} 0 0 {{} 0} {{} 0}} false <nil> []}
+2023/05/17 15:27:01 handlers.go:603: Comments sent:  []
+2023/05/17 15:27:02 handlers.go:355: AllPostsHandler reached.
+2023/05/17 15:27:04 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:27:04 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:27:04 handlers.go:490: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?))
+2023/05/17 15:27:04 handlers.go:491: With arguments: [Business]
+2023/05/17 15:27:04 handlers.go:512: Scanned post: {PostId:13 UserId:1 Title:lolololo Content:popopopopo Author:admin Created:2023-05-17T15:03:26Z}
+2023/05/17 15:27:04 handlers.go:515: Processed 1 posts
+2023/05/17 15:27:08 ws-client.go:181: Ping sent to client: 127.0.0.1:51876
+2023/05/17 15:27:08 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:27:11 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:27:11 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:27:11 handlers.go:490: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?,?))
+2023/05/17 15:27:11 handlers.go:491: With arguments: [Religion Business]
+2023/05/17 15:27:11 handlers.go:512: Scanned post: {PostId:10 UserId:1 Title:sdgkjbsg Content:sdjsdgsg Author:admin Created:2023-05-17T13:58:27Z}
+2023/05/17 15:27:11 handlers.go:512: Scanned post: {PostId:13 UserId:1 Title:lolololo Content:popopopopo Author:admin Created:2023-05-17T15:03:26Z}
+2023/05/17 15:27:11 handlers.go:515: Processed 2 posts
+2023/05/17 15:27:13 handlers.go:590: GetComments Rows:  &{0xc0001247e0 0x6d8440 0xc0000aaea0 <nil> <nil> {{0 0} 0 0 {{} 0} {{} 0}} false <nil> []}
+2023/05/17 15:27:13 handlers.go:603: Comments sent:  []
+2023/05/17 15:27:16 handlers.go:355: AllPostsHandler reached.
+2023/05/17 15:27:17 ws-client.go:181: Ping sent to client: 127.0.0.1:51876
+2023/05/17 15:27:17 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:27:17 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:27:17 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:27:17 handlers.go:490: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?))
+2023/05/17 15:27:17 handlers.go:491: With arguments: [Business]
+2023/05/17 15:27:17 handlers.go:512: Scanned post: {PostId:13 UserId:1 Title:lolololo Content:popopopopo Author:admin Created:2023-05-17T15:03:26Z}
+2023/05/17 15:27:17 handlers.go:515: Processed 1 posts
+2023/05/17 15:27:18 handlers.go:355: AllPostsHandler reached.
+2023/05/17 15:27:26 ws-client.go:181: Ping sent to client: 127.0.0.1:51876
+2023/05/17 15:27:26 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:27:33 handlers.go:408: Add Post Request body:  {1 ttttttttt yyyyyyyyyyyyyyyy admin [{1 Cuisine} {2 Places}]}
+2023/05/17 15:27:33 handlers.go:450: Post added successfully:  {1 admin ttttttttt yyyyyyyyyyyyyyyy }
+2023/05/17 15:27:35 handlers.go:355: AllPostsHandler reached.
+2023/05/17 15:27:35 ws-client.go:181: Ping sent to client: 127.0.0.1:51876
+2023/05/17 15:27:35 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:27:37 handlers.go:590: GetComments Rows:  &{0xc0001247e0 0x6d8440 0xc0001637a0 <nil> <nil> {{0 0} 0 0 {{} 0} {{} 0}} false <nil> []}
+2023/05/17 15:27:37 handlers.go:603: Comments sent:  []
+2023/05/17 15:27:40 handlers.go:355: AllPostsHandler reached.
+2023/05/17 15:27:42 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:27:42 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:27:42 handlers.go:490: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?,?,?))
+2023/05/17 15:27:42 handlers.go:491: With arguments: [Cuisine Places Cuisine]
+2023/05/17 15:27:42 handlers.go:512: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:42 handlers.go:512: Scanned post: {PostId:2 UserId:1 Title:Welcome to the Places category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:42 handlers.go:512: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:42 handlers.go:512: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:42 handlers.go:512: Scanned post: {PostId:8 UserId:1 Title:Real Embassy Content:Brazilian Real Embassy is now in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:42 handlers.go:512: Scanned post: {PostId:14 UserId:1 Title:ttttttttt Content:yyyyyyyyyyyyyyyy Author:admin Created:2023-05-17T15:27:33Z}
+2023/05/17 15:27:42 handlers.go:515: Processed 6 posts
+2023/05/17 15:27:44 ws-client.go:181: Ping sent to client: 127.0.0.1:51876
+2023/05/17 15:27:44 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:27:53 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:27:53 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:27:53 handlers.go:490: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?,?))
+2023/05/17 15:27:53 handlers.go:491: With arguments: [Cuisine Places]
+2023/05/17 15:27:53 handlers.go:512: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:53 handlers.go:512: Scanned post: {PostId:2 UserId:1 Title:Welcome to the Places category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:53 handlers.go:512: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:53 handlers.go:512: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:53 handlers.go:512: Scanned post: {PostId:8 UserId:1 Title:Real Embassy Content:Brazilian Real Embassy is now in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:53 handlers.go:512: Scanned post: {PostId:14 UserId:1 Title:ttttttttt Content:yyyyyyyyyyyyyyyy Author:admin Created:2023-05-17T15:27:33Z}
+2023/05/17 15:27:53 handlers.go:515: Processed 6 posts
+2023/05/17 15:27:53 ws-client.go:181: Ping sent to client: 127.0.0.1:51876
+2023/05/17 15:27:53 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:27:54 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:27:54 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:27:54 handlers.go:490: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?,?,?))
+2023/05/17 15:27:54 handlers.go:491: With arguments: [Cuisine Places Places]
+2023/05/17 15:27:54 handlers.go:512: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:54 handlers.go:512: Scanned post: {PostId:2 UserId:1 Title:Welcome to the Places category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:54 handlers.go:512: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:54 handlers.go:512: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:54 handlers.go:512: Scanned post: {PostId:8 UserId:1 Title:Real Embassy Content:Brazilian Real Embassy is now in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:54 handlers.go:512: Scanned post: {PostId:14 UserId:1 Title:ttttttttt Content:yyyyyyyyyyyyyyyy Author:admin Created:2023-05-17T15:27:33Z}
+2023/05/17 15:27:54 handlers.go:515: Processed 6 posts
+2023/05/17 15:27:57 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:27:57 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:27:57 handlers.go:490: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?,?,?,?))
+2023/05/17 15:27:57 handlers.go:491: With arguments: [Cuisine Places Cuisine Places]
+2023/05/17 15:27:57 handlers.go:512: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:57 handlers.go:512: Scanned post: {PostId:2 UserId:1 Title:Welcome to the Places category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:57 handlers.go:512: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:57 handlers.go:512: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:57 handlers.go:512: Scanned post: {PostId:8 UserId:1 Title:Real Embassy Content:Brazilian Real Embassy is now in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:57 handlers.go:512: Scanned post: {PostId:14 UserId:1 Title:ttttttttt Content:yyyyyyyyyyyyyyyy Author:admin Created:2023-05-17T15:27:33Z}
+2023/05/17 15:27:57 handlers.go:515: Processed 6 posts
+2023/05/17 15:27:59 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:27:59 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:27:59 handlers.go:490: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?,?,?))
+2023/05/17 15:27:59 handlers.go:491: With arguments: [Cuisine Places Cuisine]
+2023/05/17 15:27:59 handlers.go:512: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:59 handlers.go:512: Scanned post: {PostId:2 UserId:1 Title:Welcome to the Places category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:59 handlers.go:512: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:59 handlers.go:512: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:59 handlers.go:512: Scanned post: {PostId:8 UserId:1 Title:Real Embassy Content:Brazilian Real Embassy is now in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:59 handlers.go:512: Scanned post: {PostId:14 UserId:1 Title:ttttttttt Content:yyyyyyyyyyyyyyyy Author:admin Created:2023-05-17T15:27:33Z}
+2023/05/17 15:27:59 handlers.go:515: Processed 6 posts
+2023/05/17 15:27:59 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:27:59 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:27:59 handlers.go:490: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?,?))
+2023/05/17 15:27:59 handlers.go:491: With arguments: [Cuisine Places]
+2023/05/17 15:27:59 handlers.go:512: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:59 handlers.go:512: Scanned post: {PostId:2 UserId:1 Title:Welcome to the Places category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:59 handlers.go:512: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:59 handlers.go:512: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:59 handlers.go:512: Scanned post: {PostId:8 UserId:1 Title:Real Embassy Content:Brazilian Real Embassy is now in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:27:59 handlers.go:512: Scanned post: {PostId:14 UserId:1 Title:ttttttttt Content:yyyyyyyyyyyyyyyy Author:admin Created:2023-05-17T15:27:33Z}
+2023/05/17 15:27:59 handlers.go:515: Processed 6 posts
+2023/05/17 15:28:02 ws-client.go:181: Ping sent to client: 127.0.0.1:51876
+2023/05/17 15:28:02 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:28:07 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:28:07 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:28:07 handlers.go:490: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?,?,?))
+2023/05/17 15:28:07 handlers.go:491: With arguments: [Cuisine Places Cuisine]
+2023/05/17 15:28:07 handlers.go:512: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:28:07 handlers.go:512: Scanned post: {PostId:2 UserId:1 Title:Welcome to the Places category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:28:07 handlers.go:512: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:28:07 handlers.go:512: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:28:07 handlers.go:512: Scanned post: {PostId:8 UserId:1 Title:Real Embassy Content:Brazilian Real Embassy is now in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:28:07 handlers.go:512: Scanned post: {PostId:14 UserId:1 Title:ttttttttt Content:yyyyyyyyyyyyyyyy Author:admin Created:2023-05-17T15:27:33Z}
+2023/05/17 15:28:07 handlers.go:515: Processed 6 posts
+2023/05/17 15:28:09 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:28:09 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:28:09 handlers.go:490: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?,?))
+2023/05/17 15:28:09 handlers.go:491: With arguments: [Cuisine Places]
+2023/05/17 15:28:09 handlers.go:512: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:28:09 handlers.go:512: Scanned post: {PostId:2 UserId:1 Title:Welcome to the Places category! Content:Be the first to post in this category! Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:28:09 handlers.go:512: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:28:09 handlers.go:512: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:28:09 handlers.go:512: Scanned post: {PostId:8 UserId:1 Title:Real Embassy Content:Brazilian Real Embassy is now in Mariehamn Author:admin Created:2023-05-14T15:44:11Z}
+2023/05/17 15:28:09 handlers.go:512: Scanned post: {PostId:14 UserId:1 Title:ttttttttt Content:yyyyyyyyyyyyyyyy Author:admin Created:2023-05-17T15:27:33Z}
+2023/05/17 15:28:09 handlers.go:515: Processed 6 posts
+2023/05/17 15:28:11 ws-client.go:181: Ping sent to client: 127.0.0.1:51876
+2023/05/17 15:28:11 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:28:20 ws-client.go:181: Ping sent to client: 127.0.0.1:51876
+2023/05/17 15:28:20 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:28:29 ws-client.go:181: Ping sent to client: 127.0.0.1:51876
+2023/05/17 15:28:29 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:28:30 main.go:41: Server stopped.

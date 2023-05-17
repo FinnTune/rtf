@@ -1,0 +1,695 @@
+2023/05/17 15:48:05 main.go:127: Main begun. Log file checked, opened, and set.
+2023/05/17 15:48:05 main.go:128: New Forum Begun
+2023/05/17 15:48:05 sqlFuncs.go:18: Database opened successfully.
+2023/05/17 15:48:05 main.go:57: File Servers Started.
+2023/05/17 15:48:05 main.go:68: Handlers Started.
+2023/05/17 15:48:05 main.go:104: Server Started and listening on port :443.
+2023/05/17 15:48:11 main.go:73: Handling request "/" and serving index.html
+2023/05/17 15:48:11 main.go:77: Cookie exists.
+2023/05/17 15:48:13 handlers.go:43: Checking login status.
+2023/05/17 15:48:13 handlers.go:58: Manager's clients:  map[]
+2023/05/17 15:48:13 handlers.go:88: No client found with matching session ID. User not logged in.
+2023/05/17 15:48:17 handlers.go:43: Checking login status.
+2023/05/17 15:48:17 handlers.go:58: Manager's clients:  map[]
+2023/05/17 15:48:17 handlers.go:88: No client found with matching session ID. User not logged in.
+2023/05/17 15:48:17 handlers.go:102: Login handler reached.
+2023/05/17 15:48:17 handlers.go:118: Login POST request received.
+2023/05/17 15:48:17 utility.go:29: Password and hash match.
+2023/05/17 15:48:17 handlers.go:137: User found: {ID:1 Username:admin Email:admin@example.com Joined:2023-05-17 15:29:59 Password:$2a$12$nOhLtBhYC0.XOm3IQ37wy.H8Mk8u52Grek4d1UGA0sNbQr4D/ik32 Session: NumberComments:0 NumberPosts:0}
+2023/05/17 15:48:17 handlers.go:138: Authentication condition reached.
+2023/05/17 15:48:17 handlers.go:355: AllPostsHandler reached.
+2023/05/17 15:48:17 handlers.go:355: AllPostsHandler reached.
+2023/05/17 15:48:17 handlers.go:252: Serving websocket.
+2023/05/17 15:48:17 handlers.go:27: Checking origin: https://localhost
+2023/05/17 15:48:17 handlers.go:260: Decoding request body.
+2023/05/17 15:48:17 handlers.go:261: ServeWS request body:  {}
+2023/05/17 15:48:17 handlers.go:273: Session Id in ServeWS:  32ee7689-000f-4402-9014-1c12573f7f7b
+2023/05/17 15:48:17 handlers.go:287: Client does not exist.
+2023/05/17 15:48:17 ws-client.go:44: New client connected.
+2023/05/17 15:48:17 ws-manager.go:100: Client: 127.0.0.1:48894 added to manager.
+2023/05/17 15:48:17 ws-client.go:65: Client IP and client port num.:  127.0.0.1:48894
+2023/05/17 15:48:17 ws-client.go:89: Client read message from:  127.0.0.1:48894
+2023/05/17 15:48:17 ws-manager.go:64: Adding user info: {user-connect {"otp":"cc317a26-3986-4b85-b281-e8bc2ce7d0ad","id":1,"username":"admin","email":"admin@example.com","joined":"2023-05-17 15:29:59","loggedIn":false}}
+2023/05/17 15:48:26 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:48:26 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:48:35 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:48:35 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:48:36 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:48:36 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:48:36 handlers.go:472: Categories: {Categories:[Cuisine]}
+2023/05/17 15:48:36 handlers.go:491: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?))
+2023/05/17 15:48:36 handlers.go:492: With arguments: [Cuisine]
+2023/05/17 15:48:36 handlers.go:513: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:48:36 handlers.go:513: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:48:36 handlers.go:513: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:48:36 handlers.go:513: Scanned post: {PostId:9 UserId:1 Title:ThaiFOOD Content:Yummm Author:admin Created:2023-05-17T15:30:59Z}
+2023/05/17 15:48:36 handlers.go:513: Scanned post: {PostId:10 UserId:1 Title:KoreanFood Content:yummy Author:admin Created:2023-05-17T15:36:29Z}
+2023/05/17 15:48:36 handlers.go:513: Scanned post: {PostId:11 UserId:1 Title:IndianFood Content:delicious Author:admin Created:2023-05-17T15:38:35Z}
+2023/05/17 15:48:36 handlers.go:513: Scanned post: {PostId:12 UserId:1 Title:CambodianFoood Content:oh yea Author:admin Created:2023-05-17T15:42:45Z}
+2023/05/17 15:48:36 handlers.go:513: Scanned post: {PostId:13 UserId:1 Title:ChineseFood Content:oh baby Author:admin Created:2023-05-17T15:45:51Z}
+2023/05/17 15:48:36 handlers.go:516: Processed 8 posts
+2023/05/17 15:48:43 handlers.go:355: AllPostsHandler reached.
+2023/05/17 15:48:44 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:48:44 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:48:53 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:48:53 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:49:00 handlers.go:408: Add Post Request body:  {1 yum yum admin [{1 Cuisine} {15 Other}]}
+2023/05/17 15:49:00 handlers.go:450: Post added successfully:  {1 admin yum yum }
+2023/05/17 15:49:02 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:49:02 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:49:07 handlers.go:355: AllPostsHandler reached.
+2023/05/17 15:49:11 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:49:11 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:49:15 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:49:15 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:49:15 handlers.go:472: Categories: {Categories:[Cuisine Other Cuisine]}
+2023/05/17 15:49:15 handlers.go:491: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?,?,?))
+2023/05/17 15:49:15 handlers.go:492: With arguments: [Cuisine Other Cuisine]
+2023/05/17 15:49:15 handlers.go:513: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:49:15 handlers.go:513: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:49:15 handlers.go:513: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:49:15 handlers.go:513: Scanned post: {PostId:9 UserId:1 Title:ThaiFOOD Content:Yummm Author:admin Created:2023-05-17T15:30:59Z}
+2023/05/17 15:49:15 handlers.go:513: Scanned post: {PostId:10 UserId:1 Title:KoreanFood Content:yummy Author:admin Created:2023-05-17T15:36:29Z}
+2023/05/17 15:49:15 handlers.go:513: Scanned post: {PostId:11 UserId:1 Title:IndianFood Content:delicious Author:admin Created:2023-05-17T15:38:35Z}
+2023/05/17 15:49:15 handlers.go:513: Scanned post: {PostId:12 UserId:1 Title:CambodianFoood Content:oh yea Author:admin Created:2023-05-17T15:42:45Z}
+2023/05/17 15:49:15 handlers.go:513: Scanned post: {PostId:13 UserId:1 Title:ChineseFood Content:oh baby Author:admin Created:2023-05-17T15:45:51Z}
+2023/05/17 15:49:15 handlers.go:513: Scanned post: {PostId:14 UserId:1 Title:yum Content:yum Author:admin Created:2023-05-17T15:49:00Z}
+2023/05/17 15:49:15 handlers.go:516: Processed 9 posts
+2023/05/17 15:49:20 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:49:20 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:49:29 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:49:29 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:49:38 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:49:38 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:49:47 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:49:47 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:49:56 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:49:56 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:50:05 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:50:05 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:50:14 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:50:14 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:50:23 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:50:23 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:50:32 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:50:32 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:50:41 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:50:41 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:50:50 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:50:50 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:50:59 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:50:59 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:51:08 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:51:08 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:51:17 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:51:17 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:51:26 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:51:26 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:51:35 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:51:35 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:51:44 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:51:44 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:51:53 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:51:53 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:52:02 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:52:02 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:52:11 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:52:11 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:52:20 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:52:20 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:52:29 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:52:29 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:52:38 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:52:38 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:52:47 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:52:47 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:52:56 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:52:56 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:53:05 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:53:05 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:53:14 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:53:14 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:53:23 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:53:23 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:53:32 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:53:32 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:53:41 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:53:41 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:53:50 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:53:50 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:53:59 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:53:59 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:54:08 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:54:08 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:54:17 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:54:17 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:54:26 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:54:26 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:54:35 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:54:35 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:54:44 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:54:44 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:54:53 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:54:53 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:55:02 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:55:02 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:55:11 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:55:11 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:55:20 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:55:20 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:55:29 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:55:29 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:55:38 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:55:38 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:55:47 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:55:47 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:55:56 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:55:56 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:56:05 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:56:05 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:56:14 ws-client.go:181: Ping sent to client: 127.0.0.1:48894
+2023/05/17 15:56:14 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:56:15 ws-client.go:89: Client read message from:  127.0.0.1:48894
+2023/05/17 15:56:15 ws-client.go:91: Client Made an Error:  websocket: close 1001 (going away)
+2023/05/17 15:56:16 main.go:73: Handling request "/" and serving index.html
+2023/05/17 15:56:16 main.go:77: Cookie exists.
+2023/05/17 15:56:17 handlers.go:43: Checking login status.
+2023/05/17 15:56:17 handlers.go:58: Manager's clients:  map[0xc0001d0540:true]
+2023/05/17 15:56:17 handlers.go:68: Session cookie found. User logged in
+2023/05/17 15:56:17 handlers.go:81: OTP:  4a34a51c-0c08-47e9-943b-dfb546ac8fbc
+2023/05/17 15:56:18 handlers.go:355: AllPostsHandler reached.
+2023/05/17 15:56:18 handlers.go:252: Serving websocket.
+2023/05/17 15:56:18 handlers.go:27: Checking origin: https://localhost
+2023/05/17 15:56:18 handlers.go:260: Decoding request body.
+2023/05/17 15:56:18 handlers.go:261: ServeWS request body:  {}
+2023/05/17 15:56:18 handlers.go:273: Session Id in ServeWS:  32ee7689-000f-4402-9014-1c12573f7f7b
+2023/05/17 15:56:18 handlers.go:276: Client already exists.
+2023/05/17 15:56:18 ws-client.go:65: Client IP and client port num.:  127.0.0.1:60178
+2023/05/17 15:56:18 ws-client.go:89: Client read message from:  127.0.0.1:60178
+2023/05/17 15:56:18 ws-manager.go:64: Adding user info: {user-connect {"otp":"4a34a51c-0c08-47e9-943b-dfb546ac8fbc","id":0,"username":"","email":"","joined":"","loggedIn":true}}
+2023/05/17 15:56:22 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:56:22 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:56:22 handlers.go:472: Categories: {Categories:[Cuisine]}
+2023/05/17 15:56:22 handlers.go:491: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?))
+2023/05/17 15:56:22 handlers.go:492: With arguments: [Cuisine]
+2023/05/17 15:56:22 handlers.go:513: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:56:22 handlers.go:513: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:56:22 handlers.go:513: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:56:22 handlers.go:513: Scanned post: {PostId:9 UserId:1 Title:ThaiFOOD Content:Yummm Author:admin Created:2023-05-17T15:30:59Z}
+2023/05/17 15:56:22 handlers.go:513: Scanned post: {PostId:10 UserId:1 Title:KoreanFood Content:yummy Author:admin Created:2023-05-17T15:36:29Z}
+2023/05/17 15:56:22 handlers.go:513: Scanned post: {PostId:11 UserId:1 Title:IndianFood Content:delicious Author:admin Created:2023-05-17T15:38:35Z}
+2023/05/17 15:56:22 handlers.go:513: Scanned post: {PostId:12 UserId:1 Title:CambodianFoood Content:oh yea Author:admin Created:2023-05-17T15:42:45Z}
+2023/05/17 15:56:22 handlers.go:513: Scanned post: {PostId:13 UserId:1 Title:ChineseFood Content:oh baby Author:admin Created:2023-05-17T15:45:51Z}
+2023/05/17 15:56:22 handlers.go:513: Scanned post: {PostId:14 UserId:1 Title:yum Content:yum Author:admin Created:2023-05-17T15:49:00Z}
+2023/05/17 15:56:22 handlers.go:516: Processed 9 posts
+2023/05/17 15:56:23 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:56:23 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:56:27 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:56:27 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:56:30 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:56:30 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:56:30 handlers.go:472: Categories: {Categories:[Cuisine]}
+2023/05/17 15:56:30 handlers.go:491: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?))
+2023/05/17 15:56:30 handlers.go:492: With arguments: [Cuisine]
+2023/05/17 15:56:30 handlers.go:513: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:56:30 handlers.go:513: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:56:30 handlers.go:513: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:56:30 handlers.go:513: Scanned post: {PostId:9 UserId:1 Title:ThaiFOOD Content:Yummm Author:admin Created:2023-05-17T15:30:59Z}
+2023/05/17 15:56:30 handlers.go:513: Scanned post: {PostId:10 UserId:1 Title:KoreanFood Content:yummy Author:admin Created:2023-05-17T15:36:29Z}
+2023/05/17 15:56:30 handlers.go:513: Scanned post: {PostId:11 UserId:1 Title:IndianFood Content:delicious Author:admin Created:2023-05-17T15:38:35Z}
+2023/05/17 15:56:30 handlers.go:513: Scanned post: {PostId:12 UserId:1 Title:CambodianFoood Content:oh yea Author:admin Created:2023-05-17T15:42:45Z}
+2023/05/17 15:56:30 handlers.go:513: Scanned post: {PostId:13 UserId:1 Title:ChineseFood Content:oh baby Author:admin Created:2023-05-17T15:45:51Z}
+2023/05/17 15:56:30 handlers.go:513: Scanned post: {PostId:14 UserId:1 Title:yum Content:yum Author:admin Created:2023-05-17T15:49:00Z}
+2023/05/17 15:56:30 handlers.go:516: Processed 9 posts
+2023/05/17 15:56:32 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:56:32 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:56:35 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:56:35 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:56:35 handlers.go:472: Categories: {Categories:[Cuisine]}
+2023/05/17 15:56:35 handlers.go:491: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?))
+2023/05/17 15:56:35 handlers.go:492: With arguments: [Cuisine]
+2023/05/17 15:56:35 handlers.go:513: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:56:35 handlers.go:513: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:56:35 handlers.go:513: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:56:35 handlers.go:513: Scanned post: {PostId:9 UserId:1 Title:ThaiFOOD Content:Yummm Author:admin Created:2023-05-17T15:30:59Z}
+2023/05/17 15:56:35 handlers.go:513: Scanned post: {PostId:10 UserId:1 Title:KoreanFood Content:yummy Author:admin Created:2023-05-17T15:36:29Z}
+2023/05/17 15:56:35 handlers.go:513: Scanned post: {PostId:11 UserId:1 Title:IndianFood Content:delicious Author:admin Created:2023-05-17T15:38:35Z}
+2023/05/17 15:56:35 handlers.go:513: Scanned post: {PostId:12 UserId:1 Title:CambodianFoood Content:oh yea Author:admin Created:2023-05-17T15:42:45Z}
+2023/05/17 15:56:35 handlers.go:513: Scanned post: {PostId:13 UserId:1 Title:ChineseFood Content:oh baby Author:admin Created:2023-05-17T15:45:51Z}
+2023/05/17 15:56:35 handlers.go:513: Scanned post: {PostId:14 UserId:1 Title:yum Content:yum Author:admin Created:2023-05-17T15:49:00Z}
+2023/05/17 15:56:35 handlers.go:516: Processed 9 posts
+2023/05/17 15:56:36 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:56:36 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:56:41 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:56:41 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:56:45 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:56:45 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:56:50 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:56:50 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:56:54 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:56:54 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:56:59 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:56:59 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:57:03 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:57:03 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:57:08 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:57:08 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:57:12 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:57:12 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:57:17 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:57:17 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:57:21 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:57:21 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:57:26 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:57:26 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:57:30 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:57:30 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:57:35 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:57:35 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:57:39 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:57:39 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:57:44 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:57:44 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:57:48 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:57:48 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:57:53 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:57:53 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:57:57 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:57:57 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:58:02 ws-client.go:181: Ping sent to client: 127.0.0.1:60178
+2023/05/17 15:58:02 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:58:05 ws-client.go:89: Client read message from:  127.0.0.1:60178
+2023/05/17 15:58:05 ws-client.go:91: Client Made an Error:  websocket: close 1001 (going away)
+2023/05/17 15:58:06 main.go:73: Handling request "/" and serving index.html
+2023/05/17 15:58:06 main.go:77: Cookie exists.
+2023/05/17 15:58:06 ws-client.go:178: Client connection is nil.
+2023/05/17 15:58:08 handlers.go:43: Checking login status.
+2023/05/17 15:58:08 handlers.go:58: Manager's clients:  map[0xc0001d0540:true]
+2023/05/17 15:58:08 handlers.go:68: Session cookie found. User logged in
+2023/05/17 15:58:08 handlers.go:81: OTP:  04207cec-63bd-459a-af5e-b3cc75a62e2b
+2023/05/17 15:58:08 handlers.go:355: AllPostsHandler reached.
+2023/05/17 15:58:08 handlers.go:252: Serving websocket.
+2023/05/17 15:58:08 handlers.go:27: Checking origin: https://localhost
+2023/05/17 15:58:08 handlers.go:260: Decoding request body.
+2023/05/17 15:58:08 handlers.go:261: ServeWS request body:  {}
+2023/05/17 15:58:08 handlers.go:273: Session Id in ServeWS:  32ee7689-000f-4402-9014-1c12573f7f7b
+2023/05/17 15:58:08 handlers.go:276: Client already exists.
+2023/05/17 15:58:08 ws-client.go:65: Client IP and client port num.:  127.0.0.1:36318
+2023/05/17 15:58:09 ws-client.go:89: Client read message from:  127.0.0.1:36318
+2023/05/17 15:58:09 ws-manager.go:64: Adding user info: {user-connect {"otp":"04207cec-63bd-459a-af5e-b3cc75a62e2b","id":0,"username":"","email":"","joined":"","loggedIn":true}}
+2023/05/17 15:58:11 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:58:11 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:58:12 handlers.go:461: GettingPostsByCategory...
+2023/05/17 15:58:12 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 15:58:12 handlers.go:472: Categories: {Categories:[Cuisine]}
+2023/05/17 15:58:12 handlers.go:491: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?))
+2023/05/17 15:58:12 handlers.go:492: With arguments: [Cuisine]
+2023/05/17 15:58:12 handlers.go:513: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:58:12 handlers.go:513: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:58:12 handlers.go:513: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 15:58:12 handlers.go:513: Scanned post: {PostId:9 UserId:1 Title:ThaiFOOD Content:Yummm Author:admin Created:2023-05-17T15:30:59Z}
+2023/05/17 15:58:12 handlers.go:513: Scanned post: {PostId:10 UserId:1 Title:KoreanFood Content:yummy Author:admin Created:2023-05-17T15:36:29Z}
+2023/05/17 15:58:12 handlers.go:513: Scanned post: {PostId:11 UserId:1 Title:IndianFood Content:delicious Author:admin Created:2023-05-17T15:38:35Z}
+2023/05/17 15:58:12 handlers.go:513: Scanned post: {PostId:12 UserId:1 Title:CambodianFoood Content:oh yea Author:admin Created:2023-05-17T15:42:45Z}
+2023/05/17 15:58:12 handlers.go:513: Scanned post: {PostId:13 UserId:1 Title:ChineseFood Content:oh baby Author:admin Created:2023-05-17T15:45:51Z}
+2023/05/17 15:58:12 handlers.go:513: Scanned post: {PostId:14 UserId:1 Title:yum Content:yum Author:admin Created:2023-05-17T15:49:00Z}
+2023/05/17 15:58:12 handlers.go:516: Processed 9 posts
+2023/05/17 15:58:17 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:58:17 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:58:20 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:58:20 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:58:26 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:58:26 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:58:29 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:58:29 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:58:35 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:58:35 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:58:38 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:58:38 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:58:44 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:58:44 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:58:47 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:58:47 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:58:53 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:58:53 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:58:56 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:58:56 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:02 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:02 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:05 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:05 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:11 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:11 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:14 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:14 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:20 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:20 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:23 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:23 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:29 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:29 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:32 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:32 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:38 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:38 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:41 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:41 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:47 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:47 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:50 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:50 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:56 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:56 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 15:59:59 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 15:59:59 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:00:05 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 16:00:05 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:00:08 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 16:00:08 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:00:14 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 16:00:14 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:00:17 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 16:00:17 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:00:23 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 16:00:23 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:00:26 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 16:00:26 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:00:32 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 16:00:32 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:00:35 ws-client.go:181: Ping sent to client: 127.0.0.1:36318
+2023/05/17 16:00:35 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:00:40 ws-client.go:89: Client read message from:  127.0.0.1:36318
+2023/05/17 16:00:40 ws-client.go:91: Client Made an Error:  websocket: close 1001 (going away)
+2023/05/17 16:00:40 main.go:73: Handling request "/" and serving index.html
+2023/05/17 16:00:40 main.go:77: Cookie exists.
+2023/05/17 16:00:41 ws-client.go:178: Client connection is nil.
+2023/05/17 16:00:42 handlers.go:43: Checking login status.
+2023/05/17 16:00:42 handlers.go:58: Manager's clients:  map[0xc0001d0540:true]
+2023/05/17 16:00:42 handlers.go:68: Session cookie found. User logged in
+2023/05/17 16:00:42 handlers.go:81: OTP:  150b59e7-13d1-412b-aa2b-b30ddbf9dff9
+2023/05/17 16:00:43 handlers.go:355: AllPostsHandler reached.
+2023/05/17 16:00:43 handlers.go:252: Serving websocket.
+2023/05/17 16:00:43 handlers.go:27: Checking origin: https://localhost
+2023/05/17 16:00:43 handlers.go:260: Decoding request body.
+2023/05/17 16:00:43 handlers.go:261: ServeWS request body:  {}
+2023/05/17 16:00:43 handlers.go:273: Session Id in ServeWS:  32ee7689-000f-4402-9014-1c12573f7f7b
+2023/05/17 16:00:43 handlers.go:276: Client already exists.
+2023/05/17 16:00:43 ws-client.go:65: Client IP and client port num.:  127.0.0.1:60602
+2023/05/17 16:00:43 ws-client.go:89: Client read message from:  127.0.0.1:60602
+2023/05/17 16:00:43 ws-manager.go:64: Adding user info: {user-connect {"otp":"150b59e7-13d1-412b-aa2b-b30ddbf9dff9","id":0,"username":"","email":"","joined":"","loggedIn":true}}
+2023/05/17 16:00:44 ws-client.go:181: Ping sent to client: 127.0.0.1:60602
+2023/05/17 16:00:44 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:00:47 handlers.go:461: GettingPostsByCategory...
+2023/05/17 16:00:47 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 16:00:47 handlers.go:472: Categories: {Categories:[Cuisine]}
+2023/05/17 16:00:47 handlers.go:491: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?))
+2023/05/17 16:00:47 handlers.go:492: With arguments: [Cuisine]
+2023/05/17 16:00:47 handlers.go:513: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:00:47 handlers.go:513: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:00:47 handlers.go:513: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:00:47 handlers.go:513: Scanned post: {PostId:9 UserId:1 Title:ThaiFOOD Content:Yummm Author:admin Created:2023-05-17T15:30:59Z}
+2023/05/17 16:00:47 handlers.go:513: Scanned post: {PostId:10 UserId:1 Title:KoreanFood Content:yummy Author:admin Created:2023-05-17T15:36:29Z}
+2023/05/17 16:00:47 handlers.go:513: Scanned post: {PostId:11 UserId:1 Title:IndianFood Content:delicious Author:admin Created:2023-05-17T15:38:35Z}
+2023/05/17 16:00:47 handlers.go:513: Scanned post: {PostId:12 UserId:1 Title:CambodianFoood Content:oh yea Author:admin Created:2023-05-17T15:42:45Z}
+2023/05/17 16:00:47 handlers.go:513: Scanned post: {PostId:13 UserId:1 Title:ChineseFood Content:oh baby Author:admin Created:2023-05-17T15:45:51Z}
+2023/05/17 16:00:47 handlers.go:513: Scanned post: {PostId:14 UserId:1 Title:yum Content:yum Author:admin Created:2023-05-17T15:49:00Z}
+2023/05/17 16:00:47 handlers.go:516: Processed 9 posts
+2023/05/17 16:00:52 ws-client.go:181: Ping sent to client: 127.0.0.1:60602
+2023/05/17 16:00:52 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:00:53 handlers.go:355: AllPostsHandler reached.
+2023/05/17 16:00:53 ws-client.go:181: Ping sent to client: 127.0.0.1:60602
+2023/05/17 16:00:53 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:01:01 ws-client.go:181: Ping sent to client: 127.0.0.1:60602
+2023/05/17 16:01:01 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:01:02 ws-client.go:181: Ping sent to client: 127.0.0.1:60602
+2023/05/17 16:01:02 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:01:08 handlers.go:408: Add Post Request body:  {1 food dooooo admin [{1 Cuisine} {15 Other}]}
+2023/05/17 16:01:08 handlers.go:450: Post added successfully:  {1 admin food dooooo }
+2023/05/17 16:01:10 ws-client.go:181: Ping sent to client: 127.0.0.1:60602
+2023/05/17 16:01:10 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:01:11 ws-client.go:181: Ping sent to client: 127.0.0.1:60602
+2023/05/17 16:01:11 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:01:12 handlers.go:355: AllPostsHandler reached.
+2023/05/17 16:01:18 handlers.go:461: GettingPostsByCategory...
+2023/05/17 16:01:18 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 16:01:18 handlers.go:472: Categories: {Categories:[Cuisine Other Cuisine]}
+2023/05/17 16:01:18 handlers.go:491: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?,?,?))
+2023/05/17 16:01:18 handlers.go:492: With arguments: [Cuisine Other Cuisine]
+2023/05/17 16:01:18 handlers.go:513: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:01:18 handlers.go:513: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:01:18 handlers.go:513: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:01:18 handlers.go:513: Scanned post: {PostId:9 UserId:1 Title:ThaiFOOD Content:Yummm Author:admin Created:2023-05-17T15:30:59Z}
+2023/05/17 16:01:18 handlers.go:513: Scanned post: {PostId:10 UserId:1 Title:KoreanFood Content:yummy Author:admin Created:2023-05-17T15:36:29Z}
+2023/05/17 16:01:18 handlers.go:513: Scanned post: {PostId:11 UserId:1 Title:IndianFood Content:delicious Author:admin Created:2023-05-17T15:38:35Z}
+2023/05/17 16:01:18 handlers.go:513: Scanned post: {PostId:12 UserId:1 Title:CambodianFoood Content:oh yea Author:admin Created:2023-05-17T15:42:45Z}
+2023/05/17 16:01:18 handlers.go:513: Scanned post: {PostId:13 UserId:1 Title:ChineseFood Content:oh baby Author:admin Created:2023-05-17T15:45:51Z}
+2023/05/17 16:01:18 handlers.go:513: Scanned post: {PostId:14 UserId:1 Title:yum Content:yum Author:admin Created:2023-05-17T15:49:00Z}
+2023/05/17 16:01:18 handlers.go:513: Scanned post: {PostId:15 UserId:1 Title:food Content:dooooo Author:admin Created:2023-05-17T16:01:08Z}
+2023/05/17 16:01:18 handlers.go:516: Processed 10 posts
+2023/05/17 16:01:19 ws-client.go:181: Ping sent to client: 127.0.0.1:60602
+2023/05/17 16:01:19 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:01:20 ws-client.go:181: Ping sent to client: 127.0.0.1:60602
+2023/05/17 16:01:20 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:01:23 handlers.go:461: GettingPostsByCategory...
+2023/05/17 16:01:23 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 16:01:23 handlers.go:472: Categories: {Categories:[Cuisine Other]}
+2023/05/17 16:01:23 handlers.go:491: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?,?))
+2023/05/17 16:01:23 handlers.go:492: With arguments: [Cuisine Other]
+2023/05/17 16:01:23 handlers.go:513: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:01:23 handlers.go:513: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:01:23 handlers.go:513: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:01:23 handlers.go:513: Scanned post: {PostId:9 UserId:1 Title:ThaiFOOD Content:Yummm Author:admin Created:2023-05-17T15:30:59Z}
+2023/05/17 16:01:23 handlers.go:513: Scanned post: {PostId:10 UserId:1 Title:KoreanFood Content:yummy Author:admin Created:2023-05-17T15:36:29Z}
+2023/05/17 16:01:23 handlers.go:513: Scanned post: {PostId:11 UserId:1 Title:IndianFood Content:delicious Author:admin Created:2023-05-17T15:38:35Z}
+2023/05/17 16:01:23 handlers.go:513: Scanned post: {PostId:12 UserId:1 Title:CambodianFoood Content:oh yea Author:admin Created:2023-05-17T15:42:45Z}
+2023/05/17 16:01:23 handlers.go:513: Scanned post: {PostId:13 UserId:1 Title:ChineseFood Content:oh baby Author:admin Created:2023-05-17T15:45:51Z}
+2023/05/17 16:01:23 handlers.go:513: Scanned post: {PostId:14 UserId:1 Title:yum Content:yum Author:admin Created:2023-05-17T15:49:00Z}
+2023/05/17 16:01:23 handlers.go:513: Scanned post: {PostId:15 UserId:1 Title:food Content:dooooo Author:admin Created:2023-05-17T16:01:08Z}
+2023/05/17 16:01:23 handlers.go:516: Processed 10 posts
+2023/05/17 16:01:28 ws-client.go:181: Ping sent to client: 127.0.0.1:60602
+2023/05/17 16:01:28 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:01:29 ws-client.go:181: Ping sent to client: 127.0.0.1:60602
+2023/05/17 16:01:29 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:01:35 ws-client.go:89: Client read message from:  127.0.0.1:60602
+2023/05/17 16:01:35 ws-client.go:91: Client Made an Error:  websocket: close 1001 (going away)
+2023/05/17 16:01:35 main.go:73: Handling request "/" and serving index.html
+2023/05/17 16:01:35 main.go:77: Cookie exists.
+2023/05/17 16:01:37 ws-client.go:178: Client connection is nil.
+2023/05/17 16:01:38 handlers.go:43: Checking login status.
+2023/05/17 16:01:38 handlers.go:58: Manager's clients:  map[0xc0001d0540:true]
+2023/05/17 16:01:38 handlers.go:68: Session cookie found. User logged in
+2023/05/17 16:01:38 handlers.go:81: OTP:  0a96c73d-bff5-4f36-b8c0-b5266c13dba9
+2023/05/17 16:01:38 ws-client.go:178: Client connection is nil.
+2023/05/17 16:01:38 handlers.go:355: AllPostsHandler reached.
+2023/05/17 16:01:38 handlers.go:252: Serving websocket.
+2023/05/17 16:01:38 handlers.go:27: Checking origin: https://localhost
+2023/05/17 16:01:38 handlers.go:260: Decoding request body.
+2023/05/17 16:01:38 handlers.go:261: ServeWS request body:  {}
+2023/05/17 16:01:38 handlers.go:273: Session Id in ServeWS:  32ee7689-000f-4402-9014-1c12573f7f7b
+2023/05/17 16:01:38 handlers.go:276: Client already exists.
+2023/05/17 16:01:38 ws-client.go:65: Client IP and client port num.:  127.0.0.1:56362
+2023/05/17 16:01:39 ws-client.go:89: Client read message from:  127.0.0.1:56362
+2023/05/17 16:01:39 ws-manager.go:64: Adding user info: {user-connect {"otp":"0a96c73d-bff5-4f36-b8c0-b5266c13dba9","id":0,"username":"","email":"","joined":"","loggedIn":true}}
+2023/05/17 16:01:43 handlers.go:461: GettingPostsByCategory...
+2023/05/17 16:01:43 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 16:01:43 handlers.go:472: Categories: {Categories:[Cuisine]}
+2023/05/17 16:01:43 handlers.go:491: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?))
+2023/05/17 16:01:43 handlers.go:492: With arguments: [Cuisine]
+2023/05/17 16:01:43 handlers.go:513: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:01:43 handlers.go:513: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:01:43 handlers.go:513: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:01:43 handlers.go:513: Scanned post: {PostId:9 UserId:1 Title:ThaiFOOD Content:Yummm Author:admin Created:2023-05-17T15:30:59Z}
+2023/05/17 16:01:43 handlers.go:513: Scanned post: {PostId:10 UserId:1 Title:KoreanFood Content:yummy Author:admin Created:2023-05-17T15:36:29Z}
+2023/05/17 16:01:43 handlers.go:513: Scanned post: {PostId:11 UserId:1 Title:IndianFood Content:delicious Author:admin Created:2023-05-17T15:38:35Z}
+2023/05/17 16:01:43 handlers.go:513: Scanned post: {PostId:12 UserId:1 Title:CambodianFoood Content:oh yea Author:admin Created:2023-05-17T15:42:45Z}
+2023/05/17 16:01:43 handlers.go:513: Scanned post: {PostId:13 UserId:1 Title:ChineseFood Content:oh baby Author:admin Created:2023-05-17T15:45:51Z}
+2023/05/17 16:01:43 handlers.go:513: Scanned post: {PostId:14 UserId:1 Title:yum Content:yum Author:admin Created:2023-05-17T15:49:00Z}
+2023/05/17 16:01:43 handlers.go:513: Scanned post: {PostId:15 UserId:1 Title:food Content:dooooo Author:admin Created:2023-05-17T16:01:08Z}
+2023/05/17 16:01:43 handlers.go:516: Processed 10 posts
+2023/05/17 16:01:45 handlers.go:355: AllPostsHandler reached.
+2023/05/17 16:01:47 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:01:47 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:01:56 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:01:56 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:01:59 handlers.go:408: Add Post Request body:  {1 kjkjhkjhj kjhkuhkhk admin [{1 Cuisine} {15 Other}]}
+2023/05/17 16:01:59 handlers.go:450: Post added successfully:  {1 admin kjkjhkjhj kjhkuhkhk }
+2023/05/17 16:02:05 handlers.go:355: AllPostsHandler reached.
+2023/05/17 16:02:05 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:02:05 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:02:09 handlers.go:461: GettingPostsByCategory...
+2023/05/17 16:02:09 handlers.go:471: PostsByCategoryHandler reached.
+2023/05/17 16:02:09 handlers.go:472: Categories: {Categories:[Cuisine]}
+2023/05/17 16:02:09 handlers.go:491: Executing query: SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (?))
+2023/05/17 16:02:09 handlers.go:492: With arguments: [Cuisine]
+2023/05/17 16:02:09 handlers.go:513: Scanned post: {PostId:1 UserId:1 Title:Welcome to the Cuisines category! Content:Be the first to post in this category! Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:02:09 handlers.go:513: Scanned post: {PostId:4 UserId:1 Title:Asian Food Content:Thai Khun Mom serves very typical Asian food in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:02:09 handlers.go:513: Scanned post: {PostId:6 UserId:1 Title:Best Sushi Content:Fina Fisken is the best sushi in Mariehamn Author:admin Created:2023-05-17T15:29:08Z}
+2023/05/17 16:02:09 handlers.go:513: Scanned post: {PostId:9 UserId:1 Title:ThaiFOOD Content:Yummm Author:admin Created:2023-05-17T15:30:59Z}
+2023/05/17 16:02:09 handlers.go:513: Scanned post: {PostId:10 UserId:1 Title:KoreanFood Content:yummy Author:admin Created:2023-05-17T15:36:29Z}
+2023/05/17 16:02:09 handlers.go:513: Scanned post: {PostId:11 UserId:1 Title:IndianFood Content:delicious Author:admin Created:2023-05-17T15:38:35Z}
+2023/05/17 16:02:09 handlers.go:513: Scanned post: {PostId:12 UserId:1 Title:CambodianFoood Content:oh yea Author:admin Created:2023-05-17T15:42:45Z}
+2023/05/17 16:02:09 handlers.go:513: Scanned post: {PostId:13 UserId:1 Title:ChineseFood Content:oh baby Author:admin Created:2023-05-17T15:45:51Z}
+2023/05/17 16:02:09 handlers.go:513: Scanned post: {PostId:14 UserId:1 Title:yum Content:yum Author:admin Created:2023-05-17T15:49:00Z}
+2023/05/17 16:02:09 handlers.go:513: Scanned post: {PostId:15 UserId:1 Title:food Content:dooooo Author:admin Created:2023-05-17T16:01:08Z}
+2023/05/17 16:02:09 handlers.go:513: Scanned post: {PostId:16 UserId:1 Title:kjkjhkjhj Content:kjhkuhkhk Author:admin Created:2023-05-17T16:01:59Z}
+2023/05/17 16:02:09 handlers.go:516: Processed 11 posts
+2023/05/17 16:02:13 handlers.go:355: AllPostsHandler reached.
+2023/05/17 16:02:14 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:02:14 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:02:23 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:02:23 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:02:32 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:02:32 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:02:41 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:02:41 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:02:50 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:02:50 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:02:59 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:02:59 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:03:08 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:03:08 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:03:17 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:03:17 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:03:26 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:03:26 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:03:35 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:03:35 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:03:44 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:03:44 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:03:53 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:03:53 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:04:02 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:04:02 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:04:11 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:04:11 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:04:20 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:04:20 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:04:29 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:04:29 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:04:38 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:04:38 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:04:47 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:04:47 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:04:56 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:04:56 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:05:05 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:05:05 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:05:14 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:05:14 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:05:23 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:05:23 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:05:32 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:05:32 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:05:41 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:05:41 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:05:50 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:05:50 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:05:59 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:05:59 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:06:08 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:06:08 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:06:17 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:06:17 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:06:26 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:06:26 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:06:35 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:06:35 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:06:44 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:06:44 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:06:53 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:06:53 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:07:02 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:07:02 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:07:11 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:07:11 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:07:20 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:07:20 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:07:29 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:07:29 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:07:38 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:07:38 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:07:47 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:07:47 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:07:56 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:07:56 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:08:05 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:08:05 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:08:14 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:08:14 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:08:23 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:08:23 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:08:32 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:08:32 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:08:41 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:08:41 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:08:50 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:08:50 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:08:59 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:08:59 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:09:08 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:09:08 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:09:17 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:09:17 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:09:26 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:09:26 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:09:35 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:09:35 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:09:44 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:09:44 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:09:53 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:09:53 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:10:02 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:10:02 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:10:11 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:10:11 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:10:20 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:10:20 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:10:29 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:10:29 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:10:38 ws-client.go:181: Ping sent to client: 127.0.0.1:56362
+2023/05/17 16:10:38 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/17 16:10:42 main.go:41: Server stopped.

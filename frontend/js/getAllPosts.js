@@ -108,7 +108,7 @@ export function clearTable() {
     tableBody.innerHTML = '';
 }
 
-async function displaySinglePost(post) {
+export async function displaySinglePost(post) {
     console.log("Displaying single post.", post);
     let mainContent = document.getElementById("main-content");
     let singlePostDiv = document.createElement("div");

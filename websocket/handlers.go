@@ -405,6 +405,8 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		log.Println("Add Post Request body: ", requestBody)
+
 		// Connect to the database when mySQL!!!
 		// db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@/%s", dbUsername, dbPassword, dbName))
 		// if err != nil {
@@ -445,6 +447,7 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 				log.Fatal(err)
 			}
 		}
+		log.Println("Post added successfully: ", post)
 
 		// Handle success
 		w.WriteHeader(http.StatusOK)
@@ -466,17 +469,18 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		log.Println("PostsByCategoryHandler reached.")
+		log.Printf("Categories: %+v", categories)
 
 		args := make([]interface{}, len(categories.Categories))
 		for i, v := range categories.Categories {
 			args[i] = v
 		}
 
-		query := `SELECT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
-					FROM post 
-					INNER JOIN category_relation ON post.id = category_relation.post_id 
-					WHERE category_relation.category_id IN (
-					SELECT id FROM category WHERE category_name IN (`
+		query := `SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
+		FROM post 
+		INNER JOIN category_relation ON post.id = category_relation.post_id 
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (`
 
 		for range categories.Categories {
 			query += "?,"
