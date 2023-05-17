@@ -11,19 +11,31 @@ import (
 	"rtForum/websocket"
 )
 
+// ASCI esacpe codes for colors
+const (
+	Reset   = "\033[0m"
+	Red     = "\033[31m"
+	Green   = "\033[32m"
+	Yellow  = "\033[33m"
+	Blue    = "\033[34m"
+	Magenta = "\033[35m"
+	Cyan    = "\033[36m"
+	White   = "\033[37m"
+)
+
 // initMessage prints a message when the server starts
 func initMessage() {
-	fmt.Printf("===============================================\n")
-	fmt.Printf("Starting Realtime Forum\n")
-	fmt.Printf("Server is running on port: " + "443\n")
-	fmt.Printf("===============================================\n")
+	fmt.Printf(Cyan + "===============================================\n")
+	fmt.Printf(Magenta + "Starting Realtime Forum\n")
+	fmt.Printf(Magenta + "Server is running on port: " + Blue + "443\n")
+	fmt.Printf(Cyan + "===============================================\n")
 }
 
 // quitServer prompts user to type 'x' and 'enter' to quit server.
 func quitServer() {
 quitPrompt:
 	xpressed := ""
-	fmt.Println("Type 'x' and 'enter' to quit server.")
+	fmt.Println(Red + "Type 'x' and 'enter' to quit server.")
 	fmt.Scan(&xpressed)
 	if xpressed == "x" {
 		log.Println("Server stopped.")
@@ -75,6 +87,10 @@ func startServer() {
 	http.HandleFunc("/register", websocket.RegistrationHandler)
 	http.HandleFunc("/login", websocket.LoginHandler)
 	http.HandleFunc("/ws", websocket.WebsocketHandler)
+	http.HandleFunc("/addPost", websocket.AddPost)
+	http.HandleFunc("/getPostsByCategory", websocket.PostsByCategoryHandler)
+	http.HandleFunc("/addcomment", websocket.AddCommentHandler)
+	http.HandleFunc("/comments", websocket.GetCommentsHandler)
 
 	// Declare and initialize server struct then listen and serve
 	ser := &http.Server{

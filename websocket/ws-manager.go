@@ -60,8 +60,23 @@ func sendMessage(event Event, c *Client) error {
 	return nil
 }
 
+func addUserInfo(event Event, c *Client) error {
+	log.Printf("Adding user info: %s", event)
+	var userInfo UserSession
+	if err := json.Unmarshal(event.Payload, &userInfo); err != nil {
+		return fmt.Errorf("event unmarshalling error: %s", err)
+	}
+	c.username = userInfo.Username
+	c.userID = userInfo.UserID
+	c.email = userInfo.Email
+	c.joined = userInfo.Joined
+
+	return nil
+}
+
 func (m *Manager) RegisterEventHandlers() {
 	m.eventHandlers[EventReceiveMessage] = sendMessage
+	m.eventHandlers[UserConnect] = addUserInfo
 }
 
 func (m *Manager) routeEvent(event Event, c *Client) error {

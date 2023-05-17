@@ -3,6 +3,7 @@ package websocket
 import (
 	"encoding/json"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -17,6 +18,18 @@ type Client struct {
 	//egress is used to avoid concurrent writes to websocket connection
 	egress   chan Event
 	loggedIn bool
+	username string
+	userID   int
+	email    string
+	joined   string
+	cookie   *http.Cookie
+	// type UserSession struct {
+	// 	Username string `json:"username"`
+	// 	UserID   int    `json:"id"`
+	// 	Email    string `json:"email"`
+	// 	Joined   string `json:"joined"`
+	// 	Cookie   *http.Cookie
+	// }
 }
 
 // Initializing variables for ping/pong heartbeat.

@@ -37,6 +37,11 @@ export function routeEvent(event) {
             console.log("New message: ", event.payload);
             appendChatMsg(messageEvent);
             break;
+        case "users-online":
+            //Functionality to display online users
+            const usersOnline = event;
+            appendUsers(usersOnline);
+            break;
         case "error":
             console.log("Error: ", event.payload);
             break;
@@ -73,4 +78,120 @@ export function sendMessage (message) {
     }
     newmessage.value = "";
     return false
+}
+
+function appendUsers(event) {
+    console.log("Users: ", event.payload)
+    let usersList = document.getElementById('users-list');
+    let users = JSON.parse(event); // parse the JSON object
+    
+    // Loop through the list of users
+    for (let i = 0; i < users.payload.length; i++) {
+        let user = users[i];
+        
+        // Create a new list item element
+        let newUser = document.createElement('li');
+        
+        // Set the text content of the new list item to the user information
+        newUser.textContent = 'Name: ' + user;
+
+        // Create a green circle element to indicate that the user is logged in
+        const greenCircle = document.createElement("span");
+        greenCircle.style.backgroundColor = "green";
+        greenCircle.style.width = "10px";
+        greenCircle.style.height = "10px";
+        greenCircle.style.borderRadius = "50%";
+        greenCircle.style.display = "inline-block";
+        greenCircle.style.marginRight = "10px";
+        
+        // Add the green circle element to the user element
+        newUser.appendChild(greenCircle);
+
+        
+        // Add a click event listener to each user element that opens a chat window when clicked
+        newUser.addEventListener("click", () => {
+          openChatWindow(user);
+          console.log("Clicked on user: " + user);
+        });
+        
+        // Append the new list item to the unordered list
+        usersList.appendChild(newUser);
+    }
+}
+
+// Create a chat window element and append it to the DOM
+const chatWindow = document.createElement("div");
+chatWindow.className = "chat-window";
+document.body.appendChild(chatWindow);
+
+// Function to open a chat window between two users
+function openChatWindow(user) {
+  // Populate the chat window with the conversation history between the two users (if it exists)
+  getChatHistory(user, (chatHistory) => {
+    const history = JSON.parse(chatHistory);
+
+    // Create a container for the chat messages
+    const chatContainer = document.createElement("div");
+    chatContainer.className = "chat-container";
+    
+    // Loop through each message in the chat history and display it in the chat window
+    history.chathistory.forEach((message) => {
+      const messageContainer = document.createElement("div");
+      messageContainer.className = message.from === user.id ? "message sent" : "message received";
+      
+      const messageText = document.createElement("p");
+      messageText.textContent = message.text;
+      messageContainer.appendChild(messageText);
+      
+      chatContainer.appendChild(messageContainer);
+    });
+    
+    // Create a container for the message input and send button
+    const inputContainer = document.createElement("div");
+    inputContainer.className = "input-container";
+    
+    // Create the message input field
+    const messageInput = document.createElement("input");
+    messageInput.type = "text";
+    messageInput.placeholder = "Type your message...";
+    inputContainer.appendChild(messageInput);
+    
+    // Create the send button
+    const sendButton = document.createElement("button");
+    sendButton.textContent = "Send";
+    sendButton.addEventListener("click", () => {
+      sendMessage(user, messageInput.value);
+      console.log("Sending message: " + messageInput.value);
+    });
+    inputContainer.appendChild(sendButton);
+    
+    // Add the chat and input containers to the chat window
+    chatWindow.innerHTML = "";
+    chatWindow.appendChild(chatContainer);
+    chatWindow.appendChild(inputContainer);
+  });
+}
+
+
+// Function to get the conversation history between two users
+function getChatHistory(user, callback) {
+  // Send a message to the server to request the conversation history
+  const message = JSON.stringify({ type: "get_chat_history", user: user });
+  console.log("Sending message to backend!: " + message);
+  socket.send(message);
+
+  // Listen for the response from the server
+  socket.addEventListener("message", (event) => {
+    const message = JSON.parse(event.data);
+    console.log("Message received from backend!: " + JSON.stringify(message));
+    if (message.type === "chat_history") {
+      const chatHistory = JSON.stringify(message);
+      const TempText = JSON.stringify(message);
+      console.log("TempText: " + TempText);
+      //for (const message of chatHistory) {
+      //  console.log("Message: " + JSON.stringify(message));
+      //}
+      callback(chatHistory);
+    }
+  });
 }

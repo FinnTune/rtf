@@ -1,44 +1,45 @@
 export function addPost() {
-     //Check if password and confirm password are the same
-     let postTitle = document.getElementById('post-title').value;
-     console.log(postTitle);
-     let postContent = document.getElementById('post-content').value;
-     console.log(postContent);
-    //Using document.getElementById for specific fields
-    let formData = {
-        fname: document.getElementById('regfname').value,
-        lname: document.getElementById('reglname').value,
-        uname: document.getElementById('reguname').value,
-        email: document.getElementById('regemail').value,
-        age: document.getElementById('regage').value,
-        gender: document.getElementById('reggender').value,
-        password: document.getElementById('regpassword').value,
+  var title = document.getElementById('post-title').value;
+  var content = document.getElementById('post-content').value;
+  var selectedCategories = Array.from(document.querySelectorAll('input[name="categories[]"]:checked')).map(function(category) {
+    return {
+      id: parseInt(category.getAttribute('title')),
+      name: category.getAttribute('value')
     };
+  });
 
-    // console.log(loginFormData);
-    console.log(formData);
+  const uname = localStorage.getItem('username');
+  const userID = parseInt(localStorage.getItem('id'));
 
-    fetch('register', {
-        method: 'POST',
-        body: JSON.stringify(formData),
-        mode: 'cors',
-        headers: {
-            'Content-Type': 'application/json'
-        }}
-    ).then((response) => {
-        if(response.ok){
-        console.log("User registered.")
-            createMainHTML();
-            document.getElementById('msg').innerHTML = 'You are now registered. Please login.';
-            return;
-        } else {
-            // throw new Error('Unauthorized');
-            throw 'Unauthorized';
-        }
-    }).catch((error) => {
-        alert("Err: " + error);
-        console.log("Err: ", error);
-    });
- 
-    return false;
+  var postData = {
+    title: title,
+    content: content,
+    userID: userID,
+    categories: selectedCategories,
+    author: uname
+  };
+
+  console.log("PostData: ",postData)
+
+  fetch('/addPost', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(postData)
+  })
+  .then(function(response) {
+    if (response.ok) {
+      console.log('Post data sent successfully!');
+      document.getElementById('msg').innerHTML = "Your post was submitted."
+      // Add any additional logic or UI updates here after successful submission
+    } else {
+      console.error('Error sending post data.');
+      // Handle the error condition appropriately
+    }
+  })
+  .catch(function(error) {
+    console.error('Error sending post data:', error);
+    // Handle the error condition appropriately
+  });
 };

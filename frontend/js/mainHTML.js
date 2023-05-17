@@ -18,9 +18,7 @@ export function createMainHTML() {
     <div class="intro" id="intro">
       <h2>Welcome to theDialectic</h2>
       <p>
-        Please feel free to bombard us with your conversation.<br><br>
-        If you are not yet a member, please oblige us and register.<br>
-        If you already have an account, login and converse.<br><br>
+        Please register and login to enter the converse universe.<br><br>
       </p>
     </div>
 

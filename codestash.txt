@@ -1,0 +1,67 @@
+			var currClient *Client
+			//Find current client from manager client list and store in variable
+			for client := range manager.clients {
+				if client.username == userInfo.Username {
+					currClient = client
+				}
+			}
+
+			cookie, err := r.Cookie("session_id")
+			if err != nil {
+				log.Printf("Error getting cookie: %s", err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			//Check if user is already in logged in users map
+			//Reset connection/session of client if so
+			//This is to prevent multiple logins from the same user
+			if _, ok := LoggedInUsers[userInfo.Username]; ok {
+				log.Println("User already logged in.")
+				currClient.loggedIn = true
+				currClient.sessionID = cookie.Value
+				// currClient.connection.Close()
+				// currClient.connection, err = websocketUpgrader.Upgrade(w, r, nil)
+				// if err != nil {
+				// 	log.Println(err)
+				// 	return
+				// }
+			}
+
+			//Add user to logged in users map by checking the clients in the manager
+			LoggedInUsers[userInfo.Username] = currClient
+
+
+
+
+
+
+
+
+
+
+             else if client.sessionID != sessionCookie.Value {
+				log.Println("Session cookie found. User logged in with different sessionID")
+				client.connection.Close()
+				conn, err := websocketUpgrader.Upgrade(w, r, nil)
+				if err != nil {
+					log.Println(err)
+					return
+				}
+				client.connection = conn
+
+				// Otp
+				//Create new OTP and store in manager otps map
+				otp := m.otps.newOtp()
+
+				// Send the login status to the client
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(struct {
+					LoggedIn bool   `json:"loggedIn"`
+					OTP      string `json:"otp"`
+				}{
+					LoggedIn: client.loggedIn,
+					OTP:      otp.Key,
+				})
+				return
+			}

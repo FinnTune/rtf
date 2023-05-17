@@ -20,16 +20,15 @@ CREATE TABLE post (
  user_id INTEGER NOT NULL,
  title VARCHAR(30) NOT NULL,
  content VARCHAR(150) NOT NULL,
- category VARCHAR(15) NOT NULL,
- category_id INTEGER NOT NULL,
+ author VARCHAR(30) NOT NULL,
  created_at DATETIME NOT NULL,
 --  liked_no INTEGER,
 --  disliked_no INTEGER,
 --  img_url VARCHAR(100),
 --  approved TINYINT(1) NOT NULL,
 --  dummy TINYINT(1) NOT NULL,
-FOREIGN KEY(category_id) REFERENCES category(id),
-FOREIGN KEY(user_id) REFERENCES user(id)
+FOREIGN KEY(user_id) REFERENCES user(id),
+FOREIGN KEY(author) REFERENCES user(uname)
 );
 
 CREATE TABLE comment (
@@ -113,29 +112,29 @@ VALUES
     (14,'Health'),
     (15,'Other');
 
-INSERT INTO post (user_id,title,content,category,category_id,created_at)
+INSERT INTO post (user_id,title,content,author,created_at)
 VALUES
-    (1,'Welcome to the Cuisines category!','Be the first to post in this category!','Other',15,DateTime('now','localtime')),
-    (1,'Welcome to the Places category!','Be the first to post in this category!','Other',15,DateTime('now','localtime')),
-    (1,'Welcome to the Activities category!','Be the first to post in this category!','Other',15,DateTime('now','localtime')),
-    (1,'Asian Food','Thai Khun Mom serves very typical Asian food in Mariehamn','Cuisine',1,DateTime('now','localtime')),
-    (1,'Swedish Class','Swedish class occurs every Tuesday and Thursday from 4pm','Language',6,DateTime('now','localtime')),
-    (1,'Best Sushi','Fina Fisken is the best sushi in Mariehamn','Cuisine',1,DateTime('now','localtime')),
-    (1,'Poker Night','Poker Game Night occurs every Friday from 8pm','Social',9,DateTime('now','localtime')),
-    (1,'Real Embassy','Brazilian Real Embassy is now in Mariehamn','Politics',8,DateTime('now','localtime'));
+    (1,'Welcome to the Cuisines category!','Be the first to post in this category!','admin',DateTime('now','localtime')),
+    (1,'Welcome to the Places category!','Be the first to post in this category!','admin',DateTime('now','localtime')),
+    (1,'Welcome to the Activities category!','Be the first to post in this category!','admin',DateTime('now','localtime')),
+    (1,'Asian Food','Thai Khun Mom serves very typical Asian food in Mariehamn','admin',DateTime('now','localtime')),
+    (1,'Swedish Class','Swedish class occurs every Tuesday and Thursday from 4pm','admin',DateTime('now','localtime')),
+    (1,'Best Sushi','Fina Fisken is the best sushi in Mariehamn','admin',DateTime('now','localtime')),
+    (1,'Poker Night','Poker Game Night occurs every Friday from 8pm','admin',DateTime('now','localtime')),
+    (1,'Real Embassy','Brazilian Real Embassy is now in Mariehamn','admin',DateTime('now','localtime'));
 
--- INSERT INTO category_relation (id,category_id,post_id)
--- VALUES
---     (1,1,1),
---     (2,2,2),
---     (3,3,3),
---     (4,1,4),
---     (5,1,6),
---     (6,2,4),
---     (7,2,6),
---     (8,2,8),
---     (9,3,5),
---     (10,3,7);
+INSERT INTO category_relation (id,category_id,post_id)
+VALUES
+    (1,1,1),
+    (2,2,2),
+    (3,3,3),
+    (4,1,4),
+    (5,1,6),
+    (6,2,4),
+    (7,2,6),
+    (8,2,8),
+    (9,3,5),
+    (10,3,7);
 
 -- INSERT INTO message (id,from_user,to_user,is_read,message,created_at)
 -- VALUES

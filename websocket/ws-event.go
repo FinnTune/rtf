@@ -16,6 +16,7 @@ const (
 	// Event types
 	EventReceiveMessage = "new-message"
 	EventSendMessage    = "sent-message"
+	UserConnect         = "user-connect"
 )
 
 type ReceiveMessageEvent struct {

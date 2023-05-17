@@ -17,6 +17,7 @@ export function logout () {
           
           // User is logged in
           createMainHTML();
+          document.getElementById('msg').innerHTML = "You've been logged out."
         } else {
           console.log("User logout failed.")
           console.log(data.loggedIn)

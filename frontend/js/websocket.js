@@ -1,20 +1,29 @@
 export let conn
 import {routeEvent} from './chat.js'
 import { Event } from './chat.js';
+import { createMainHTML } from './mainHTML.js';
 
-export function connectWebSocket(otp) {
+export function connectWebSocket(data) {
     if(window["WebSocket"]) {
         console.log("WebSocket is supported by client browser!");
+        console.log("OTP from connectWS: ", data.otp);
         // Request websocket connection with otp as query parameter
-        conn = new WebSocket("wss://localhost:443/ws?otp="+ otp)  //Instead of 'localhost' you can use 'document.location.host' 
+        conn = new WebSocket("wss://localhost:443/ws?otp="+ data.otp)  //Instead of 'localhost' you can use 'document.location.host' 
         console.log("Connection print: ",conn);
 
         conn.onopen = function(event) {
             console.log("Websocket connection established!");
+            // conn.send(JSON.stringify(data));
+            //Create event to send to backend
+            const eventObj = Object.assign(new Event("user-connect", data));
+            conn.send(JSON.stringify(eventObj));
         };
 
         conn.onclose = function(event) {
             console.log("Websocket connection closed!");
+            createMainHTML();
+            let msg = document.getElementById("msg")
+            msg.innerHTML = "You've been logged out."
             //Possible to reconnect here??? if accidentally closed because of network issues.
         };
 
