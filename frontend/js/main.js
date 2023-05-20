@@ -1,4 +1,3 @@
-import { createPostsTable } from './getAllPosts.js';
 import { createLoggedInHTML } from './loggedInHTML.js';
 import { createMainHTML } from './mainHTML.js';
 import { connectWebSocket } from './websocket.js';

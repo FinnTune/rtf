@@ -170,7 +170,7 @@ func (c *Client) writeMesssage() {
 			if err := c.connection.WriteMessage(websocket.TextMessage, data); err != nil {
 				log.Printf("Error when writing msg payload to client: %s", err)
 			}
-			log.Println("Message sent to client:", c.connection.RemoteAddr())
+			log.Println("Message sent to client:", c.connection.RemoteAddr(), "Message:", string(data))
 
 		case <-ticker.C:
 			//Check if channel is closed

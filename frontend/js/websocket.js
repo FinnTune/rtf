@@ -16,6 +16,7 @@ export function connectWebSocket(data) {
             // conn.send(JSON.stringify(data));
             //Create event to send to backend
             const eventObj = Object.assign(new Event("user-connect", data));
+            console.log("Conn OnOpen data: ", data);
             conn.send(JSON.stringify(eventObj));
         };
 

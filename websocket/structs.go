@@ -85,6 +85,9 @@ type Alert struct {
 // Global maps to store all users, posts, comments, categories, and sessions
 var LoggedInUsers = make(map[string]*Client)
 
+// LoggedInList is a list of all logged in users
+var LoggedInList = make(map[string]bool)
+
 // Struct to define a session
 type UserSession struct {
 	Username string `json:"username"`

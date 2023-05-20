@@ -83,40 +83,36 @@ export function sendMessage (message) {
 function appendUsers(event) {
     console.log("Users: ", event.payload)
     let usersList = document.getElementById('users-list');
-    let users = JSON.parse(event); // parse the JSON object
+    usersList.innerHTML = "";
+    // let users = JSON.parse(new TextDecoder().decode(new Uint8Array(event.payload))); // parse the JSON object
+    let users = event.payload;
+
+// Loop through the keys in the users object
+for (let user in users) {
+    // user will be the key (username), and users[user] will be the value (admin status)
+
+    let newUser = document.createElement('li');
+        
+    // If the user is an admin, indicate that in the list
+    newUser.textContent = user;
     
-    // Loop through the list of users
-    for (let i = 0; i < users.payload.length; i++) {
-        let user = users[i];
-        
-        // Create a new list item element
-        let newUser = document.createElement('li');
-        
-        // Set the text content of the new list item to the user information
-        newUser.textContent = 'Name: ' + user;
+    const greenCircle = document.createElement("span");
+    greenCircle.style.backgroundColor = "green";
+    greenCircle.style.width = "10px";
+    greenCircle.style.height = "10px";
+    greenCircle.style.borderRadius = "50%";
+    greenCircle.style.display = "inline-block";
+    greenCircle.style.marginRight = "10px";
+    
+    newUser.appendChild(greenCircle);
 
-        // Create a green circle element to indicate that the user is logged in
-        const greenCircle = document.createElement("span");
-        greenCircle.style.backgroundColor = "green";
-        greenCircle.style.width = "10px";
-        greenCircle.style.height = "10px";
-        greenCircle.style.borderRadius = "50%";
-        greenCircle.style.display = "inline-block";
-        greenCircle.style.marginRight = "10px";
-        
-        // Add the green circle element to the user element
-        newUser.appendChild(greenCircle);
-
-        
-        // Add a click event listener to each user element that opens a chat window when clicked
-        newUser.addEventListener("click", () => {
-          openChatWindow(user);
-          console.log("Clicked on user: " + user);
-        });
-        
-        // Append the new list item to the unordered list
-        usersList.appendChild(newUser);
-    }
+    newUser.addEventListener("click", () => {
+      openChatWindow(user);
+      console.log("Clicked on user: " + user);
+    });
+    
+    usersList.appendChild(newUser);
+}
 }
 
 // Create a chat window element and append it to the DOM

@@ -1,0 +1,219 @@
+2023/05/20 14:05:33 main.go:127: Main begun. Log file checked, opened, and set.
+2023/05/20 14:05:33 main.go:128: New Forum Begun
+2023/05/20 14:05:33 sqlFuncs.go:18: Database opened successfully.
+2023/05/20 14:05:33 main.go:57: File Servers Started.
+2023/05/20 14:05:33 main.go:68: Handlers Started.
+2023/05/20 14:05:33 main.go:104: Server Started and listening on port :443.
+2023/05/20 14:05:40 handlers.go:43: Checking login status.
+2023/05/20 14:05:40 handlers.go:58: Manager's clients:  map[]
+2023/05/20 14:05:40 handlers.go:90: No client found with matching session ID. User not logged in.
+2023/05/20 14:05:40 handlers.go:104: Login handler reached.
+2023/05/20 14:05:40 handlers.go:120: Login POST request received.
+2023/05/20 14:05:41 utility.go:29: Password and hash match.
+2023/05/20 14:05:41 handlers.go:139: User found: {ID:1 Username:admin Email:admin@example.com Joined:2023-05-17 15:29:59 Password:$2a$12$nOhLtBhYC0.XOm3IQ37wy.H8Mk8u52Grek4d1UGA0sNbQr4D/ik32 Session: NumberComments:0 NumberPosts:0}
+2023/05/20 14:05:41 handlers.go:140: Authentication condition reached.
+2023/05/20 14:05:41 handlers.go:141: User Login list:  map[]
+2023/05/20 14:05:41 handlers.go:364: AllPostsHandler reached.
+2023/05/20 14:05:41 handlers.go:364: AllPostsHandler reached.
+2023/05/20 14:05:41 handlers.go:261: Serving websocket.
+2023/05/20 14:05:41 handlers.go:27: Checking origin: https://localhost
+2023/05/20 14:05:41 handlers.go:269: Decoding request body.
+2023/05/20 14:05:41 handlers.go:270: ServeWS request body:  {}
+2023/05/20 14:05:41 handlers.go:282: Session Id in ServeWS:  eaf3ad26-d62a-4bd0-9768-4160ba6b2e25
+2023/05/20 14:05:41 handlers.go:296: Client does not exist.
+2023/05/20 14:05:41 ws-client.go:44: New client connected.
+2023/05/20 14:05:41 ws-manager.go:118: Client: 127.0.0.1:41984 added to manager.
+2023/05/20 14:05:41 ws-client.go:65: Client IP and client port num.:  127.0.0.1:41984
+2023/05/20 14:05:41 ws-client.go:89: Client read message from:  127.0.0.1:41984
+2023/05/20 14:05:41 ws-manager.go:64: Adding user info: {user-connect {"otp":"62460731-3466-42c3-b3f1-fdd692849f76","id":1,"username":"admin","email":"admin@example.com","joined":"2023-05-17 15:29:59","loggedIn":false}}
+2023/05/20 14:05:41 ws-manager.go:77: User: admin added to LoggedInList:  map[admin:true]
+2023/05/20 14:05:41 ws-client.go:173: Message sent to client: 127.0.0.1:41984 Message: {"type":"users-online","payload":{"admin":true}}
+2023/05/20 14:05:43 ws-client.go:89: Client read message from:  127.0.0.1:41984
+2023/05/20 14:05:43 ws-client.go:91: Client Made an Error:  websocket: close 1001 (going away)
+2023/05/20 14:05:44 main.go:73: Handling request "/" and serving index.html
+2023/05/20 14:05:44 main.go:77: Cookie exists.
+2023/05/20 14:05:45 handlers.go:43: Checking login status.
+2023/05/20 14:05:45 handlers.go:58: Manager's clients:  map[0xc000140b60:true]
+2023/05/20 14:05:45 handlers.go:68: Session cookie found. User logged in
+2023/05/20 14:05:45 handlers.go:83: OTP:  b8f43095-92fa-4a85-9851-79fa957af053
+2023/05/20 14:05:45 handlers.go:364: AllPostsHandler reached.
+2023/05/20 14:05:45 handlers.go:261: Serving websocket.
+2023/05/20 14:05:45 handlers.go:27: Checking origin: https://localhost
+2023/05/20 14:05:45 handlers.go:269: Decoding request body.
+2023/05/20 14:05:45 handlers.go:270: ServeWS request body:  {}
+2023/05/20 14:05:45 handlers.go:282: Session Id in ServeWS:  eaf3ad26-d62a-4bd0-9768-4160ba6b2e25
+2023/05/20 14:05:45 handlers.go:285: Client already exists.
+2023/05/20 14:05:45 ws-client.go:65: Client IP and client port num.:  127.0.0.1:41994
+2023/05/20 14:05:45 ws-client.go:89: Client read message from:  127.0.0.1:41994
+2023/05/20 14:05:45 ws-manager.go:64: Adding user info: {user-connect {"otp":"b8f43095-92fa-4a85-9851-79fa957af053","id":0,"username":"","email":"","joined":"","loggedIn":true}}
+2023/05/20 14:05:45 ws-manager.go:77: User:  added to LoggedInList:  map[:true]
+2023/05/20 14:05:45 ws-client.go:173: Message sent to client: 127.0.0.1:41994 Message: {"type":"users-online","payload":{"":true}}
+2023/05/20 14:05:50 ws-client.go:181: Ping sent to client: 127.0.0.1:41994
+2023/05/20 14:05:50 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:05:51 ws-client.go:89: Client read message from:  127.0.0.1:41994
+2023/05/20 14:05:51 ws-client.go:91: Client Made an Error:  websocket: close 1001 (going away)
+2023/05/20 14:05:51 main.go:73: Handling request "/" and serving index.html
+2023/05/20 14:05:51 main.go:77: Cookie exists.
+2023/05/20 14:05:53 handlers.go:43: Checking login status.
+2023/05/20 14:05:53 handlers.go:58: Manager's clients:  map[0xc000140b60:true]
+2023/05/20 14:05:53 handlers.go:68: Session cookie found. User logged in
+2023/05/20 14:05:53 handlers.go:83: OTP:  55b35838-3de8-4cd6-b44f-4cd31110b565
+2023/05/20 14:05:53 handlers.go:364: AllPostsHandler reached.
+2023/05/20 14:05:53 handlers.go:261: Serving websocket.
+2023/05/20 14:05:53 handlers.go:27: Checking origin: https://localhost
+2023/05/20 14:05:53 handlers.go:269: Decoding request body.
+2023/05/20 14:05:53 handlers.go:270: ServeWS request body:  {}
+2023/05/20 14:05:53 handlers.go:282: Session Id in ServeWS:  eaf3ad26-d62a-4bd0-9768-4160ba6b2e25
+2023/05/20 14:05:53 handlers.go:285: Client already exists.
+2023/05/20 14:05:53 ws-client.go:65: Client IP and client port num.:  127.0.0.1:37514
+2023/05/20 14:05:53 ws-client.go:89: Client read message from:  127.0.0.1:37514
+2023/05/20 14:05:53 ws-manager.go:64: Adding user info: {user-connect {"otp":"55b35838-3de8-4cd6-b44f-4cd31110b565","id":0,"username":"","email":"","joined":"","loggedIn":true}}
+2023/05/20 14:05:53 ws-manager.go:77: User:  added to LoggedInList:  map[:true]
+2023/05/20 14:05:53 ws-client.go:173: Message sent to client: 127.0.0.1:37514 Message: {"type":"users-online","payload":{"":true}}
+2023/05/20 14:05:54 ws-client.go:181: Ping sent to client: 127.0.0.1:37514
+2023/05/20 14:05:54 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:05:59 ws-client.go:181: Ping sent to client: 127.0.0.1:37514
+2023/05/20 14:05:59 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:06:02 ws-client.go:181: Ping sent to client: 127.0.0.1:37514
+2023/05/20 14:06:02 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:06:03 ws-client.go:181: Ping sent to client: 127.0.0.1:37514
+2023/05/20 14:06:03 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:06:08 ws-client.go:181: Ping sent to client: 127.0.0.1:37514
+2023/05/20 14:06:08 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:06:11 ws-client.go:181: Ping sent to client: 127.0.0.1:37514
+2023/05/20 14:06:11 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:06:12 ws-client.go:181: Ping sent to client: 127.0.0.1:37514
+2023/05/20 14:06:12 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:06:14 handlers.go:197: Logout POST request received.
+2023/05/20 14:06:14 handlers.go:212: Manager's clients:  map[0xc000140b60:true]
+2023/05/20 14:06:14 handlers.go:215: Client found.
+2023/05/20 14:06:14 handlers.go:221: Logged in users:  map[]
+2023/05/20 14:06:14 handlers.go:222: Session cookie found. User logged in.
+2023/05/20 14:06:14 ws-client.go:89: Client read message from:  127.0.0.1:37514
+2023/05/20 14:06:14 ws-client.go:91: Client Made an Error:  read tcp 127.0.0.1:443->127.0.0.1:37514: use of closed network connection
+2023/05/20 14:06:17 ws-client.go:178: Client connection is nil.
+2023/05/20 14:06:18 handlers.go:43: Checking login status.
+2023/05/20 14:06:18 handlers.go:58: Manager's clients:  map[]
+2023/05/20 14:06:18 handlers.go:90: No client found with matching session ID. User not logged in.
+2023/05/20 14:06:18 handlers.go:104: Login handler reached.
+2023/05/20 14:06:18 handlers.go:120: Login POST request received.
+2023/05/20 14:06:19 utility.go:29: Password and hash match.
+2023/05/20 14:06:19 handlers.go:139: User found: {ID:1 Username:admin Email:admin@example.com Joined:2023-05-17 15:29:59 Password:$2a$12$nOhLtBhYC0.XOm3IQ37wy.H8Mk8u52Grek4d1UGA0sNbQr4D/ik32 Session: NumberComments:0 NumberPosts:0}
+2023/05/20 14:06:19 handlers.go:140: Authentication condition reached.
+2023/05/20 14:06:19 handlers.go:141: User Login list:  map[]
+2023/05/20 14:06:19 handlers.go:364: AllPostsHandler reached.
+2023/05/20 14:06:19 handlers.go:364: AllPostsHandler reached.
+2023/05/20 14:06:19 handlers.go:261: Serving websocket.
+2023/05/20 14:06:19 handlers.go:27: Checking origin: https://localhost
+2023/05/20 14:06:19 handlers.go:269: Decoding request body.
+2023/05/20 14:06:19 handlers.go:270: ServeWS request body:  {}
+2023/05/20 14:06:19 handlers.go:282: Session Id in ServeWS:  eaf3ad26-d62a-4bd0-9768-4160ba6b2e25
+2023/05/20 14:06:19 handlers.go:296: Client does not exist.
+2023/05/20 14:06:19 ws-client.go:44: New client connected.
+2023/05/20 14:06:19 ws-manager.go:118: Client: 127.0.0.1:36320 added to manager.
+2023/05/20 14:06:19 ws-client.go:65: Client IP and client port num.:  127.0.0.1:36320
+2023/05/20 14:06:19 ws-client.go:89: Client read message from:  127.0.0.1:36320
+2023/05/20 14:06:19 ws-manager.go:64: Adding user info: {user-connect {"otp":"b3159faa-cf1e-4659-b4a7-e6a67a63caf7","id":1,"username":"admin","email":"admin@example.com","joined":"2023-05-17 15:29:59","loggedIn":false}}
+2023/05/20 14:06:19 ws-manager.go:77: User: admin added to LoggedInList:  map[admin:true]
+2023/05/20 14:06:19 ws-client.go:173: Message sent to client: 127.0.0.1:36320 Message: {"type":"users-online","payload":{"admin":true}}
+2023/05/20 14:06:20 ws-client.go:178: Client connection is nil.
+2023/05/20 14:06:21 ws-client.go:178: Client connection is nil.
+2023/05/20 14:06:28 ws-client.go:181: Ping sent to client: 127.0.0.1:36320
+2023/05/20 14:06:28 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:06:37 ws-client.go:181: Ping sent to client: 127.0.0.1:36320
+2023/05/20 14:06:37 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:06:46 ws-client.go:181: Ping sent to client: 127.0.0.1:36320
+2023/05/20 14:06:46 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:06:55 ws-client.go:181: Ping sent to client: 127.0.0.1:36320
+2023/05/20 14:06:55 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:06:58 ws-client.go:89: Client read message from:  127.0.0.1:36320
+2023/05/20 14:06:58 ws-client.go:91: Client Made an Error:  websocket: close 1001 (going away)
+2023/05/20 14:06:58 main.go:73: Handling request "/" and serving index.html
+2023/05/20 14:06:58 main.go:77: Cookie exists.
+2023/05/20 14:07:00 handlers.go:43: Checking login status.
+2023/05/20 14:07:00 handlers.go:58: Manager's clients:  map[0xc000141180:true]
+2023/05/20 14:07:00 handlers.go:68: Session cookie found. User logged in
+2023/05/20 14:07:00 handlers.go:83: OTP:  613e108b-caaa-4f73-8e3e-75bbd25fafd7
+2023/05/20 14:07:00 handlers.go:364: AllPostsHandler reached.
+2023/05/20 14:07:00 handlers.go:261: Serving websocket.
+2023/05/20 14:07:00 handlers.go:27: Checking origin: https://localhost
+2023/05/20 14:07:00 handlers.go:269: Decoding request body.
+2023/05/20 14:07:00 handlers.go:270: ServeWS request body:  {}
+2023/05/20 14:07:00 handlers.go:282: Session Id in ServeWS:  eaf3ad26-d62a-4bd0-9768-4160ba6b2e25
+2023/05/20 14:07:00 handlers.go:285: Client already exists.
+2023/05/20 14:07:00 ws-client.go:65: Client IP and client port num.:  127.0.0.1:33066
+2023/05/20 14:07:00 ws-client.go:89: Client read message from:  127.0.0.1:33066
+2023/05/20 14:07:00 ws-manager.go:64: Adding user info: {user-connect {"otp":"613e108b-caaa-4f73-8e3e-75bbd25fafd7","id":0,"username":"","email":"","joined":"","loggedIn":true}}
+2023/05/20 14:07:00 ws-manager.go:77: User:  added to LoggedInList:  map[:true]
+2023/05/20 14:07:00 ws-client.go:173: Message sent to client: 127.0.0.1:33066 Message: {"type":"users-online","payload":{"":true}}
+2023/05/20 14:07:04 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:07:04 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:07:09 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:07:09 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:07:13 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:07:13 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:07:18 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:07:18 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:07:22 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:07:22 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:07:27 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:07:27 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:07:31 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:07:31 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:07:36 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:07:36 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:07:40 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:07:40 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:07:45 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:07:45 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:07:49 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:07:49 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:07:54 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:07:54 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:07:58 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:07:58 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:08:03 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:08:03 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:08:07 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:08:07 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:08:12 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:08:12 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:08:16 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:08:16 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:08:21 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:08:21 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:08:25 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:08:25 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:08:30 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:08:30 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:08:34 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:08:34 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:08:39 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:08:39 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:08:43 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:08:43 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:08:48 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:08:48 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:08:52 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:08:52 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:08:57 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:08:57 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:09:01 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:09:01 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:09:06 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:09:06 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:09:10 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:09:10 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:09:15 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:09:15 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:09:19 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:09:19 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:09:24 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:09:24 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:09:28 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:09:28 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:09:33 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:09:33 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:09:37 ws-client.go:181: Ping sent to client: 127.0.0.1:33066
+2023/05/20 14:09:37 ws-client.go:60: Pong received, handler called, timer reset.
+2023/05/20 14:09:41 main.go:41: Server stopped.

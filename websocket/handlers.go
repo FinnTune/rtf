@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"rtForum/database"
@@ -75,6 +76,9 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 				// Send the login status to the client
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(UserLoginResponse{
+					Username: client.username,
+					Email:    client.email,
+					Joined:   client.joined,
 					LoggedIn: client.loggedIn,
 					OTP:      otp.Key,
 				})
@@ -136,7 +140,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 
 			log.Printf("User found: %+v\n", userInfo)
 			log.Println("Authentication condition reached.")
-
+			log.Println("User Login list: ", LoggedInList)
 			//Check to see if client is already logged in
 			m.Lock()
 			defer m.Unlock()
@@ -147,6 +151,10 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 						client.connection.Close()
 						//Delete client from manage client list
 						delete(m.clients, client)
+						//Delete client from LoggedInUsers map
+						delete(LoggedInUsers, client.username)
+						//Delete client from LoggedInList map
+						delete(LoggedInList, client.username)
 					}
 				}
 			}
@@ -210,10 +218,26 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 				if client.loggedIn {
 					// If the client is found, the user is logged in
 					client.loggedIn = false
+					delete(LoggedInUsers, client.username)
+					delete(LoggedInList, client.username)
+					log.Println("Logged in users: ", LoggedInList)
 					log.Println("Session cookie found. User logged in.")
 					client.connection.Close()
 					client.connection = nil
 					delete(m.clients, client)
+
+					data, err := json.Marshal(LoggedInList)
+					if err != nil {
+						fmt.Errorf("failed to marshal broadcast message error: %s", err)
+					}
+					outgoingEvent := Event{
+						Payload: json.RawMessage(data),
+						Type:    UsersList,
+					}
+
+					for c := range manager.clients {
+						c.egress <- outgoingEvent
+					}
 
 					// Send the login status to the client
 					w.Header().Set("Content-Type", "application/json")
@@ -274,6 +298,9 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	for c := range m.clients {
 		if c.sessionID == sessionID {
 			log.Println("Client already exists.")
+			log.Println("ClientUName Debug: ", c.username)
+			delete(LoggedInList, c.username)
+			LoggedInList[c.username] = true
 			c.connection = conn
 			go c.readMessages()
 			go c.writeMesssage()
@@ -295,7 +322,8 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	m.addClient(client)
 
 	//Add user to LoggedInUsers struct
-	LoggedInUsers[client.username] = client
+	// LoggedInUsers[client.username] = client
+	//Add user to LoggedInList struct
 
 	//Start client routines for reading and writing messages
 	go client.readMessages()

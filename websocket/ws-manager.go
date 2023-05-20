@@ -71,6 +71,30 @@ func addUserInfo(event Event, c *Client) error {
 	c.email = userInfo.Email
 	c.joined = userInfo.Joined
 
+	if _, ok := LoggedInList[c.username]; ok {
+		log.Println("Deleting user from LoggedInList: ", c.username)
+		delete(LoggedInList, c.username)
+	} else if !ok {
+		log.Println("Adding user to LoggedInList: ", c.username)
+		LoggedInList[c.username] = true
+		LoggedInUsers[c.username] = c
+	}
+
+	log.Println("User:", c.username, "added to LoggedInList: ", LoggedInList)
+
+	data, err := json.Marshal(LoggedInList)
+	if err != nil {
+		return fmt.Errorf("failed to marshal broadcast message error: %s", err)
+	}
+	outgoingEvent := Event{
+		Payload: json.RawMessage(data),
+		Type:    UsersList,
+	}
+
+	for c := range c.manager.clients {
+		c.egress <- outgoingEvent
+	}
+
 	return nil
 }
 

@@ -1,6 +1,8 @@
 import { createMainHTML } from "./mainHTML.js";
+import { conn } from "./websocket.js";
 
-export function logout () {
+export async function logout () {
+    console.log("Logging out...")
     fetch('/logout', {
         method: 'POST',
         mode: 'cors',
