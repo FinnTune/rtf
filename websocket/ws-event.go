@@ -14,6 +14,7 @@ type EventHandler func(event Event, c *Client) error
 
 const (
 	// Event types
+	GetChatHistory      = "get-chat-history"
 	EventReceiveMessage = "new-message"
 	EventSendMessage    = "sent-message"
 	UserConnect         = "user-connect"

@@ -115,10 +115,6 @@ for (let user in users) {
 }
 }
 
-// Create a chat window element and append it to the DOM
-const chatWindow = document.createElement("div");
-chatWindow.className = "chat-window";
-document.body.appendChild(chatWindow);
 
 // Function to open a chat window between two users
 function openChatWindow(user) {
@@ -170,24 +166,24 @@ function openChatWindow(user) {
 
 
 // Function to get the conversation history between two users
-function getChatHistory(user, callback) {
-  // Send a message to the server to request the conversation history
-  const message = JSON.stringify({ type: "get_chat_history", user: user });
-  console.log("Sending message to backend!: " + message);
-  socket.send(message);
+// function getChatHistory(user, callback) {
+//   // Send a message to the server to request the conversation history
+//   const message = JSON.stringify({ type: "get_chat_history", user: user });
+//   console.log("Sending message to backend!: " + message);
+//   conn.send(message);
 
-  // Listen for the response from the server
-  socket.addEventListener("message", (event) => {
-    const message = JSON.parse(event.data);
-    console.log("Message received from backend!: " + JSON.stringify(message));
-    if (message.type === "chat_history") {
-      const chatHistory = JSON.stringify(message);
-      const TempText = JSON.stringify(message);
-      console.log("TempText: " + TempText);
-      //for (const message of chatHistory) {
-      //  console.log("Message: " + JSON.stringify(message));
-      //}
-      callback(chatHistory);
-    }
-  });
-}
+//   // Listen for the response from the server
+//   conn.addEventListener("message", (event) => {
+//     const message = JSON.parse(event.payload);
+//     console.log("Message received from backend!: " + JSON.stringify(message));
+//     if (message.type === "chat_history") {
+//       const chatHistory = JSON.stringify(message);
+//       const TempText = JSON.stringify(message);
+//       console.log("TempText: " + TempText);
+//       //for (const message of chatHistory) {
+//       //  console.log("Message: " + JSON.stringify(message));
+//       //}
+//       callback(chatHistory);
+//     }
+//   });
+// }

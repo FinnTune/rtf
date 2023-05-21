@@ -11,7 +11,7 @@ export function connectWebSocket(data) {
         conn = new WebSocket("wss://localhost:443/ws?otp="+ data.otp)  //Instead of 'localhost' you can use 'document.location.host' 
         console.log("Connection print: ",conn);
 
-        conn.onopen = function(event) {
+        conn.onopen = function() {
             console.log("Websocket connection established!");
             // conn.send(JSON.stringify(data));
             //Create event to send to backend
@@ -20,7 +20,7 @@ export function connectWebSocket(data) {
             conn.send(JSON.stringify(eventObj));
         };
 
-        conn.onclose = function(event) {
+        conn.onclose = function() {
             console.log("Websocket connection closed!");
             createMainHTML();
             let msg = document.getElementById("msg")

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"rtForum/database"
 	"sync"
 	"time"
 )
@@ -77,7 +78,6 @@ func addUserInfo(event Event, c *Client) error {
 	} else if !ok {
 		log.Println("Adding user to LoggedInList: ", c.username)
 		LoggedInList[c.username] = true
-		LoggedInUsers[c.username] = c
 	}
 
 	log.Println("User:", c.username, "added to LoggedInList: ", LoggedInList)
@@ -98,9 +98,51 @@ func addUserInfo(event Event, c *Client) error {
 	return nil
 }
 
+// Function to get the conversation history between two users
+func getChatHistory(event Event, c *Client) error {
+	// Assume that Message is a struct that represents a message in your chat application
+	var messages []Message
+
+	// Get the user from the event
+	var user string
+	if err := json.Unmarshal(event.Payload, &user); err != nil {
+		return fmt.Errorf("event unmarshalling error: %s", err)
+	}
+
+	// Query the database for the chat history
+	rows, err := database.ForumDB.Query(`SELECT * FROM message WHERE from_user = ? OR to_user = ? ORDER BY created_at DESC`, user, user)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var message Message
+		err = rows.Scan(&message.ID, &message.From, &message.To, &message.Read, &message.Text, &message.CreatedAt)
+		if err != nil {
+			return err
+		}
+		messages = append(messages, message)
+	}
+
+	data, err := json.Marshal(messages)
+	if err != nil {
+		return fmt.Errorf("failed to marshal broadcast message error: %s", err)
+	}
+	outgoingEvent := Event{
+		Payload: json.RawMessage(data),
+		Type:    "chat_history",
+	}
+
+	c.egress <- outgoingEvent
+
+	return nil
+}
+
 func (m *Manager) RegisterEventHandlers() {
 	m.eventHandlers[EventReceiveMessage] = sendMessage
 	m.eventHandlers[UserConnect] = addUserInfo
+	m.eventHandlers[GetChatHistory] = getChatHistory
 }
 
 func (m *Manager) routeEvent(event Event, c *Client) error {
@@ -124,13 +166,13 @@ func (m *Manager) addClient(client *Client) {
 	log.Println("Client:", client.connection.RemoteAddr(), "added to manager.")
 }
 
-// func (m *Manager) removeClient(client *Client) {
-// 	m.Lock()
-// 	defer m.Unlock()
+func (m *Manager) removeClient(client *Client) {
+	m.Lock()
+	defer m.Unlock()
 
-// 	if _, ok := m.clients[client]; ok { //Checko if client exists in manager
-// 		client.connection.Close()
-// 		delete(m.clients, client)
-// 		log.Println("Client:", client.connection.RemoteAddr(), "removed from manager.")
-// 	}
-// }
+	if _, ok := m.clients[client]; ok { //Checko if client exists in manager
+		client.connection.Close()
+		delete(m.clients, client)
+		log.Println("Client:", client.connection.RemoteAddr(), "removed from manager.")
+	}
+}

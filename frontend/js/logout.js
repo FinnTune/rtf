@@ -1,5 +1,4 @@
 import { createMainHTML } from "./mainHTML.js";
-import { conn } from "./websocket.js";
 
 export async function logout () {
     console.log("Logging out...")

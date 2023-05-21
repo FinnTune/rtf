@@ -60,6 +60,7 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	for client := range m.clients {
 		if client.sessionID == sessionCookie.Value {
 			if !client.loggedIn {
+				log.Println("Client found.")
 				json.NewEncoder(w).Encode(UserLoginResponse{
 					LoggedIn: client.loggedIn,
 				})
@@ -151,8 +152,6 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 						client.connection.Close()
 						//Delete client from manage client list
 						delete(m.clients, client)
-						//Delete client from LoggedInUsers map
-						delete(LoggedInUsers, client.username)
 						//Delete client from LoggedInList map
 						delete(LoggedInList, client.username)
 					}
@@ -218,17 +217,18 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 				if client.loggedIn {
 					// If the client is found, the user is logged in
 					client.loggedIn = false
-					delete(LoggedInUsers, client.username)
 					delete(LoggedInList, client.username)
 					log.Println("Logged in users: ", LoggedInList)
 					log.Println("Session cookie found. User logged in.")
 					client.connection.Close()
 					client.connection = nil
+					// m.removeClient(client)
 					delete(m.clients, client)
 
 					data, err := json.Marshal(LoggedInList)
 					if err != nil {
-						fmt.Errorf("failed to marshal broadcast message error: %s", err)
+						fmt.Printf("failed to marshal broadcast message error: %s", err)
+						// return fmt.Errorf("failed to marshal broadcast message error: %s", err)
 					}
 					outgoingEvent := Event{
 						Payload: json.RawMessage(data),
@@ -633,4 +633,20 @@ func GetCommentsHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(comments)
+}
+
+func GetUsers(w http.ResponseWriter, r *http.Request) {
+	data, err := json.Marshal(LoggedInList)
+	if err != nil {
+		fmt.Printf("failed to marshal broadcast message error: %s", err)
+		// return fmt.Errorf("failed to marshal broadcast message error: %s", err)
+	}
+	outgoingEvent := Event{
+		Payload: json.RawMessage(data),
+		Type:    UsersList,
+	}
+
+	for c := range manager.clients {
+		c.egress <- outgoingEvent
+	}
 }
