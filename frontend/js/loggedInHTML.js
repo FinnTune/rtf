@@ -46,7 +46,7 @@ export function createLoggedInHTML() {
 
     <!-- Chat -->
     <div id ="chat" class="chat-window">
-      <h3>Chat</h3> 
+      <h3>General Chat</h3>
           <div name="chat-messages" id="chat-messages" class="chat-messages"></div>
       <div class="chat-footer">
         <!-- If using a from tag in an SPA (single page application) you must suppress the form reloading the whole page. -->
@@ -55,11 +55,11 @@ export function createLoggedInHTML() {
           <button id="message-submit" class="btns" type="submit">Send</button>
         </form>
       </div>
-      <div id ="users">
+    </div>
+    <div id ="users">
         <h3>Users</h3>
         <ul id="users-list"></ul>
       </div>
-    </div>
       `;  
   createCategoryFilter();
   generateCategoryDropdown();

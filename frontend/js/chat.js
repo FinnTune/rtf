@@ -120,9 +120,35 @@ for (let user in users) {
 
 // Function to open a chat window between two users
 function openChatWindow(user) {
-  // Populate the chat window with the conversation history between the two users (if it exists)
+    let mainDiv = document.getElementById('main');
+    // Create a new chat window
+    let chatWindow = document.createElement('div');
+    chatWindow.id = 'chat';
+    chatWindow.classList.add('chat-window');
+    chatWindow.style.display = 'flex-column';
   
-}
+    // Add the inner HTML content to the chat window
+    chatWindow.innerHTML = `
+      <h3>Chat with ${user}</h3>
+      <button id="close-chat" class="close-chat">x</button>
+      <div name="chat-messages" id="chat-messages" class="chat-messages"></div>
+      <div class="chat-footer">
+        <form>
+          <textarea type="text" id="new-message" name="new-message" placeholder="Type your message"></textarea>
+          <button id="message-submit" class="btns" type="submit">Send</button>
+        </form>
+      </div>
+    `;
+  
+    // Add the event listener to the close button
+    chatWindow.querySelector('#close-chat').addEventListener('click', () => {
+     mainDiv.removeChild(chatWindow);
+    });
+  
+    // Append the chat window to the document body
+    mainDiv.appendChild(chatWindow);
+  }
+  
 
 
 // Function to get the conversation history between two users
