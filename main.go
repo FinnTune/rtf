@@ -91,7 +91,6 @@ func startServer() {
 	http.HandleFunc("/getPostsByCategory", websocket.PostsByCategoryHandler)
 	http.HandleFunc("/addcomment", websocket.AddCommentHandler)
 	http.HandleFunc("/comments", websocket.GetCommentsHandler)
-	http.HandleFunc("/getUsers", websocket.GetUsers)
 
 	// Declare and initialize server struct then listen and serve
 	ser := &http.Server{

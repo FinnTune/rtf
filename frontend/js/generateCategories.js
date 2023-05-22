@@ -1,4 +1,5 @@
 export function generateCategoryDropdown() {
+  if (document.getElementById('categories') != null) {
     var categories = [
         { id: 1, name: 'Cuisine' },
         { id: 2, name: 'Places' },
@@ -46,4 +47,5 @@ export function generateCategoryDropdown() {
 
       dropdown.appendChild(dropdownContent);
       form.appendChild(dropdown);
+    }
 }

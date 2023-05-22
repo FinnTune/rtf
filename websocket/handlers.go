@@ -634,19 +634,3 @@ func GetCommentsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(comments)
 }
-
-func GetUsers(w http.ResponseWriter, r *http.Request) {
-	data, err := json.Marshal(LoggedInList)
-	if err != nil {
-		fmt.Printf("failed to marshal broadcast message error: %s", err)
-		// return fmt.Errorf("failed to marshal broadcast message error: %s", err)
-	}
-	outgoingEvent := Event{
-		Payload: json.RawMessage(data),
-		Type:    UsersList,
-	}
-
-	for c := range manager.clients {
-		c.egress <- outgoingEvent
-	}
-}

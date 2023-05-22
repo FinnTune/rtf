@@ -11,16 +11,18 @@ export class Event {
 };
 
 class SendMessageEvent {
-    constructor(message, from){
+    constructor(message, from, to){
         this.message = message;
         this.from = from;
+        this.to = to;
     }
 }
 
 class ReceiveMessageEvent{
-    constructor(message, from, sent){
+    constructor(message, from, to, sent){
         this.message = message;
         this.from = from;
+        this.to = to;
         this.sent = sent;
     }
 }
@@ -80,7 +82,7 @@ export function sendMessage (message) {
     return false
 }
 
-function appendUsers(event) {
+export function appendUsers(event) {
     console.log("Users: ", event.payload)
     let usersList = document.getElementById('users-list');
     usersList.innerHTML = "";
@@ -119,49 +121,7 @@ for (let user in users) {
 // Function to open a chat window between two users
 function openChatWindow(user) {
   // Populate the chat window with the conversation history between the two users (if it exists)
-  getChatHistory(user, (chatHistory) => {
-    const history = JSON.parse(chatHistory);
-
-    // Create a container for the chat messages
-    const chatContainer = document.createElement("div");
-    chatContainer.className = "chat-container";
-    
-    // Loop through each message in the chat history and display it in the chat window
-    history.chathistory.forEach((message) => {
-      const messageContainer = document.createElement("div");
-      messageContainer.className = message.from === user.id ? "message sent" : "message received";
-      
-      const messageText = document.createElement("p");
-      messageText.textContent = message.text;
-      messageContainer.appendChild(messageText);
-      
-      chatContainer.appendChild(messageContainer);
-    });
-    
-    // Create a container for the message input and send button
-    const inputContainer = document.createElement("div");
-    inputContainer.className = "input-container";
-    
-    // Create the message input field
-    const messageInput = document.createElement("input");
-    messageInput.type = "text";
-    messageInput.placeholder = "Type your message...";
-    inputContainer.appendChild(messageInput);
-    
-    // Create the send button
-    const sendButton = document.createElement("button");
-    sendButton.textContent = "Send";
-    sendButton.addEventListener("click", () => {
-      sendMessage(user, messageInput.value);
-      console.log("Sending message: " + messageInput.value);
-    });
-    inputContainer.appendChild(sendButton);
-    
-    // Add the chat and input containers to the chat window
-    chatWindow.innerHTML = "";
-    chatWindow.appendChild(chatContainer);
-    chatWindow.appendChild(inputContainer);
-  });
+  
 }
 
 

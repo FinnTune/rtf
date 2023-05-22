@@ -201,7 +201,7 @@ height: 200px; /* set a fixed height to limit the maximum size of the chat area 
 }
 
 #add-post{
-display: flex;
+display: none;
 flex-direction: column;
 margin: 10px;
 padding: 5px;

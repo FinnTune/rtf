@@ -73,8 +73,7 @@ func addUserInfo(event Event, c *Client) error {
 	c.joined = userInfo.Joined
 
 	if _, ok := LoggedInList[c.username]; ok {
-		log.Println("Deleting user from LoggedInList: ", c.username)
-		delete(LoggedInList, c.username)
+		log.Println("User in LoggedInList: ", LoggedInList)
 	} else if !ok {
 		log.Println("Adding user to LoggedInList: ", c.username)
 		LoggedInList[c.username] = true
@@ -166,13 +165,13 @@ func (m *Manager) addClient(client *Client) {
 	log.Println("Client:", client.connection.RemoteAddr(), "added to manager.")
 }
 
-func (m *Manager) removeClient(client *Client) {
-	m.Lock()
-	defer m.Unlock()
+// func (m *Manager) removeClient(client *Client) {
+// 	m.Lock()
+// 	defer m.Unlock()
 
-	if _, ok := m.clients[client]; ok { //Checko if client exists in manager
-		client.connection.Close()
-		delete(m.clients, client)
-		log.Println("Client:", client.connection.RemoteAddr(), "removed from manager.")
-	}
-}
+// 	if _, ok := m.clients[client]; ok { //Checko if client exists in manager
+// 		client.connection.Close()
+// 		delete(m.clients, client)
+// 		log.Println("Client:", client.connection.RemoteAddr(), "removed from manager.")
+// 	}
+// }

@@ -1,10 +1,8 @@
 import { sendMessage } from "./chat.js";
 import { logout } from "./logout.js";
-import { addPostHTML } from "./addPostHTML.js";
 import { getAllPosts } from "./getAllPosts.js";
 import { addPost } from "./addPost.js";
 import { createCategoryFilter } from "./categoryFilter.js";
-import { getUsers } from "./getUsers.js";
 
 export function addEventListeners() {
     // Add event listeners to the buttons
@@ -35,8 +33,7 @@ export function addEventListeners() {
 
     document.getElementById('create-post-button').addEventListener('click', function(event) {
         event.preventDefault();
-        addPostHTML();
-        getUsers();
+        document.getElementById('add-post').style.display = "flex";
         document.getElementById('main-content').style.display = "none"
         document.getElementById('intro').style.display = "none";
         document.getElementById('category-selection').style.display = "none";
@@ -54,6 +51,9 @@ export function addEventListeners() {
         }
         if (document.getElementById('add-post')) {
             document.getElementById('add-post').style.display = "none";
+        }
+        if (document.getElementById('single-post')) {
+            document.getElementById('single-post').style.display = "none";
         }
         document.getElementById('category-selection').style.display = "flex";
         document.getElementById('main-content').style.display = "flex";

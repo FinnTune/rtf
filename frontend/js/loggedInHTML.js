@@ -1,6 +1,6 @@
 import { addEventListeners } from "./addEventListeners.js";
 import { createCategoryFilter, getPostsByCategory } from "./categoryFilter.js";
-
+import { generateCategoryDropdown } from "./generateCategories.js";
 export function createLoggedInHTML() {
     const mainDiv = document.getElementById("main");
     mainDiv.innerHTML = `
@@ -21,6 +21,19 @@ export function createLoggedInHTML() {
         Please feel free to bombard us with your conversation.<br><br>
         Create posts, comment, and chat your heart out.<br><br>
       </p>
+    </div>
+
+    <!-- Add Post -->
+    <div class="add-post" id="add-post">
+        <h3>Add Post</h3>
+        <form id="add-post-form">
+            <label for="title">Title:</label><br>
+            <input type="text" id="post-title" name="title"><br>
+            <label for="content">Content:</label><br>
+            <textarea type="text" id="post-content" cols="50" rows="4" name="content"></textarea><br><br>
+            <div id="categories"></div><br>
+            <button type="submit" id="add-post-submit">Submit Post</button>
+        </form>
     </div>
 
 
@@ -49,6 +62,7 @@ export function createLoggedInHTML() {
     </div>
       `;  
   createCategoryFilter();
+  generateCategoryDropdown();
   getPostsByCategory();
   addEventListeners();
 }
