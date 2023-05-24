@@ -15,6 +15,7 @@ class SendMessageEvent {
         this.message = message;
         this.from = from;
         this.to = to;
+        this.sent = Date.now();
     }
 }
 
@@ -37,7 +38,7 @@ export function routeEvent(event) {
         case "sent-message":
             const messageEvent = Object.assign(new ReceiveMessageEvent, event.payload)
             console.log("New message: ", event.payload);
-            appendChatMsg(messageEvent);
+             appendChatMsg(messageEvent);
             break;
         case "users-online":
             //Functionality to display online users
@@ -55,30 +56,47 @@ export function routeEvent(event) {
 
 function appendChatMsg(event) {
     var date = new Date(event.sent);
-    const formattedMsg = `<strong>${event.from} (${date.toLocaleTimeString()}): </strong>${event.message.replace(/\n/g, '<br>')}<br>`;
-    let msgArea = document.getElementById('chat-messages');
-    msgArea.innerHTML += formattedMsg;
-     //Intrusive for the user attempting to read prevuous messages
-    //because it scrolls to the bottom of the chat area.
-    msgArea.scrollTop = msgArea.scrollHeight;
+    const formattedMsg = `<strong>${event.from} (${date.toLocaleDateString()}-${date.toLocaleTimeString()}): </strong>${event.message.replace(/\n/g, '<br>')}<br>`;
+    if (document.getElementById('chat-messages-' + event.from)) {
+    let msgArea1 = document.getElementById('chat-messages-' + event.from);
+        msgArea1.innerHTML += formattedMsg;
+        //Intrusive for the user attempting to read prevuous messages
+        //because it scrolls to the bottom of the chat area.
+        msgArea1.scrollTop = msgArea1.scrollHeight;
+    } else if (document.getElementById('chat-messages-' + event.to)) {
+    let msgArea2 = document.getElementById('chat-messages-' + event.to);
+        msgArea2.innerHTML += formattedMsg;
+        msgArea2.scrollTop = msgArea2.scrollHeight;
+    }else {
+        console.log("Chat window not open");
+        let usersList = document.getElementById('users-list');
+        const msgAlert = document.createElement("span");
+        msgAlert.innerHTML = "!";
+        //Add msgAlert to the user's name in the users list
+        for (let i = 0; i < usersList.children.length; i++) {
+            if (usersList.children[i].textContent == event.from) {
+                usersList.children[i].appendChild(msgAlert);
+            }
+        }
+    }
 }
 
 function sendEvent(eventName, payload) {
     let event = new Event(eventName, payload);
+    appendChatMsg(event.payload);
     conn.send(JSON.stringify(event));
 }
 
-export function sendMessage (message) {
-    var newmessage = document.getElementById('new-message');
+export function sendMessage (message, user) {
+    // var newmessage = document.getElementById('new-message');
     //Get usernmae from local storage
     let username = localStorage.getItem('username');
-    if(newmessage != null) {
+    if(message != null) {
         //Hard-coded value of the username needs to be changed???
-        let outGoingMsg = new SendMessageEvent(newmessage.value, username);
+        let outGoingMsg = new SendMessageEvent(message, username, user);
         sendEvent("new-message", outGoingMsg);
-        console.log("New Message Print: ", newmessage);
+        console.log("New Message Print: ", message);
     }
-    newmessage.value = "";
     return false
 }
 
@@ -123,23 +141,38 @@ function openChatWindow(user) {
     let mainDiv = document.getElementById('main');
     // Create a new chat window
     let chatWindow = document.createElement('div');
-    chatWindow.id = 'chat';
+    chatWindow.id = 'chat:' + user;
     chatWindow.classList.add('chat-window');
-    chatWindow.style.display = 'flex-column';
   
     // Add the inner HTML content to the chat window
     chatWindow.innerHTML = `
       <h3>Chat with ${user}</h3>
       <button id="close-chat" class="close-chat">x</button>
-      <div name="chat-messages" id="chat-messages" class="chat-messages"></div>
+      <div name="chat-messages" id="chat-messages-${user}" class="chat-messages"></div>
       <div class="chat-footer">
         <form>
-          <textarea type="text" id="new-message" name="new-message" placeholder="Type your message"></textarea>
-          <button id="message-submit" class="btns" type="submit">Send</button>
+          <textarea type="text" id="new-message-${user}" name="new-message" placeholder="Type your message"></textarea>
+          <button id="message-submit-${user}" class="btns" type="submit">Send</button>
         </form>
       </div>
     `;
-  
+
+    let messageSubmitButton = chatWindow.querySelector('#message-submit-' + user);
+    let newMessageInput = chatWindow.querySelector('#new-message-'+ user);
+
+    // Add event listener to the send button
+    messageSubmitButton.addEventListener('click', (e) => {
+        e.preventDefault(); // to prevent form submission
+
+        // Get message text
+        let messageText = newMessageInput.value;
+        
+        // Create a message object
+        sendMessage(messageText, user);
+        
+        // Clear message text area
+        newMessageInput.value = '';
+    });
     // Add the event listener to the close button
     chatWindow.querySelector('#close-chat').addEventListener('click', () => {
      mainDiv.removeChild(chatWindow);

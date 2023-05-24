@@ -161,19 +161,12 @@ type Relation struct {
 	PostID     int
 }
 
-// Struct to define a message
+// Message represents the structure of the message to be stored in the database
 type Message struct {
-	ID       int
-	Username string
-	// The username of the recipient of the message (if it is a private message)
-	RecipientUsername string
-	Content           string
-	CreatedAt         string
-	From              int       `json:"from"`
-	Text              string    `json:"text"`
-	ChatHistory       []Message `json:"chathistory"`
-	To                int       `json:"to,omitempty"`
-	Read              int       `json:"isread"`
+	FromUser  int       `json:"from_user"`
+	ToUser    int       `json:"to_user"`
+	Text      string    `json:"text"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // Structs to define a hub (for websockets)

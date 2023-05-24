@@ -19,11 +19,13 @@ const (
 	EventSendMessage    = "sent-message"
 	UserConnect         = "user-connect"
 	UsersList           = "users-online"
+	PMessage            = "private-message"
 )
 
 type ReceiveMessageEvent struct {
 	Message string `json:"message"`
 	From    string `json:"from"`
+	To      string `json:"to"`
 }
 
 type SendMessageEvent struct {

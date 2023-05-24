@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"rtForum/database"
 	"sync"
 	"time"
 )
@@ -98,50 +97,50 @@ func addUserInfo(event Event, c *Client) error {
 }
 
 // Function to get the conversation history between two users
-func getChatHistory(event Event, c *Client) error {
-	// Assume that Message is a struct that represents a message in your chat application
-	var messages []Message
+// func getChatHistory(event Event, c *Client) error {
+// 	// Assume that Message is a struct that represents a message in your chat application
+// 	var messages []Message
 
-	// Get the user from the event
-	var user string
-	if err := json.Unmarshal(event.Payload, &user); err != nil {
-		return fmt.Errorf("event unmarshalling error: %s", err)
-	}
+// 	// Get the user from the event
+// 	var user string
+// 	if err := json.Unmarshal(event.Payload, &user); err != nil {
+// 		return fmt.Errorf("event unmarshalling error: %s", err)
+// 	}
 
-	// Query the database for the chat history
-	rows, err := database.ForumDB.Query(`SELECT * FROM message WHERE from_user = ? OR to_user = ? ORDER BY created_at DESC`, user, user)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
+// 	// Query the database for the chat history
+// 	rows, err := database.ForumDB.Query(`SELECT * FROM message WHERE from_user = ? OR to_user = ? ORDER BY created_at DESC`, user, user)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer rows.Close()
 
-	for rows.Next() {
-		var message Message
-		err = rows.Scan(&message.ID, &message.From, &message.To, &message.Read, &message.Text, &message.CreatedAt)
-		if err != nil {
-			return err
-		}
-		messages = append(messages, message)
-	}
+// 	for rows.Next() {
+// 		var message Message
+// 		err = rows.Scan(&message.ID, &message.From, &message.To, &message.Read, &message.Text, &message.CreatedAt)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		messages = append(messages, message)
+// 	}
 
-	data, err := json.Marshal(messages)
-	if err != nil {
-		return fmt.Errorf("failed to marshal broadcast message error: %s", err)
-	}
-	outgoingEvent := Event{
-		Payload: json.RawMessage(data),
-		Type:    "chat_history",
-	}
+// 	data, err := json.Marshal(messages)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to marshal broadcast message error: %s", err)
+// 	}
+// 	outgoingEvent := Event{
+// 		Payload: json.RawMessage(data),
+// 		Type:    "chat_history",
+// 	}
 
-	c.egress <- outgoingEvent
+// 	c.egress <- outgoingEvent
 
-	return nil
-}
+// 	return nil
+// }
 
 func (m *Manager) RegisterEventHandlers() {
 	m.eventHandlers[EventReceiveMessage] = sendMessage
 	m.eventHandlers[UserConnect] = addUserInfo
-	m.eventHandlers[GetChatHistory] = getChatHistory
+	// m.eventHandlers[GetChatHistory] = getChatHistory
 }
 
 func (m *Manager) routeEvent(event Event, c *Client) error {

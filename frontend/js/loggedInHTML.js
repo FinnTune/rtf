@@ -44,18 +44,6 @@ export function createLoggedInHTML() {
     <div class="main-content" id="main-content">
     </div>
 
-    <!-- Chat -->
-    <div id ="chat" class="chat-window">
-      <h3>General Chat</h3>
-          <div name="chat-messages" id="chat-messages" class="chat-messages"></div>
-      <div class="chat-footer">
-        <!-- If using a from tag in an SPA (single page application) you must suppress the form reloading the whole page. -->
-        <form>
-          <textarea type="text" id="new-message" name="new-message" placeholder="Type your message"></textarea>
-          <button id="message-submit" class="btns" type="submit">Send</button>
-        </form>
-      </div>
-    </div>
     <div id ="users">
         <h3>Users</h3>
         <ul id="users-list"></ul>

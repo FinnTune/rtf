@@ -8,11 +8,6 @@ export function addEventListeners() {
     // Add event listeners to the buttons
     // This onsubmit uses the form to reload the page and the websocket gets reloaded which is why you cant see the message
     // document.getElementById('new-message').onsubmit = sendMessage;
-    document.getElementById('chat').addEventListener('submit', function(event) {
-        event.preventDefault();
-        sendMessage();
-    });
-
     document.getElementById('all-posts-button').addEventListener('click', function(event) {
         event.preventDefault();
         document.getElementById('msg').innerHTML = "";
@@ -34,7 +29,7 @@ export function addEventListeners() {
     document.getElementById('create-post-button').addEventListener('click', function(event) {
         event.preventDefault();
         document.getElementById('add-post').style.display = "flex";
-        document.getElementById('main-content').style.display = "none"
+        document.getElementById('main-content').style.display = "none";
         document.getElementById('intro').style.display = "none";
         document.getElementById('category-selection').style.display = "none";
     });
