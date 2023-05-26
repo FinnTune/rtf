@@ -1,4 +1,3 @@
-import { sendMessage } from "./chat.js";
 import { logout } from "./logout.js";
 import { getAllPosts } from "./getAllPosts.js";
 import { addPost } from "./addPost.js";

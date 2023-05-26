@@ -26,14 +26,12 @@ export function checkLoginStatus() {
     if (data.loggedIn) {
       console.log("User is logged in.")
       console.log(data.loggedIn)
-      
       createLoggedInHTML();
       connectWebSocket(data);
       return data.loggedIn;
     } else {
       console.log("User is not logged in.")
       console.log(data.loggedIn)
-      
       createMainHTML();
       return data.loggedIn;
     }

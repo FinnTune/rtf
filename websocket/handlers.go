@@ -69,6 +69,8 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 				// If the client is found, the user is logged in
 				log.Println("Session cookie found. User logged in")
 				client.loggedIn = true
+				client.connection.Close()
+				client.connection = nil
 
 				// Otp
 				//Create new OTP and store in manager otps map
