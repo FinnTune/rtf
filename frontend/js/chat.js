@@ -64,22 +64,28 @@ function appendChatMsg(event) {
         //because it scrolls to the bottom of the chat area.
         msgArea1.scrollTop = msgArea1.scrollHeight;
     } else if (document.getElementById('chat-messages-' + event.to)) {
-    let msgArea2 = document.getElementById('chat-messages-' + event.to);
+        let msgArea2 = document.getElementById('chat-messages-' + event.to);
         msgArea2.innerHTML += formattedMsg;
         msgArea2.scrollTop = msgArea2.scrollHeight;
-    }else {
+    }   else {
         console.log("Chat window not open");
         let usersList = document.getElementById('users-list');
         const msgAlert = document.createElement("span");
         msgAlert.innerHTML = "!";
+        let localUser = localStorage.getItem("username")
+        console.log("Local User: ", localUser)
+        console.log("Event.from: ", event.from)
         //Add msgAlert to the user's name in the users list
+        if (localUser != event.from) {
         for (let i = 0; i < usersList.children.length; i++) {
             if (usersList.children[i].textContent == event.from) {
                 usersList.children[i].appendChild(msgAlert);
             }
         }
+        }
     }
 }
+
 
 function sendEvent(eventName, payload) {
     let event = new Event(eventName, payload);

@@ -21,6 +21,8 @@ var (
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
+	ctx     = context.Background()
+	manager = newManager(ctx)
 )
 
 func checkOrigin(r *http.Request) bool {
@@ -33,11 +35,6 @@ func checkOrigin(r *http.Request) bool {
 		return false
 	}
 }
-
-var (
-	ctx     = context.Background()
-	manager = newManager(ctx)
-)
 
 func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	// Get the session cookie from the request
@@ -212,8 +209,6 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Find the client with the matching session ID
-		m.Lock()
-		defer m.Unlock()
 		log.Println("Manager's clients: ", m.clients)
 		for client := range m.clients {
 			if client.sessionID == sessionCookie.Value {
@@ -222,12 +217,7 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 					// If the client is found, the user is logged in
 					client.loggedIn = false
 					delete(LoggedInList, client.username)
-					log.Println("Logged in users: ", LoggedInList)
-					log.Println("Session cookie found. User logged in.")
-					client.connection.Close()
-					client.connection = nil
-					// m.removeClient(client)
-					delete(m.clients, client)
+					m.removeClient(client)
 
 					data, err := json.Marshal(LoggedInList)
 					if err != nil {
@@ -239,7 +229,7 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 						Type:    UsersList,
 					}
 
-					for c := range manager.clients {
+					for c := range m.clients {
 						c.egress <- outgoingEvent
 					}
 

@@ -164,13 +164,13 @@ func (m *Manager) addClient(client *Client) {
 	log.Println("Client:", client.connection.RemoteAddr(), "added to manager.")
 }
 
-// func (m *Manager) removeClient(client *Client) {
-// 	m.Lock()
-// 	defer m.Unlock()
+func (m *Manager) removeClient(client *Client) {
+	m.Lock()
+	defer m.Unlock()
 
-// 	if _, ok := m.clients[client]; ok { //Checko if client exists in manager
-// 		client.connection.Close()
-// 		delete(m.clients, client)
-// 		log.Println("Client:", client.connection.RemoteAddr(), "removed from manager.")
-// 	}
-// }
+	if _, ok := m.clients[client]; ok { //Checko if client exists in manager
+		client.connection.Close()
+		delete(m.clients, client)
+		log.Println("Client:", client.connection.RemoteAddr(), "removed from manager.")
+	}
+}

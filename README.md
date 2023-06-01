@@ -38,3 +38,4 @@ You may have to use sudo as it runs on port 443.
         b) Concurrently reading/writing on same websocket connection.
             "panic: concurrent write to websocket connection"
             "Error:  read tcp 127.0.0.1:443->127.0.0.1:43746: use of closed network connection"
+4) Be aware of accidentally sending multiply on a single websocket connection.
