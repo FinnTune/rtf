@@ -7,6 +7,16 @@ This project was written as a learning objective in order to understand various 
 Websocket protocol
 
 ## Instructions: How To Run
+
+Type the following in the repos root directory:
+
+```
+go run .
+```
+
+You may have to use sudo as it runs on port 443.
+
+
 ![Screenshot](picture_test.png)
 
 
