@@ -288,6 +288,10 @@ padding: 5px;
     height: 200px; /* set a fixed height to limit the maximum size of the chat area */
 }
 
+.typing {
+    height: 30px;
+}
+
 .btns{
     margin: 10px;
     padding: 5px;

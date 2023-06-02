@@ -115,7 +115,7 @@ func getChatHistory(event Event, c *Client) error {
 	}
 	log.Println("History Request: ", chtMsg)
 
-	rows, err := database.ForumDB.Query("SELECT id, from_user, to_user, is_read, txt, created_at FROM message WHERE (from_user = ? AND to_user = ?) OR (from_user = ? AND to_user = ?) ORDER BY created_at ASC", chtMsg.FromUser, chtMsg.ToUser, chtMsg.ToUser, chtMsg.FromUser)
+	rows, err := database.ForumDB.Query("SELECT * FROM message WHERE (from_user = ? AND to_user = ?) OR (from_user = ? AND to_user = ?) ORDER BY created_at DESC LIMIT ? OFFSET ?", chtMsg.FromUser, chtMsg.ToUser, chtMsg.ToUser, chtMsg.FromUser, chtMsg.Limit, chtMsg.Offset)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve history: %s", err)
 
@@ -151,10 +151,65 @@ func getChatHistory(event Event, c *Client) error {
 	return nil
 }
 
+func typing(event Event, c *Client) error {
+
+	var chtMsg ChatMessage
+	if err := json.Unmarshal(event.Payload, &chtMsg); err != nil {
+		return fmt.Errorf("event unmarshalling error: %s", err)
+	}
+
+	data, err := json.Marshal(chtMsg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal history message error: %s", err)
+	}
+
+	outgoingEvent := Event{
+		Type:    Typing,
+		Payload: json.RawMessage(data),
+	}
+
+	for c := range c.manager.clients {
+		if c.username == chtMsg.ToUser {
+			c.egress <- outgoingEvent
+			log.Println("History sent to: ", c.username)
+		}
+	}
+	return nil
+}
+
+func stopTyping(event Event, c *Client) error {
+	var chtMsg ChatMessage
+	if err := json.Unmarshal(event.Payload, &chtMsg); err != nil {
+		return fmt.Errorf("event unmarshalling error: %s", err)
+	}
+
+	data, err := json.Marshal(chtMsg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal history message error: %s", err)
+	}
+
+	outgoingEvent := Event{
+		Type:    StopTyping,
+		Payload: json.RawMessage(data),
+	}
+
+	for c := range c.manager.clients {
+		if c.username == chtMsg.ToUser {
+			c.egress <- outgoingEvent
+			log.Println("History sent to: ", c.username)
+		}
+	}
+	return nil
+}
+
 func (m *Manager) RegisterEventHandlers() {
 	m.eventHandlers[EventReceiveMessage] = sendMessage
 	m.eventHandlers[UserConnect] = addUserInfo
 	m.eventHandlers[GetChatHistory] = getChatHistory
+	m.eventHandlers[GetMoreChatHistory] = getChatHistory
+	m.eventHandlers[Typing] = typing
+	m.eventHandlers[StopTyping] = stopTyping
+
 }
 
 func (m *Manager) routeEvent(event Event, c *Client) error {

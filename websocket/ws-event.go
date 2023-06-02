@@ -21,6 +21,9 @@ const (
 	UsersList           = "users-online"
 	PMessage            = "private-message"
 	SendChatHistory     = "chat_history"
+	Typing              = "typing"
+	StopTyping          = "stop-typing"
+	GetMoreChatHistory  = "get-more-chat-history"
 )
 
 type ReceiveMessageEvent struct {

@@ -235,4 +235,6 @@ type ChatMessage struct {
 	IsRead    bool   `json:"is_read"`
 	Text      string `json:"message"`
 	CreatedAt string `json:"created_at"`
+	Limit     int    `json:"limit"`
+	Offset    int    `json:"offset"`
 }

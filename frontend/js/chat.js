@@ -29,6 +29,15 @@ class ReceiveMessageEvent{
 }
 
 class GetChatHistoryEvent {
+    constructor(from, to, offset, limit) {
+        this.from = from;
+        this.to = to;
+        this.limit = limit;
+        this.offset = offset;
+    }
+}
+
+class TypingEvent {
     constructor(from, to) {
         this.from = from;
         this.to = to;
@@ -59,6 +68,12 @@ export function routeEvent(event) {
                 console.log(event)
                 appendChatMsg(event);
             });
+            break;
+        case "typing":
+                document.getElementById('typing-indicator-' + event.payload.from).style.display = 'block';
+            break;
+        case "stop-typing":
+            document.getElementById('typing-indicator-' + event.payload.from).style.display = 'none';
             break;
         case "error":
             console.log("Error: ", event.payload);
@@ -181,7 +196,11 @@ function openChatWindow(user) {
     chatWindow.innerHTML = `
       <h3>Chat with ${user}</h3>
       <button id="close-chat" class="close-chat">x</button>
-      <div name="chat-messages" id="chat-messages-${user}" class="chat-messages"></div>
+      <div name="chat-messages" id="chat-messages-${user}" class="chat-messages">
+      </div>
+      <div class="typing">
+      <img id="typing-indicator-${user}" src="/../img/typing.gif" style="display: none; width: 30px; height: 30px;">
+      </div><br>
       <div class="chat-footer">
         <form>
           <textarea type="text" id="new-message-${user}" name="new-message" placeholder="Type your message"></textarea>
@@ -206,6 +225,26 @@ function openChatWindow(user) {
         // Clear message text area
         newMessageInput.value = '';
     });
+
+    let typingTimeout;
+    
+    newMessageInput.addEventListener('input', () => {
+        // User started typing
+        clearTimeout(typingTimeout);
+
+        const typingEvent = new Event('typing', new TypingEvent(localUserId, user));
+        conn.send(JSON.stringify(typingEvent));
+        
+        // User stopped typing after 1 second
+        typingTimeout = setTimeout(() => {
+            const stopTypingEvent = new Event('stop-typing', new TypingEvent(localUserId, user));
+            conn.send(JSON.stringify(stopTypingEvent));
+        }, 1000);
+    });
+
+    let offset = 0;
+    let limit = 10;
+
     // Add the event listener to the close button
     chatWindow.querySelector('#close-chat').addEventListener('click', () => {
      mainDiv.removeChild(chatWindow);
@@ -219,8 +258,21 @@ function openChatWindow(user) {
     console.log("History from: ", localUserId)
     console.log("History to: ", user) 
     
-    const getChatHistoryEvent = new Event("get-chat-history", new GetChatHistoryEvent(localUserId, user));
+    const getChatHistoryEvent = new Event("get-chat-history", new GetChatHistoryEvent(localUserId, user, offset, limit));
     conn.send(JSON.stringify(getChatHistoryEvent));
+
+
+    //Get more chat history on scroll
+    let chatMessagesDiv = chatWindow.querySelector('#chat-messages-' + user);
+
+    chatMessagesDiv.addEventListener('scroll', () => {
+    if (chatMessagesDiv.scrollTop === 0) {
+        // The user has scrolled to the top of the chat window, so load more chat history.
+        offset += limit;
+        const getMoreChatHistoryEvent = new Event('get-more-chat-history', new GetChatHistoryEvent(localUserId, user, offset, limit));
+        conn.send(JSON.stringify(getMoreChatHistoryEvent));
+    }
+    });
 }
   
 

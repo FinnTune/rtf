@@ -1,0 +1,751 @@
+2023/06/02 17:48:23 main.go:127: Main begun. Log file checked, opened, and set.
+2023/06/02 17:48:23 main.go:128: New Forum Begun
+2023/06/02 17:48:23 sqlFuncs.go:18: Database opened successfully.
+2023/06/02 17:48:23 main.go:57: File Servers Started.
+2023/06/02 17:48:23 main.go:68: Handlers Started.
+2023/06/02 17:48:23 main.go:104: Server Started and listening on port :443.
+2023/06/02 17:48:26 main.go:73: Handling request "/" and serving index.html
+2023/06/02 17:48:26 main.go:77: Cookie exists.
+2023/06/02 17:48:27 handlers.go:41: Checking login status.
+2023/06/02 17:48:27 handlers.go:56: Manager's clients:  map[]
+2023/06/02 17:48:27 handlers.go:94: No client found with matching session ID. User not logged in.
+2023/06/02 17:48:28 main.go:73: Handling request "/" and serving index.html
+2023/06/02 17:48:28 main.go:77: Cookie exists.
+2023/06/02 17:48:28 handlers.go:41: Checking login status.
+2023/06/02 17:48:28 handlers.go:56: Manager's clients:  map[]
+2023/06/02 17:48:28 handlers.go:94: No client found with matching session ID. User not logged in.
+2023/06/02 17:48:33 handlers.go:41: Checking login status.
+2023/06/02 17:48:33 handlers.go:56: Manager's clients:  map[]
+2023/06/02 17:48:33 handlers.go:94: No client found with matching session ID. User not logged in.
+2023/06/02 17:48:33 handlers.go:108: Login handler reached.
+2023/06/02 17:48:33 handlers.go:124: Login POST request received.
+2023/06/02 17:48:33 utility.go:29: Password and hash match.
+2023/06/02 17:48:33 handlers.go:143: User found: {ID:1 Username:admin Email:admin@gmail.com Joined:2023-06-02 12:28:02 Password:$2a$12$w9ii3aHQcYnJSgkSCskjM.WopLVDCQZHomxfIL8UwQSuSjmPN0kNy Session: NumberComments:0 NumberPosts:0}
+2023/06/02 17:48:33 handlers.go:144: Authentication condition reached.
+2023/06/02 17:48:33 handlers.go:145: User Login list:  map[]
+2023/06/02 17:48:33 handlers.go:376: AllPostsHandler reached.
+2023/06/02 17:48:33 handlers.go:376: AllPostsHandler reached.
+2023/06/02 17:48:33 handlers.go:270: Serving websocket.
+2023/06/02 17:48:33 handlers.go:30: Checking origin: https://localhost
+2023/06/02 17:48:33 handlers.go:278: Decoding request body.
+2023/06/02 17:48:33 handlers.go:290: Session Id in ServeWS:  81e442e1-3ad4-4808-b51b-cb26dedfeb4e
+2023/06/02 17:48:33 handlers.go:307: Client does not exist.
+2023/06/02 17:48:33 ws-client.go:44: New client connected.
+2023/06/02 17:48:33 ws-manager.go:231: Client: 127.0.0.1:50718 added to manager.
+2023/06/02 17:48:33 ws-client.go:65: Client IP and client port num.:  127.0.0.1:50718
+2023/06/02 17:48:34 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:34 ws-manager.go:75: Adding user info: {user-connect {"otp":"f447bd5c-97dd-4555-bef3-5bfacfba12c6","id":1,"username":"admin","email":"admin@gmail.com","joined":"2023-06-02 12:28:02","loggedIn":false}}
+2023/06/02 17:48:34 ws-manager.go:88: Adding user to LoggedInList:  admin
+2023/06/02 17:48:34 ws-manager.go:92: User: admin added to LoggedInList:  map[admin:true]
+2023/06/02 17:48:34 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"users-online","payload":{"admin":true}}
+2023/06/02 17:48:39 handlers.go:41: Checking login status.
+2023/06/02 17:48:39 handlers.go:56: Manager's clients:  map[0xc00024a0e0:true]
+2023/06/02 17:48:39 handlers.go:94: No client found with matching session ID. User not logged in.
+2023/06/02 17:48:39 handlers.go:108: Login handler reached.
+2023/06/02 17:48:39 handlers.go:124: Login POST request received.
+2023/06/02 17:48:40 utility.go:29: Password and hash match.
+2023/06/02 17:48:40 handlers.go:143: User found: {ID:2 Username:usr1 Email:usr1@gmail.com Joined:2023-06-02 12:28:24 Password:$2a$12$k1hUhG0PwPea1UQP6jLGxuI1xeFVg/qaOYKJz58RJ6kQJKgbOLVwm Session: NumberComments:0 NumberPosts:0}
+2023/06/02 17:48:40 handlers.go:144: Authentication condition reached.
+2023/06/02 17:48:40 handlers.go:145: User Login list:  map[admin:true]
+2023/06/02 17:48:40 handlers.go:376: AllPostsHandler reached.
+2023/06/02 17:48:40 handlers.go:376: AllPostsHandler reached.
+2023/06/02 17:48:40 handlers.go:270: Serving websocket.
+2023/06/02 17:48:40 handlers.go:30: Checking origin: https://localhost
+2023/06/02 17:48:40 handlers.go:278: Decoding request body.
+2023/06/02 17:48:40 handlers.go:290: Session Id in ServeWS:  d5970280-2493-41a1-85a1-bc31b174ad0a
+2023/06/02 17:48:40 handlers.go:307: Client does not exist.
+2023/06/02 17:48:40 ws-client.go:44: New client connected.
+2023/06/02 17:48:40 ws-manager.go:231: Client: 127.0.0.1:36940 added to manager.
+2023/06/02 17:48:40 ws-client.go:65: Client IP and client port num.:  127.0.0.1:36940
+2023/06/02 17:48:40 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:48:40 ws-manager.go:75: Adding user info: {user-connect {"otp":"d8bc5b47-657d-46ae-9829-3d28bb0f5c13","id":2,"username":"usr1","email":"usr1@gmail.com","joined":"2023-06-02 12:28:24","loggedIn":false}}
+2023/06/02 17:48:40 ws-manager.go:88: Adding user to LoggedInList:  usr1
+2023/06/02 17:48:40 ws-manager.go:92: User: usr1 added to LoggedInList:  map[admin:true usr1:true]
+2023/06/02 17:48:40 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"users-online","payload":{"admin":true,"usr1":true}}
+2023/06/02 17:48:40 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"users-online","payload":{"admin":true,"usr1":true}}
+2023/06/02 17:48:42 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:42 ws-manager.go:116: History Request:  {0 admin usr1 false  }
+2023/06/02 17:48:42 ws-manager.go:134: History of Messages:  [{1 usr1 admin true ijssdguuh 2023-06-02T13:42:56.413305251+03:00} {2 usr1 admin false sgkjsg 2023-06-02T14:56:54.53961529+03:00} {3 usr1 admin false jkdlnjhd 2023-06-02T15:31:40.407656314+03:00} {4 admin usr1 false kjsdkjhsg 2023-06-02T15:31:47.378297407+03:00} {5 admin usr1 false sdgkjbsdg 2023-06-02T15:31:49.916972036+03:00} {6 admin usr1 false sdgkjbjsdg 2023-06-02T15:31:52.85867468+03:00} {7 usr1 admin false ldfdgljdh 2023-06-02T15:58:13.82728292+03:00} {8 usr1 admin false khsvkjhfb 2023-06-02T15:59:13.238625614+03:00} {9 usr1 admin false sdgghbhsdg 2023-06-02T17:13:00.917278721+03:00} {10 admin usr1 false jfjhjygyjgyjg 2023-06-02T17:40:13.64667432+03:00} {11 usr1 admin false kjsdgkjbsdgkjb 2023-06-02T17:40:15.417332105+03:00} {12 admin usr1 false khkbadgag 2023-06-02T17:48:13.644135374+03:00} {13 usr1 admin false asfkjbjaff 2023-06-02T17:48:16.581559163+03:00}]
+2023/06/02 17:48:42 ws-manager.go:148: History sent to:  admin
+2023/06/02 17:48:42 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"chat_history","payload":[{"id":1,"from":"usr1","to":"admin","is_read":true,"message":"ijssdguuh","created_at":"2023-06-02T13:42:56.413305251+03:00"},{"id":2,"from":"usr1","to":"admin","is_read":false,"message":"sgkjsg","created_at":"2023-06-02T14:56:54.53961529+03:00"},{"id":3,"from":"usr1","to":"admin","is_read":false,"message":"jkdlnjhd","created_at":"2023-06-02T15:31:40.407656314+03:00"},{"id":4,"from":"admin","to":"usr1","is_read":false,"message":"kjsdkjhsg","created_at":"2023-06-02T15:31:47.378297407+03:00"},{"id":5,"from":"admin","to":"usr1","is_read":false,"message":"sdgkjbsdg","created_at":"2023-06-02T15:31:49.916972036+03:00"},{"id":6,"from":"admin","to":"usr1","is_read":false,"message":"sdgkjbjsdg","created_at":"2023-06-02T15:31:52.85867468+03:00"},{"id":7,"from":"usr1","to":"admin","is_read":false,"message":"ldfdgljdh","created_at":"2023-06-02T15:58:13.82728292+03:00"},{"id":8,"from":"usr1","to":"admin","is_read":false,"message":"khsvkjhfb","created_at":"2023-06-02T15:59:13.238625614+03:00"},{"id":9,"from":"usr1","to":"admin","is_read":false,"message":"sdgghbhsdg","created_at":"2023-06-02T17:13:00.917278721+03:00"},{"id":10,"from":"admin","to":"usr1","is_read":false,"message":"jfjhjygyjgyjg","created_at":"2023-06-02T17:40:13.64667432+03:00"},{"id":11,"from":"usr1","to":"admin","is_read":false,"message":"kjsdgkjbsdgkjb","created_at":"2023-06-02T17:40:15.417332105+03:00"},{"id":12,"from":"admin","to":"usr1","is_read":false,"message":"khkbadgag","created_at":"2023-06-02T17:48:13.644135374+03:00"},{"id":13,"from":"usr1","to":"admin","is_read":false,"message":"asfkjbjaff","created_at":"2023-06-02T17:48:16.581559163+03:00"}]}
+2023/06/02 17:48:43 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:48:43 ws-manager.go:116: History Request:  {0 usr1 admin false  }
+2023/06/02 17:48:43 ws-manager.go:134: History of Messages:  [{1 usr1 admin true ijssdguuh 2023-06-02T13:42:56.413305251+03:00} {2 usr1 admin false sgkjsg 2023-06-02T14:56:54.53961529+03:00} {3 usr1 admin false jkdlnjhd 2023-06-02T15:31:40.407656314+03:00} {4 admin usr1 false kjsdkjhsg 2023-06-02T15:31:47.378297407+03:00} {5 admin usr1 false sdgkjbsdg 2023-06-02T15:31:49.916972036+03:00} {6 admin usr1 false sdgkjbjsdg 2023-06-02T15:31:52.85867468+03:00} {7 usr1 admin false ldfdgljdh 2023-06-02T15:58:13.82728292+03:00} {8 usr1 admin false khsvkjhfb 2023-06-02T15:59:13.238625614+03:00} {9 usr1 admin false sdgghbhsdg 2023-06-02T17:13:00.917278721+03:00} {10 admin usr1 false jfjhjygyjgyjg 2023-06-02T17:40:13.64667432+03:00} {11 usr1 admin false kjsdgkjbsdgkjb 2023-06-02T17:40:15.417332105+03:00} {12 admin usr1 false khkbadgag 2023-06-02T17:48:13.644135374+03:00} {13 usr1 admin false asfkjbjaff 2023-06-02T17:48:16.581559163+03:00}]
+2023/06/02 17:48:43 ws-manager.go:148: History sent to:  usr1
+2023/06/02 17:48:43 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"chat_history","payload":[{"id":1,"from":"usr1","to":"admin","is_read":true,"message":"ijssdguuh","created_at":"2023-06-02T13:42:56.413305251+03:00"},{"id":2,"from":"usr1","to":"admin","is_read":false,"message":"sgkjsg","created_at":"2023-06-02T14:56:54.53961529+03:00"},{"id":3,"from":"usr1","to":"admin","is_read":false,"message":"jkdlnjhd","created_at":"2023-06-02T15:31:40.407656314+03:00"},{"id":4,"from":"admin","to":"usr1","is_read":false,"message":"kjsdkjhsg","created_at":"2023-06-02T15:31:47.378297407+03:00"},{"id":5,"from":"admin","to":"usr1","is_read":false,"message":"sdgkjbsdg","created_at":"2023-06-02T15:31:49.916972036+03:00"},{"id":6,"from":"admin","to":"usr1","is_read":false,"message":"sdgkjbjsdg","created_at":"2023-06-02T15:31:52.85867468+03:00"},{"id":7,"from":"usr1","to":"admin","is_read":false,"message":"ldfdgljdh","created_at":"2023-06-02T15:58:13.82728292+03:00"},{"id":8,"from":"usr1","to":"admin","is_read":false,"message":"khsvkjhfb","created_at":"2023-06-02T15:59:13.238625614+03:00"},{"id":9,"from":"usr1","to":"admin","is_read":false,"message":"sdgghbhsdg","created_at":"2023-06-02T17:13:00.917278721+03:00"},{"id":10,"from":"admin","to":"usr1","is_read":false,"message":"jfjhjygyjgyjg","created_at":"2023-06-02T17:40:13.64667432+03:00"},{"id":11,"from":"usr1","to":"admin","is_read":false,"message":"kjsdgkjbsdgkjb","created_at":"2023-06-02T17:40:15.417332105+03:00"},{"id":12,"from":"admin","to":"usr1","is_read":false,"message":"khkbadgag","created_at":"2023-06-02T17:48:13.644135374+03:00"},{"id":13,"from":"usr1","to":"admin","is_read":false,"message":"asfkjbjaff","created_at":"2023-06-02T17:48:16.581559163+03:00"}]}
+2023/06/02 17:48:46 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:48:46 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:48:46 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:46 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:48:46 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:48:46 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:46 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:48:46 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:48:46 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:47 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:48:47 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:48:47 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:47 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:48:47 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:48:47 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:47 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:48:47 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:48:47 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:47 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:48:47 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:48:47 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:47 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:48:47 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:48:47 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:48 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:48:48 ws-manager.go:199: History sent to:  admin
+2023/06/02 17:48:48 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"stop-typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:48 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:48:48 ws-manager.go:38: Event/message sent: {new-message {"message":"sdgjnsdg","from":"usr1","to":"admin","sent":1685717328834}}
+2023/06/02 17:48:48 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"sent-message","payload":{"message":"sdgjnsdg","from":"usr1","to":"admin","sent":"2023-06-02T17:48:48.840116214+03:00"}}
+2023/06/02 17:48:51 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:51 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:51 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:51 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:51 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:51 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:51 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:51 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:51 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:51 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:51 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:51 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:51 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:51 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:51 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:51 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:51 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:51 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:51 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:51 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:51 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:51 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:51 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:51 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:52 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:52 ws-manager.go:199: History sent to:  usr1
+2023/06/02 17:48:52 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"stop-typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:53 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:53 ws-manager.go:38: Event/message sent: {new-message {"message":"afkjbadg","from":"admin","to":"usr1","sent":1685717332999}}
+2023/06/02 17:48:53 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"sent-message","payload":{"message":"afkjbadg","from":"admin","to":"usr1","sent":"2023-06-02T17:48:53.011143911+03:00"}}
+2023/06/02 17:48:53 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:53 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:53 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:54 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:54 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:54 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:54 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:54 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:54 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:54 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:54 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:54 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:54 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:54 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:54 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:54 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:54 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:54 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:54 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:54 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:54 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:54 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:54 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:54 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:54 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:54 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:54 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:54 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:54 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:54 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:54 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:54 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:54 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:55 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:55 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:55 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:55 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:55 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:55 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:56 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:56 ws-manager.go:199: History sent to:  usr1
+2023/06/02 17:48:56 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"stop-typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:56 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:56 ws-manager.go:38: Event/message sent: {new-message {"message":"afkjbakfjbadg","from":"admin","to":"usr1","sent":1685717336209}}
+2023/06/02 17:48:56 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"sent-message","payload":{"message":"afkjbakfjbadg","from":"admin","to":"usr1","sent":"2023-06-02T17:48:56.214225195+03:00"}}
+2023/06/02 17:48:57 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:57 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:57 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:57 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:57 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:57 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:57 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:57 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:57 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:57 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:57 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:57 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:57 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:57 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:57 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:57 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:57 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:57 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:57 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:57 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:57 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:57 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:57 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:57 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:57 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:57 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:57 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:58 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:58 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:58 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:58 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:58 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:58 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:58 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:58 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:48:58 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:59 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:59 ws-manager.go:199: History sent to:  usr1
+2023/06/02 17:48:59 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"stop-typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:48:59 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:48:59 ws-manager.go:38: Event/message sent: {new-message {"message":"asdkjbjakgjb","from":"admin","to":"usr1","sent":1685717339070}}
+2023/06/02 17:48:59 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"sent-message","payload":{"message":"asdkjbjakgjb","from":"admin","to":"usr1","sent":"2023-06-02T17:48:59.073317241+03:00"}}
+2023/06/02 17:49:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:01 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:01 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:01 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:01 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:01 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:01 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:01 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:01 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:01 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:01 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:01 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:01 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:01 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:01 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:01 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:01 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:01 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:01 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:01 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:01 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:01 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:02 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:02 ws-manager.go:199: History sent to:  admin
+2023/06/02 17:49:02 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"stop-typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:02 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:02 ws-manager.go:38: Event/message sent: {new-message {"message":"aegkjbadgkjbsg","from":"usr1","to":"admin","sent":1685717342676}}
+2023/06/02 17:49:02 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"sent-message","payload":{"message":"aegkjbadgkjbsg","from":"usr1","to":"admin","sent":"2023-06-02T17:49:02.678071426+03:00"}}
+2023/06/02 17:49:07 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:07 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:07 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:07 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:07 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:07 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:07 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:07 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:07 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:07 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:07 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:07 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:08 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:08 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:08 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:08 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:08 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:08 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:08 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:08 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:08 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:08 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:08 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:08 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:08 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:08 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:08 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:08 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:08 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:08 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:08 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:08 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:08 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:08 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:08 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:08 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:08 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:08 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:08 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:09 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:09 ws-manager.go:199: History sent to:  admin
+2023/06/02 17:49:09 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"stop-typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:09 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:09 ws-manager.go:38: Event/message sent: {new-message {"message":"asdghbsdggkjb","from":"usr1","to":"admin","sent":1685717349827}}
+2023/06/02 17:49:09 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"sent-message","payload":{"message":"asdghbsdggkjb","from":"usr1","to":"admin","sent":"2023-06-02T17:49:09.829929796+03:00"}}
+2023/06/02 17:49:11 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:11 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:11 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:11 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:11 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:11 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:11 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:11 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:11 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:11 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:11 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:11 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:11 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:11 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:11 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:11 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:11 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:11 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:11 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:11 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:11 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:12 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:12 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:12 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:12 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:12 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:12 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:12 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:12 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:12 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:12 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:12 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:12 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:12 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:12 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:12 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:12 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:12 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:12 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:12 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:12 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:12 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:12 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:12 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:12 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:12 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:12 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:12 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:12 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:12 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:12 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:12 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:12 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:49:12 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:13 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:13 ws-manager.go:199: History sent to:  usr1
+2023/06/02 17:49:13 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"stop-typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:15 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:49:15 ws-manager.go:38: Event/message sent: {new-message {"message":"sdgkjbdggkjbsdggsh","from":"admin","to":"usr1","sent":1685717355333}}
+2023/06/02 17:49:15 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"sent-message","payload":{"message":"sdgkjbdggkjbsdggsh","from":"admin","to":"usr1","sent":"2023-06-02T17:49:15.344459571+03:00"}}
+2023/06/02 17:49:16 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:16 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:16 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:17 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:17 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:17 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:17 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:17 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:17 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:17 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:17 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:17 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:17 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:17 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:17 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:17 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:17 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:17 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:17 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:17 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:17 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:17 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:17 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:17 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:17 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:17 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:17 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:17 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:17 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:17 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:17 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:17 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:17 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:17 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:17 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:17 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:17 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:17 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:49:17 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:18 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:18 ws-manager.go:199: History sent to:  admin
+2023/06/02 17:49:18 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"stop-typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:49:19 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:49:19 ws-manager.go:38: Event/message sent: {new-message {"message":"agkjbdgkjbsdg","from":"usr1","to":"admin","sent":1685717359200}}
+2023/06/02 17:49:19 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"sent-message","payload":{"message":"agkjbdgkjbsdg","from":"usr1","to":"admin","sent":"2023-06-02T17:49:19.203863506+03:00"}}
+2023/06/02 17:50:21 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:21 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:21 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:21 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:21 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:21 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:21 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:21 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:21 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:21 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:21 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:21 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:21 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:21 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:21 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:22 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:22 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:22 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:22 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:22 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:22 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:22 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:22 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:22 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:22 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:22 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:22 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:22 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:22 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:22 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:22 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:22 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:22 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:22 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:22 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:22 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:22 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:22 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:22 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:23 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:23 ws-manager.go:199: History sent to:  usr1
+2023/06/02 17:50:23 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"stop-typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:23 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:23 ws-manager.go:38: Event/message sent: {new-message {"message":"sdgnsdgjknsgd","from":"admin","to":"usr1","sent":1685717423542}}
+2023/06/02 17:50:23 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"sent-message","payload":{"message":"sdgnsdgjknsgd","from":"admin","to":"usr1","sent":"2023-06-02T17:50:23.546747631+03:00"}}
+2023/06/02 17:50:24 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:24 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:24 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:24 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:24 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:24 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:24 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:24 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:24 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:25 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:25 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:25 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:25 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:25 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:25 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:25 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:25 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:25 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:25 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:25 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:25 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:25 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:25 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:25 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:25 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:25 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:25 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:25 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:25 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:25 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:25 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:25 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:25 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:25 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:25 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:25 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:25 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:25 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:25 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:25 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:25 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:25 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:25 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:25 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:25 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:26 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:26 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:26 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:26 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:26 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:26 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:26 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:26 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:26 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:26 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:26 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:26 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:26 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:26 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:26 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:27 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:27 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:27 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:28 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:28 ws-manager.go:199: History sent to:  admin
+2023/06/02 17:50:28 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"stop-typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:28 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:28 ws-manager.go:38: Event/message sent: {new-message {"message":"sdgksdbggkjsdgshshsdh","from":"usr1","to":"admin","sent":1685717428067}}
+2023/06/02 17:50:28 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"sent-message","payload":{"message":"sdgksdbggkjsdgshshsdh","from":"usr1","to":"admin","sent":"2023-06-02T17:50:28.101803726+03:00"}}
+2023/06/02 17:50:33 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:33 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:33 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:33 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:33 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:33 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:33 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:33 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:33 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:33 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:33 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:33 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:34 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:34 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:34 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:34 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:34 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:34 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:34 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:34 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:34 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:34 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:34 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:34 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:34 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:34 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:34 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:34 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:34 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:34 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:34 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:34 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:34 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:34 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:34 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:34 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:34 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:34 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:34 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:34 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:34 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:34 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:34 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:34 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:50:34 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:35 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:35 ws-manager.go:199: History sent to:  usr1
+2023/06/02 17:50:35 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"stop-typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:35 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:50:35 ws-manager.go:38: Event/message sent: {new-message {"message":"sdgkjbsdggjsdgg","from":"admin","to":"usr1","sent":1685717435743}}
+2023/06/02 17:50:35 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"sent-message","payload":{"message":"sdgkjbsdggjsdgg","from":"admin","to":"usr1","sent":"2023-06-02T17:50:35.746637569+03:00"}}
+2023/06/02 17:50:36 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:36 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:36 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:36 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:36 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:36 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:36 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:36 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:36 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:36 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:36 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:36 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:37 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:37 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:37 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:37 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:37 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:37 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:37 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:37 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:37 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:37 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:37 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:37 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:37 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:37 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:37 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:37 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:37 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:37 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:37 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:37 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:37 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:37 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:37 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:37 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:37 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:37 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:37 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:38 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:38 ws-manager.go:38: Event/message sent: {new-message {"message":"segkhkduheosd","from":"usr1","to":"admin","sent":1685717438935}}
+2023/06/02 17:50:38 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"sent-message","payload":{"message":"segkhkduheosd","from":"usr1","to":"admin","sent":"2023-06-02T17:50:38.937846688+03:00"}}
+2023/06/02 17:50:38 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:38 ws-manager.go:199: History sent to:  admin
+2023/06/02 17:50:38 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"stop-typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:50:59 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:50:59 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:50:59 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:00 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:00 ws-manager.go:174: History sent to:  admin
+2023/06/02 17:51:00 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:01 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:01 ws-manager.go:199: History sent to:  admin
+2023/06/02 17:51:01 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"stop-typing","payload":{"id":0,"from":"usr1","to":"admin","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:01 ws-client.go:90: Client read message from:  127.0.0.1:36940
+2023/06/02 17:51:01 ws-manager.go:38: Event/message sent: {new-message {"message":"sdgkjbdskjhsdgd","from":"usr1","to":"admin","sent":1685717461906}}
+2023/06/02 17:51:01 ws-client.go:177: Message sent to client: 127.0.0.1:50718 Message: {"type":"sent-message","payload":{"message":"sdgkjbdskjhsdgd","from":"usr1","to":"admin","sent":"2023-06-02T17:51:01.941619098+03:00"}}
+2023/06/02 17:51:02 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:02 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:02 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:02 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:02 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:02 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:03 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:03 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:03 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:04 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:04 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:04 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:04 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:04 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:04 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:04 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:04 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:04 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:04 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:04 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:04 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:04 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:04 ws-manager.go:174: History sent to:  usr1
+2023/06/02 17:51:04 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 17:51:05 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:05 ws-manager.go:38: Event/message sent: {new-message {"message":"sdgkjbsdhsdgdguhssdgd","from":"admin","to":"usr1","sent":1685717465158}}
+2023/06/02 17:51:05 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"sent-message","payload":{"message":"sdgkjbsdhsdgdguhssdgd","from":"admin","to":"usr1","sent":"2023-06-02T17:51:05.162268619+03:00"}}
+2023/06/02 17:51:05 ws-client.go:90: Client read message from:  127.0.0.1:50718
+2023/06/02 17:51:05 ws-manager.go:199: History sent to:  usr1
+2023/06/02 17:51:05 ws-client.go:177: Message sent to client: 127.0.0.1:36940 Message: {"type":"stop-typing","payload":{"id":0,"from":"admin","to":"usr1","is_read":false,"message":"","created_at":""}}
+2023/06/02 18:00:56 main.go:41: Server stopped.
