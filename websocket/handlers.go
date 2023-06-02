@@ -276,7 +276,6 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 
 	//JSON decode r.body into request struct
 	log.Println("Decoding request body.")
-	log.Println("ServeWS request body: ", r.Body)
 
 	//Get cookie from request
 	cookie, err := r.Cookie("session_id")

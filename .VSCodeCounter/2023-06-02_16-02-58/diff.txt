@@ -1,0 +1,132 @@
+Date : 2023-06-02 16:02:58
+Directory : /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf
+Total : 79 files,  1294 codes, -89 comments, 7 blanks, all 1212 lines
+
+Languages
++------------------+------------+------------+------------+------------+------------+
+| language         | files      | code       | comment    | blank      | total      |
++------------------+------------+------------+------------+------------+------------+
+| Log              |         10 |      1,252 |          0 |          8 |      1,260 |
+| Go               |         20 |         60 |        -42 |          1 |         19 |
+| Markdown         |          2 |          6 |          0 |          6 |         12 |
+| Go Module File   |          2 |          0 |          0 |          0 |          0 |
+| Go Checksum File |          2 |          0 |          0 |          0 |          0 |
+| Shell Script     |          6 |          0 |          0 |          0 |          0 |
+| HTML             |          4 |          0 |          0 |          0 |          0 |
+| CSS              |          2 |          0 |          0 |          0 |          0 |
+| SQL              |          4 |         -7 |          0 |          0 |         -7 |
+| JavaScript       |         27 |        -17 |        -47 |         -8 |        -72 |
++------------------+------------+------------+------------+------------+------------+
+
+Directories
++-----------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                                  | files      | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                                     |         79 |      1,294 |        -89 |          7 |      1,212 |
+| . (Files)                                                                                                             |          6 |        178 |         22 |         43 |        243 |
+| ..                                                                                                                    |         36 |     -2,781 |       -469 |       -470 |     -3,720 |
+| ../real-time-forum                                                                                                    |         36 |     -2,781 |       -469 |       -470 |     -3,720 |
+| ../real-time-forum (Files)                                                                                            |          6 |       -172 |        -22 |        -37 |       -231 |
+| ../real-time-forum/database                                                                                           |          4 |       -177 |        -52 |        -20 |       -249 |
+| ../real-time-forum/frontend                                                                                           |         17 |     -1,356 |       -178 |       -213 |     -1,747 |
+| ../real-time-forum/frontend (Files)                                                                                   |          2 |       -122 |         -7 |        -21 |       -150 |
+| ../real-time-forum/frontend/css                                                                                       |          1 |       -319 |         -9 |        -48 |       -376 |
+| ../real-time-forum/frontend/js                                                                                        |         14 |       -915 |       -162 |       -144 |     -1,221 |
+| ../real-time-forum/logfiles                                                                                           |          2 |        -95 |         -4 |         -4 |       -103 |
+| ../real-time-forum/utility                                                                                            |          1 |        -41 |         -7 |         -8 |        -56 |
+| ../real-time-forum/websocket                                                                                          |          6 |       -940 |       -206 |       -188 |     -1,334 |
+| database                                                                                                              |          4 |        170 |         52 |         20 |        242 |
+| frontend                                                                                                              |         16 |      1,339 |        131 |        205 |      1,675 |
+| frontend (Files)                                                                                                      |          2 |        122 |          7 |         21 |        150 |
+| frontend/css                                                                                                          |          1 |        319 |          9 |         48 |        376 |
+| frontend/js                                                                                                           |         13 |        898 |        115 |        136 |      1,149 |
+| logfiles                                                                                                              |         10 |      1,347 |          4 |         12 |      1,363 |
+| utility                                                                                                               |          1 |         41 |          7 |          8 |         56 |
+| websocket                                                                                                             |          6 |      1,000 |        164 |        189 |      1,353 |
++-----------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-----------------------------------------------------------------------------------------------------------------------+------------------+------------+------------+------------+------------+
+| filename                                                                                                              | language         | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------------------------------------------+------------------+------------+------------+------------+------------+
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/README.md                         | Markdown         |        -20 |          0 |        -10 |        -30 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/certgen.bash                      | Shell Script     |        -27 |         -3 |         -7 |        -37 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/database/createDB.sh              | Shell Script     |         -1 |         -1 |          0 |         -2 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/database/createTables.sql         | SQL              |        -90 |        -42 |        -14 |       -146 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/database/forum.db                 | SQL              |        -71 |         -8 |         -1 |        -80 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/database/sqlFuncs.go              | Go               |        -15 |         -1 |         -5 |        -21 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/css/style.css            | CSS              |       -319 |         -9 |        -48 |       -376 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/index.html               | HTML             |        -20 |          0 |         -2 |        -22 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/addEventListeners.js  | JavaScript       |        -56 |         -3 |         -5 |        -64 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/addPost.js            | JavaScript       |        -43 |         -5 |         -7 |        -55 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/categoryFilter.js     | JavaScript       |        -90 |         -5 |        -11 |       -106 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/chat.js               | JavaScript       |       -136 |        -43 |        -30 |       -209 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/forms.js              | JavaScript       |        -51 |        -56 |        -12 |       -119 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/generateCategories.js | JavaScript       |        -45 |          0 |         -6 |        -51 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/getAllPosts.js        | JavaScript       |       -172 |        -17 |        -22 |       -211 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/loggedInHTML.js       | JavaScript       |        -49 |          0 |         -7 |        -56 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/login.js              | JavaScript       |        -47 |        -10 |         -7 |        -64 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/logout.js             | JavaScript       |        -27 |         -3 |         -2 |        -32 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/main.js               | JavaScript       |        -37 |        -11 |         -4 |        -52 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/mainHTML.js           | JavaScript       |        -85 |         -1 |        -22 |       -108 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/register.js           | JavaScript       |        -42 |         -4 |         -4 |        -50 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/js/websocket.js          | JavaScript       |        -35 |         -4 |         -5 |        -44 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/frontend/original.html            | HTML             |       -102 |         -7 |        -19 |       -128 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/go.mod                            | Go Module File   |         -9 |          0 |         -3 |        -12 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/go.sum                            | Go Checksum File |        -10 |          0 |         -1 |        -11 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/logfiles/check-log.go             | Go               |        -29 |         -4 |         -3 |        -36 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/logfiles/forum.log                | Log              |        -66 |          0 |         -1 |        -67 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/main.go                           | Go               |       -101 |        -18 |        -16 |       -135 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/testBlockComment.bash             | Shell Script     |         -5 |         -1 |          0 |         -6 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/utility/utility.go                | Go               |        -41 |         -7 |         -8 |        -56 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/websocket/handlers.go             | Go               |       -473 |        -77 |        -89 |       -639 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/websocket/otp.go                  | Go               |        -47 |         -4 |        -12 |        -63 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/websocket/structs.go              | Go               |       -167 |        -38 |        -25 |       -230 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/websocket/ws-client.go            | Go               |       -127 |        -37 |        -26 |       -190 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/websocket/ws-event.go             | Go               |        -27 |         -1 |         -7 |        -35 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/real-time-forum/websocket/ws-manager.go           | Go               |        -99 |        -49 |        -29 |       -177 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/README.md                                     | Markdown         |         26 |          0 |         16 |         42 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/certgen.bash                                  | Shell Script     |         27 |          3 |          7 |         37 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/database/createDB.sh                          | Shell Script     |          1 |          1 |          0 |          2 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/database/createTables.sql                     | SQL              |         90 |         42 |         14 |        146 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/database/forum.db                             | SQL              |         64 |          8 |          1 |         73 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/database/sqlFuncs.go                          | Go               |         15 |          1 |          5 |         21 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/css/style.css                        | CSS              |        319 |          9 |         48 |        376 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/index.html                           | HTML             |         20 |          0 |          2 |         22 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/js/addEventListeners.js              | JavaScript       |         56 |          3 |          5 |         64 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/js/addPost.js                        | JavaScript       |         43 |          5 |          7 |         55 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/js/categoryFilter.js                 | JavaScript       |         90 |          5 |         11 |        106 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/js/chat.js                           | JavaScript       |        170 |         52 |         34 |        256 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/js/generateCategories.js             | JavaScript       |         45 |          0 |          6 |         51 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/js/getAllPosts.js                    | JavaScript       |        172 |         17 |         22 |        211 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/js/loggedInHTML.js                   | JavaScript       |         49 |          0 |          7 |         56 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/js/login.js                          | JavaScript       |         47 |         10 |          7 |         64 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/js/logout.js                         | JavaScript       |         27 |          3 |          2 |         32 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/js/main.js                           | JavaScript       |         37 |         11 |          4 |         52 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/js/mainHTML.js                       | JavaScript       |         85 |          1 |         22 |        108 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/js/register.js                       | JavaScript       |         42 |          4 |          4 |         50 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/js/websocket.js                      | JavaScript       |         35 |          4 |          5 |         44 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/frontend/original.html                        | HTML             |        102 |          7 |         19 |        128 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/go.mod                                        | Go Module File   |          9 |          0 |          3 |         12 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/go.sum                                        | Go Checksum File |         10 |          0 |          1 |         11 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/logfiles/check-log.go                         | Go               |         29 |          4 |          3 |         36 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/logfiles/forum.log                            | Log              |        382 |          0 |          1 |        383 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/logfiles/forum_2023-06-02_13-42-15.log        | Log              |         74 |          0 |          1 |         75 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/logfiles/forum_2023-06-02_14-56-22.log        | Log              |         69 |          0 |          1 |         70 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/logfiles/forum_2023-06-02_15-05-00.log        | Log              |        216 |          0 |          1 |        217 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/logfiles/forum_2023-06-02_15-07-58.log        | Log              |         69 |          0 |          1 |         70 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/logfiles/forum_2023-06-02_15-10-37.log        | Log              |         69 |          0 |          1 |         70 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/logfiles/forum_2023-06-02_15-20-51.log        | Log              |        149 |          0 |          1 |        150 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/logfiles/forum_2023-06-02_15-21-48.log        | Log              |         71 |          0 |          1 |         72 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/logfiles/forum_2023-06-02_15-31-02.log        | Log              |        219 |          0 |          1 |        220 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/main.go                                       | Go               |        101 |         18 |         16 |        135 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/testBlockComment.bash                         | Shell Script     |          5 |          1 |          0 |          6 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/utility/utility.go                            | Go               |         41 |          7 |          8 |         56 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/websocket/handlers.go                         | Go               |        466 |         76 |         88 |        630 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/websocket/otp.go                              | Go               |         47 |          4 |         12 |         63 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/websocket/structs.go                          | Go               |        175 |         38 |         26 |        239 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/websocket/ws-client.go                        | Go               |        129 |         39 |         26 |        194 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/websocket/ws-event.go                         | Go               |         28 |          1 |          7 |         36 |
+| /home/zdrastvyetyeh/.g6057/javascript-grit/Javascript-Grit-Projects/rtf/websocket/ws-manager.go                       | Go               |        155 |          6 |         30 |        191 |
+| Total                                                                                                                 |                  |      1,294 |        -89 |          7 |      1,212 |
++-----------------------------------------------------------------------------------------------------------------------+------------------+------------+------------+------------+------------+

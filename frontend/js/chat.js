@@ -28,6 +28,13 @@ class ReceiveMessageEvent{
     }
 }
 
+class GetChatHistoryEvent {
+    constructor(from, to) {
+        this.from = from;
+        this.to = to;
+    }
+}
+
 export function routeEvent(event) {
     if (event.type ==undefined) {
         alert("No type field in the event.");
@@ -44,6 +51,14 @@ export function routeEvent(event) {
             //Functionality to display online users
             const usersOnline = event;
             appendUsers(usersOnline);
+            break;
+        case "chat_history":
+            //Functionality to display chat history
+            console.log("Appending Chat History: ", event.payload)
+            event.payload.forEach(event => {
+                console.log(event)
+                appendChatMsg(event);
+            });
             break;
         case "error":
             console.log("Error: ", event.payload);
@@ -71,6 +86,7 @@ function appendChatMsg(event) {
         console.log("Chat window not open");
         let usersList = document.getElementById('users-list');
         const msgAlert = document.createElement("span");
+        msgAlert.className = "msg-alert";
         msgAlert.innerHTML = "!";
         let localUser = localStorage.getItem("username")
         console.log("Local User: ", localUser)
@@ -108,6 +124,7 @@ export function sendMessage (message, user) {
 
 export function appendUsers(event) {
     console.log("Users: ", event.payload)
+    let currUser = localStorage.getItem("username")
     let usersList = document.getElementById('users-list');
     usersList.innerHTML = "";
     // let users = JSON.parse(new TextDecoder().decode(new Uint8Array(event.payload))); // parse the JSON object
@@ -133,8 +150,18 @@ for (let user in users) {
     newUser.appendChild(greenCircle);
 
     newUser.addEventListener("click", () => {
-      openChatWindow(user);
-      console.log("Clicked on user: " + user);
+        // New code: remove "!" sign when the user is clicked
+        const msgAlerts = newUser.getElementsByClassName('msg-alert');
+        for (let i = 0; i < msgAlerts.length; i++) {
+            msgAlerts[i].remove();
+        }
+
+        if (user != currUser) {
+            openChatWindow(user);
+            console.log("Clicked on user: " + user);
+        } else {
+            console.log("This is you foo!")
+        };
     });
     
     usersList.appendChild(newUser);
@@ -186,15 +213,29 @@ function openChatWindow(user) {
   
     // Append the chat window to the document body
     mainDiv.appendChild(chatWindow);
-  }
+    // Now that the chat window is open, we can load the chat history.
+    console.log("Getting chat history")
+    const localUserId = localStorage.getItem("username");  // Assuming you save user ID in localStorage
+    console.log("History from: ", localUserId)
+    console.log("History to: ", user) 
+    
+    const getChatHistoryEvent = new Event("get-chat-history", new GetChatHistoryEvent(localUserId, user));
+    conn.send(JSON.stringify(getChatHistoryEvent));
+}
   
 
 
-// Function to get the conversation history between two users
+// // Function to get the conversation history between two users
 // function getChatHistory(user, callback) {
 //   // Send a message to the server to request the conversation history
-//   const message = JSON.stringify({ type: "get_chat_history", user: user });
-//   console.log("Sending message to backend!: " + message);
+//   let username = localStorage.getItem('username');
+//   if(message != null) {
+//       //Hard-coded value of the username needs to be changed???
+//       let outGoingMsg = new SendMessageEvent(message, username, user);
+//       sendEvent("new-message", outGoingMsg);
+//       console.log("New Message Print: ", message);
+//   }
+//   return false
 //   conn.send(message);
 
 //   // Listen for the response from the server

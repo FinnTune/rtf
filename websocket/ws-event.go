@@ -20,6 +20,7 @@ const (
 	UserConnect         = "user-connect"
 	UsersList           = "users-online"
 	PMessage            = "private-message"
+	SendChatHistory     = "chat_history"
 )
 
 type ReceiveMessageEvent struct {

@@ -57,7 +57,7 @@ func (c *Client) pongHandler(string) error {
 		log.Println("Client connection is nil. No pong received.")
 		return c.connection.SetReadDeadline(time.Now().Add(pongWait))
 	}
-	log.Println("Pong received, handler called, timer reset.")
+	// log.Println("Pong received, handler called, timer reset.")
 	return c.connection.SetReadDeadline(time.Now().Add(pongWait))
 }
 
@@ -67,6 +67,7 @@ func (c *Client) readMessages() {
 		//connection clean up - close connection and remove client from manager
 		if c.connection != nil {
 			c.connection.Close()
+			delete(LoggedInList, c.username)
 			c.connection = nil
 		}
 	}()
@@ -88,6 +89,7 @@ func (c *Client) readMessages() {
 		_, msg, err := c.connection.ReadMessage()
 		log.Println("Client read message from: ", c.connection.RemoteAddr())
 		if err != nil {
+			delete(LoggedInList, c.username)
 			log.Println("Client Made an Error: ", err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("Client ReadMessage() error: %s", err)
@@ -137,6 +139,7 @@ func (c *Client) writeMesssage() {
 	defer func() {
 		if c.connection != nil {
 			c.connection.Close()
+			delete(LoggedInList, c.username)
 			c.connection = nil
 		}
 	}()
@@ -156,6 +159,7 @@ func (c *Client) writeMesssage() {
 			if !ok {
 				if err := c.connection.WriteMessage(websocket.CloseMessage, nil); err != nil {
 					log.Printf("Error when writing 'close' message to client: %s", err)
+					delete(LoggedInList, c.username)
 				}
 				log.Printf("Error when receiving message from channel 'egress': %s", msg)
 				return //break out of for loop/select and triggers the defer cleanup.
@@ -178,7 +182,7 @@ func (c *Client) writeMesssage() {
 				log.Println("Client connection is nil.")
 				return
 			}
-			log.Printf("Ping sent to client: %s", c.connection.RemoteAddr())
+			// log.Printf("Ping sent to client: %s", c.connection.RemoteAddr())
 			if err := c.connection.WriteMessage(websocket.PingMessage, nil); err != nil {
 				log.Printf("Error when writing 'ping' message to client: %s", err)
 				return
