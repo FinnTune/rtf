@@ -63,6 +63,10 @@ export function routeEvent(event) {
             break;
         case "chat_history":
             //Functionality to display chat history
+            if (event.payload == null) {
+                console.log("No more chat history");
+                return;
+            } else {
             console.log("Appending Chat History: ", event.payload)
             // Reverse the array
             let events = event.payload.reverse();
@@ -71,12 +75,17 @@ export function routeEvent(event) {
                 console.log(event)
                 prependChatMsg(event);
             });
+            }
             break;
         case "typing":
+            if (document.getElementById('typing-indicator-' + event.payload.from)) {
                 document.getElementById('typing-indicator-' + event.payload.from).style.display = 'block';
+            }
             break;
         case "stop-typing":
+            if (document.getElementById('typing-indicator-' + event.payload.from)) {
             document.getElementById('typing-indicator-' + event.payload.from).style.display = 'none';
+            }
             break;
         case "error":
             console.log("Error: ", event.payload);
@@ -91,16 +100,24 @@ function appendChatMsg(event) {
     var date = new Date(event.sent);
     const formattedMsg = `<strong>${event.from} (${date.toLocaleDateString()}-${date.toLocaleTimeString()}): </strong>${event.message.replace(/\n/g, '<br>')}<br>`;
     if (document.getElementById('chat-messages-' + event.from)) {
-    let msgArea1 = document.getElementById('chat-messages-' + event.from);
-        msgArea1.innerHTML += formattedMsg;
-        //Intrusive for the user attempting to read prevuous messages
-        //because it scrolls to the bottom of the chat area.
+        let msgArea1 = document.getElementById('chat-messages-' + event.from);
+        let spacer1 = msgArea1.querySelector('.spacer');
+        if (spacer1) {
+            spacer1.insertAdjacentHTML('beforebegin', formattedMsg);
+        } else {
+            msgArea1.innerHTML += formattedMsg;
+        }
         msgArea1.scrollTop = msgArea1.scrollHeight;
     } else if (document.getElementById('chat-messages-' + event.to)) {
         let msgArea2 = document.getElementById('chat-messages-' + event.to);
-        msgArea2.innerHTML += formattedMsg;
+        let spacer2 = msgArea2.querySelector('.spacer');
+        if (spacer2) {
+            spacer2.insertAdjacentHTML('beforebegin', formattedMsg);
+        } else {
+            msgArea2.innerHTML += formattedMsg;
+        }
         msgArea2.scrollTop = msgArea2.scrollHeight;
-    }   else {
+    } else {
         console.log("Chat window not open");
         let usersList = document.getElementById('users-list');
         const msgAlert = document.createElement("span");
@@ -111,17 +128,19 @@ function appendChatMsg(event) {
         console.log("Event.from: ", event.from)
         //Add msgAlert to the user's name in the users list
         if (localUser != event.from) {
-        for (let i = 0; i < usersList.children.length; i++) {
-            if (usersList.children[i].textContent == event.from) {
-                usersList.children[i].appendChild(msgAlert);
+            for (let i = 0; i < usersList.children.length; i++) {
+                if (usersList.children[i].textContent == event.from) {
+                    usersList.children[i].appendChild(msgAlert);
+                }
             }
-        }
         }
     }
 }
 
+
 function prependChatMsg(event) {
-    var date = new Date(event.sent);
+    var date = new Date(event.created_at);
+    console.log("Date: ", date)
     const formattedMsg = `<strong>${event.from} (${date.toLocaleDateString()}-${date.toLocaleTimeString()}): </strong>${event.message.replace(/\n/g, '<br>')}<br>`;
     let msgArea;
     if (document.getElementById('chat-messages-' + event.from)) {
@@ -233,7 +252,7 @@ function openChatWindow(user) {
       <h3>Chat with ${user}</h3>
       <button id="close-chat" class="close-chat">x</button>
       <div name="chat-messages" id="chat-messages-${user}" class="chat-messages" style="overflow-y: scroll;">
-      <div class="spacer" style="height: 100px;"></div>
+      <div class="spacer" style="height: 20px;"></div>
       </div>
       <div class="typing">
       <img id="typing-indicator-${user}" src="/../img/typing.gif" style="display: none; width: 30px; height: 30px;">
