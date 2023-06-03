@@ -115,7 +115,26 @@ func getChatHistory(event Event, c *Client) error {
 	}
 	log.Println("History Request: ", chtMsg)
 
-	rows, err := database.ForumDB.Query("SELECT * FROM message WHERE (from_user = ? AND to_user = ?) OR (from_user = ? AND to_user = ?) ORDER BY created_at DESC LIMIT ? OFFSET ?", chtMsg.FromUser, chtMsg.ToUser, chtMsg.ToUser, chtMsg.FromUser, chtMsg.Limit, chtMsg.Offset)
+	// First get the total number of rows for the specific chat conversation
+	var count int
+	err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM message WHERE (from_user = ? AND to_user = ?) OR (from_user = ? AND to_user = ?)", chtMsg.FromUser, chtMsg.ToUser, chtMsg.ToUser, chtMsg.FromUser).Scan(&count)
+	if err != nil {
+		return fmt.Errorf("failed to count table lines: %s", err)
+	}
+
+	// Check if the requested offset plus limit is greater than the total number of rows
+	if chtMsg.Offset+chtMsg.Limit > count {
+		chtMsg.Limit = count - chtMsg.Offset // Adjust the limit
+	}
+
+	rows, err := database.ForumDB.Query(`
+    SELECT * FROM (
+        SELECT * FROM message 
+        WHERE (from_user = ? AND to_user = ?) OR (from_user = ? AND to_user = ?) 
+        ORDER BY id DESC 
+        LIMIT ? OFFSET ?
+    ) sub 
+    ORDER BY id ASC`, chtMsg.FromUser, chtMsg.ToUser, chtMsg.ToUser, chtMsg.FromUser, chtMsg.Limit, chtMsg.Offset)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve history: %s", err)
 

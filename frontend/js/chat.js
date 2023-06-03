@@ -32,8 +32,8 @@ class GetChatHistoryEvent {
     constructor(from, to, offset, limit) {
         this.from = from;
         this.to = to;
-        this.limit = limit;
         this.offset = offset;
+        this.limit = limit;
     }
 }
 
@@ -64,9 +64,12 @@ export function routeEvent(event) {
         case "chat_history":
             //Functionality to display chat history
             console.log("Appending Chat History: ", event.payload)
-            event.payload.forEach(event => {
+            // Reverse the array
+            let events = event.payload.reverse();
+            // document.getElementById('chat-messages-' + event.payload.to).innerHTML = "";
+            events.forEach(event => {
                 console.log(event)
-                appendChatMsg(event);
+                prependChatMsg(event);
             });
             break;
         case "typing":
@@ -117,6 +120,42 @@ function appendChatMsg(event) {
     }
 }
 
+function prependChatMsg(event) {
+    var date = new Date(event.sent);
+    const formattedMsg = `<strong>${event.from} (${date.toLocaleDateString()}-${date.toLocaleTimeString()}): </strong>${event.message.replace(/\n/g, '<br>')}<br>`;
+    let msgArea;
+    if (document.getElementById('chat-messages-' + event.from)) {
+        msgArea = document.getElementById('chat-messages-' + event.from);
+    } else if (document.getElementById('chat-messages-' + event.to)) {
+        msgArea = document.getElementById('chat-messages-' + event.to);
+    } else {
+        console.log("Chat window not open");
+        let usersList = document.getElementById('users-list');
+        const msgAlert = document.createElement("span");
+        msgAlert.className = "msg-alert";
+        msgAlert.innerHTML = "!";
+        let localUser = localStorage.getItem("username")
+        console.log("Local User: ", localUser)
+        console.log("Event.from: ", event.from)
+        //Add msgAlert to the user's name in the users list
+        if (localUser != event.from) {
+            for (let i = 0; i < usersList.children.length; i++) {
+                if (usersList.children[i].textContent == event.from) {
+                    usersList.children[i].appendChild(msgAlert);
+                }
+            }
+        }
+        return; // Exit if chat window is not open
+    }
+    msgArea.innerHTML = formattedMsg + msgArea.innerHTML; // Prepend new message
+    // Save the current scroll position
+    let savedScrollTop = msgArea.scrollTop;
+    setTimeout(function() {
+        msgArea.scrollTop = savedScrollTop;
+    }, 0);
+}
+
+
 
 function sendEvent(eventName, payload) {
     let event = new Event(eventName, payload);
@@ -125,8 +164,7 @@ function sendEvent(eventName, payload) {
 }
 
 export function sendMessage (message, user) {
-    // var newmessage = document.getElementById('new-message');
-    //Get usernmae from local storage
+    //Get usernmae from local storage and wrap mesage details in SendMessageEvent
     let username = localStorage.getItem('username');
     if(message != null) {
         //Hard-coded value of the username needs to be changed???
@@ -145,13 +183,11 @@ export function appendUsers(event) {
     // let users = JSON.parse(new TextDecoder().decode(new Uint8Array(event.payload))); // parse the JSON object
     let users = event.payload;
 
-// Loop through the keys in the users object
-for (let user in users) {
-    // user will be the key (username), and users[user] will be the value (admin status)
+    // Loop through the keys in the users object and add green cicrlce to indicate online
+    for (let user in users) {
 
     let newUser = document.createElement('li');
         
-    // If the user is an admin, indicate that in the list
     newUser.textContent = user;
     
     const greenCircle = document.createElement("span");
@@ -196,7 +232,8 @@ function openChatWindow(user) {
     chatWindow.innerHTML = `
       <h3>Chat with ${user}</h3>
       <button id="close-chat" class="close-chat">x</button>
-      <div name="chat-messages" id="chat-messages-${user}" class="chat-messages">
+      <div name="chat-messages" id="chat-messages-${user}" class="chat-messages" style="overflow-y: scroll;">
+      <div class="spacer" style="height: 100px;"></div>
       </div>
       <div class="typing">
       <img id="typing-indicator-${user}" src="/../img/typing.gif" style="display: none; width: 30px; height: 30px;">
@@ -243,7 +280,7 @@ function openChatWindow(user) {
     });
 
     let offset = 0;
-    let limit = 10;
+    const limit = 10;
 
     // Add the event listener to the close button
     chatWindow.querySelector('#close-chat').addEventListener('click', () => {
@@ -274,34 +311,3 @@ function openChatWindow(user) {
     }
     });
 }
-  
-
-
-// // Function to get the conversation history between two users
-// function getChatHistory(user, callback) {
-//   // Send a message to the server to request the conversation history
-//   let username = localStorage.getItem('username');
-//   if(message != null) {
-//       //Hard-coded value of the username needs to be changed???
-//       let outGoingMsg = new SendMessageEvent(message, username, user);
-//       sendEvent("new-message", outGoingMsg);
-//       console.log("New Message Print: ", message);
-//   }
-//   return false
-//   conn.send(message);
-
-//   // Listen for the response from the server
-//   conn.addEventListener("message", (event) => {
-//     const message = JSON.parse(event.payload);
-//     console.log("Message received from backend!: " + JSON.stringify(message));
-//     if (message.type === "chat_history") {
-//       const chatHistory = JSON.stringify(message);
-//       const TempText = JSON.stringify(message);
-//       console.log("TempText: " + TempText);
-//       //for (const message of chatHistory) {
-//       //  console.log("Message: " + JSON.stringify(message));
-//       //}
-//       callback(chatHistory);
-//     }
-//   });
-// }

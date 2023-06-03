@@ -1,0 +1,92 @@
+2023/06/03 11:29:26 main.go:127: Main begun. Log file checked, opened, and set.
+2023/06/03 11:29:26 main.go:128: New Forum Begun
+2023/06/03 11:29:26 sqlFuncs.go:18: Database opened successfully.
+2023/06/03 11:29:26 main.go:57: File Servers Started.
+2023/06/03 11:29:26 main.go:68: Handlers Started.
+2023/06/03 11:29:26 main.go:104: Server Started and listening on port :443.
+2023/06/03 11:29:35 main.go:73: Handling request "/" and serving index.html
+2023/06/03 11:29:35 main.go:77: Cookie exists.
+2023/06/03 11:29:37 main.go:73: Handling request "/" and serving index.html
+2023/06/03 11:29:37 main.go:77: Cookie exists.
+2023/06/03 11:29:37 handlers.go:41: Checking login status.
+2023/06/03 11:29:37 handlers.go:56: Manager's clients:  map[]
+2023/06/03 11:29:37 handlers.go:94: No client found with matching session ID. User not logged in.
+2023/06/03 11:29:38 handlers.go:41: Checking login status.
+2023/06/03 11:29:38 handlers.go:56: Manager's clients:  map[]
+2023/06/03 11:29:38 handlers.go:94: No client found with matching session ID. User not logged in.
+2023/06/03 11:29:42 handlers.go:41: Checking login status.
+2023/06/03 11:29:42 handlers.go:56: Manager's clients:  map[]
+2023/06/03 11:29:42 handlers.go:94: No client found with matching session ID. User not logged in.
+2023/06/03 11:29:42 handlers.go:108: Login handler reached.
+2023/06/03 11:29:42 handlers.go:124: Login POST request received.
+2023/06/03 11:29:43 utility.go:29: Password and hash match.
+2023/06/03 11:29:43 handlers.go:143: User found: {ID:1 Username:admin Email:admin@gmail.com Joined:2023-06-03 10:42:58 Password:$2a$12$xR3MmQXzAyKn9TnBhxiOa.ZoBhj7CkI6RfTUovJk5ZXWXfgFYNVQ. Session: NumberComments:0 NumberPosts:0}
+2023/06/03 11:29:43 handlers.go:144: Authentication condition reached.
+2023/06/03 11:29:43 handlers.go:145: User Login list:  map[]
+2023/06/03 11:29:43 handlers.go:376: AllPostsHandler reached.
+2023/06/03 11:29:43 handlers.go:376: AllPostsHandler reached.
+2023/06/03 11:29:43 handlers.go:270: Serving websocket.
+2023/06/03 11:29:43 handlers.go:30: Checking origin: https://localhost
+2023/06/03 11:29:43 handlers.go:278: Decoding request body.
+2023/06/03 11:29:43 handlers.go:290: Session Id in ServeWS:  81e442e1-3ad4-4808-b51b-cb26dedfeb4e
+2023/06/03 11:29:43 handlers.go:307: Client does not exist.
+2023/06/03 11:29:43 ws-client.go:44: New client connected.
+2023/06/03 11:29:43 ws-manager.go:240: Client: 127.0.0.1:59886 added to manager.
+2023/06/03 11:29:43 ws-client.go:65: Client IP and client port num.:  127.0.0.1:59886
+2023/06/03 11:29:43 ws-client.go:90: Client read message from:  127.0.0.1:59886
+2023/06/03 11:29:43 ws-manager.go:75: Adding user info: {user-connect {"otp":"5ea1434d-ff4c-46b7-a00d-27c67011f2d1","id":1,"username":"admin","email":"admin@gmail.com","joined":"2023-06-03 10:42:58","loggedIn":false}}
+2023/06/03 11:29:43 ws-manager.go:88: Adding user to LoggedInList:  admin
+2023/06/03 11:29:43 ws-manager.go:92: User: admin added to LoggedInList:  map[admin:true]
+2023/06/03 11:29:43 ws-client.go:177: Message sent to client: 127.0.0.1:59886 Message: {"type":"users-online","payload":{"admin":true}}
+2023/06/03 11:29:48 handlers.go:41: Checking login status.
+2023/06/03 11:29:48 handlers.go:56: Manager's clients:  map[0xc0001400e0:true]
+2023/06/03 11:29:48 handlers.go:94: No client found with matching session ID. User not logged in.
+2023/06/03 11:29:48 handlers.go:108: Login handler reached.
+2023/06/03 11:29:48 handlers.go:124: Login POST request received.
+2023/06/03 11:29:49 utility.go:29: Password and hash match.
+2023/06/03 11:29:49 handlers.go:143: User found: {ID:2 Username:usr1 Email:usr1@gmail.com Joined:2023-06-03 10:43:21 Password:$2a$12$FaCwYszH42rBSTCpi0zg7OVHHT/YBpMai/bVrCGiZt.emSe8QmJxS Session: NumberComments:0 NumberPosts:0}
+2023/06/03 11:29:49 handlers.go:144: Authentication condition reached.
+2023/06/03 11:29:49 handlers.go:145: User Login list:  map[admin:true]
+2023/06/03 11:29:49 handlers.go:376: AllPostsHandler reached.
+2023/06/03 11:29:49 handlers.go:376: AllPostsHandler reached.
+2023/06/03 11:29:49 handlers.go:270: Serving websocket.
+2023/06/03 11:29:49 handlers.go:30: Checking origin: https://localhost
+2023/06/03 11:29:49 handlers.go:278: Decoding request body.
+2023/06/03 11:29:49 handlers.go:290: Session Id in ServeWS:  d5970280-2493-41a1-85a1-bc31b174ad0a
+2023/06/03 11:29:49 handlers.go:307: Client does not exist.
+2023/06/03 11:29:49 ws-client.go:44: New client connected.
+2023/06/03 11:29:49 ws-manager.go:240: Client: 127.0.0.1:56378 added to manager.
+2023/06/03 11:29:49 ws-client.go:65: Client IP and client port num.:  127.0.0.1:56378
+2023/06/03 11:29:49 ws-client.go:90: Client read message from:  127.0.0.1:56378
+2023/06/03 11:29:49 ws-manager.go:75: Adding user info: {user-connect {"otp":"efc4bae3-7b9d-4922-8b90-cfd86607e8e0","id":2,"username":"usr1","email":"usr1@gmail.com","joined":"2023-06-03 10:43:21","loggedIn":false}}
+2023/06/03 11:29:49 ws-manager.go:88: Adding user to LoggedInList:  usr1
+2023/06/03 11:29:49 ws-manager.go:92: User: usr1 added to LoggedInList:  map[admin:true usr1:true]
+2023/06/03 11:29:49 ws-client.go:177: Message sent to client: 127.0.0.1:59886 Message: {"type":"users-online","payload":{"admin":true,"usr1":true}}
+2023/06/03 11:29:49 ws-client.go:177: Message sent to client: 127.0.0.1:56378 Message: {"type":"users-online","payload":{"admin":true,"usr1":true}}
+2023/06/03 11:29:52 ws-client.go:90: Client read message from:  127.0.0.1:59886
+2023/06/03 11:29:52 ws-manager.go:116: History Request:  {0 admin usr1 false   10 0}
+2023/06/03 11:29:52 ws-manager.go:141: History of Messages:  [{11 usr1 admin false I've been all around the world. 2023-06-03T11:12:57.738596796+03:00 0 0} {12 admin usr1 false Did you enjoy yourself? 2023-06-03T11:13:05.894162141+03:00 0 0} {13 usr1 admin false I alwasy do. 2023-06-03T11:13:11.659161519+03:00 0 0} {14 admin usr1 false Awesome to hear mate. 2023-06-03T11:13:20.752250727+03:00 0 0} {15 usr1 admin false Same goes for you. 2023-06-03T11:13:28.204387578+03:00 0 0} {16 usr1 admin false I have to bounce.
+ 2023-06-03T11:13:35.94052233+03:00 0 0} {17 admin usr1 false As do I. 2023-06-03T11:13:40.221839944+03:00 0 0} {18 admin usr1 false I'll talk to you later, mate. 2023-06-03T11:13:49.664760333+03:00 0 0} {19 usr1 admin false Sounds good. C yah 2023-06-03T11:13:56.143762863+03:00 0 0} {20 admin usr1 false C yah 2023-06-03T11:14:00.089586746+03:00 0 0}]
+2023/06/03 11:29:52 ws-manager.go:155: History sent to:  admin
+2023/06/03 11:29:52 ws-client.go:177: Message sent to client: 127.0.0.1:59886 Message: {"type":"chat_history","payload":[{"id":11,"from":"usr1","to":"admin","is_read":false,"message":"I've been all around the world.","created_at":"2023-06-03T11:12:57.738596796+03:00","limit":0,"offset":0},{"id":12,"from":"admin","to":"usr1","is_read":false,"message":"Did you enjoy yourself?","created_at":"2023-06-03T11:13:05.894162141+03:00","limit":0,"offset":0},{"id":13,"from":"usr1","to":"admin","is_read":false,"message":"I alwasy do.","created_at":"2023-06-03T11:13:11.659161519+03:00","limit":0,"offset":0},{"id":14,"from":"admin","to":"usr1","is_read":false,"message":"Awesome to hear mate.","created_at":"2023-06-03T11:13:20.752250727+03:00","limit":0,"offset":0},{"id":15,"from":"usr1","to":"admin","is_read":false,"message":"Same goes for you.","created_at":"2023-06-03T11:13:28.204387578+03:00","limit":0,"offset":0},{"id":16,"from":"usr1","to":"admin","is_read":false,"message":"I have to bounce.\n","created_at":"2023-06-03T11:13:35.94052233+03:00","limit":0,"offset":0},{"id":17,"from":"admin","to":"usr1","is_read":false,"message":"As do I.","created_at":"2023-06-03T11:13:40.221839944+03:00","limit":0,"offset":0},{"id":18,"from":"admin","to":"usr1","is_read":false,"message":"I'll talk to you later, mate.","created_at":"2023-06-03T11:13:49.664760333+03:00","limit":0,"offset":0},{"id":19,"from":"usr1","to":"admin","is_read":false,"message":"Sounds good. C yah","created_at":"2023-06-03T11:13:56.143762863+03:00","limit":0,"offset":0},{"id":20,"from":"admin","to":"usr1","is_read":false,"message":"C yah","created_at":"2023-06-03T11:14:00.089586746+03:00","limit":0,"offset":0}]}
+2023/06/03 11:30:01 ws-client.go:90: Client read message from:  127.0.0.1:59886
+2023/06/03 11:30:01 ws-manager.go:116: History Request:  {0 admin usr1 false   10 10}
+2023/06/03 11:30:01 ws-manager.go:141: History of Messages:  [{1 admin usr1 false Hello Usr1! 2023-06-03T11:10:40.091378171+03:00 0 0} {2 usr1 admin false Hello Admin! 2023-06-03T11:10:47.530493551+03:00 0 0} {3 usr1 admin false How are you? 2023-06-03T11:11:00.245139983+03:00 0 0} {4 admin usr1 false I'm fine and yourself? 2023-06-03T11:11:11.416913134+03:00 0 0} {5 usr1 admin false Just fine. What are your plans? 2023-06-03T11:11:24.66201296+03:00 0 0} {6 admin usr1 false Nada. Just hanging around. You 2023-06-03T11:11:39.716254929+03:00 0 0} {7 usr1 admin false Same. What have you been up to? 2023-06-03T11:12:08.953323714+03:00 0 0} {8 admin usr1 false Travelling mostly. 2023-06-03T11:12:23.048349553+03:00 0 0} {9 usr1 admin false Where all have you been? 2023-06-03T11:12:30.005962227+03:00 0 0} {10 admin usr1 false All around. How about yourlsef? 2023-06-03T11:12:42.535622371+03:00 0 0}]
+2023/06/03 11:30:01 ws-manager.go:155: History sent to:  admin
+2023/06/03 11:30:01 ws-client.go:177: Message sent to client: 127.0.0.1:59886 Message: {"type":"chat_history","payload":[{"id":1,"from":"admin","to":"usr1","is_read":false,"message":"Hello Usr1!","created_at":"2023-06-03T11:10:40.091378171+03:00","limit":0,"offset":0},{"id":2,"from":"usr1","to":"admin","is_read":false,"message":"Hello Admin!","created_at":"2023-06-03T11:10:47.530493551+03:00","limit":0,"offset":0},{"id":3,"from":"usr1","to":"admin","is_read":false,"message":"How are you?","created_at":"2023-06-03T11:11:00.245139983+03:00","limit":0,"offset":0},{"id":4,"from":"admin","to":"usr1","is_read":false,"message":"I'm fine and yourself?","created_at":"2023-06-03T11:11:11.416913134+03:00","limit":0,"offset":0},{"id":5,"from":"usr1","to":"admin","is_read":false,"message":"Just fine. What are your plans?","created_at":"2023-06-03T11:11:24.66201296+03:00","limit":0,"offset":0},{"id":6,"from":"admin","to":"usr1","is_read":false,"message":"Nada. Just hanging around. You","created_at":"2023-06-03T11:11:39.716254929+03:00","limit":0,"offset":0},{"id":7,"from":"usr1","to":"admin","is_read":false,"message":"Same. What have you been up to?","created_at":"2023-06-03T11:12:08.953323714+03:00","limit":0,"offset":0},{"id":8,"from":"admin","to":"usr1","is_read":false,"message":"Travelling mostly.","created_at":"2023-06-03T11:12:23.048349553+03:00","limit":0,"offset":0},{"id":9,"from":"usr1","to":"admin","is_read":false,"message":"Where all have you been?","created_at":"2023-06-03T11:12:30.005962227+03:00","limit":0,"offset":0},{"id":10,"from":"admin","to":"usr1","is_read":false,"message":"All around. How about yourlsef?","created_at":"2023-06-03T11:12:42.535622371+03:00","limit":0,"offset":0}]}
+2023/06/03 11:30:05 ws-client.go:90: Client read message from:  127.0.0.1:59886
+2023/06/03 11:30:05 ws-manager.go:116: History Request:  {0 admin usr1 false   10 20}
+2023/06/03 11:30:05 ws-manager.go:141: History of Messages:  []
+2023/06/03 11:30:05 ws-manager.go:155: History sent to:  admin
+2023/06/03 11:30:05 ws-client.go:177: Message sent to client: 127.0.0.1:59886 Message: {"type":"chat_history","payload":null}
+2023/06/03 11:30:17 ws-client.go:90: Client read message from:  127.0.0.1:59886
+2023/06/03 11:30:17 ws-manager.go:116: History Request:  {0 admin usr1 false   10 30}
+2023/06/03 11:30:17 ws-manager.go:141: History of Messages:  []
+2023/06/03 11:30:17 ws-manager.go:155: History sent to:  admin
+2023/06/03 11:30:17 ws-client.go:177: Message sent to client: 127.0.0.1:59886 Message: {"type":"chat_history","payload":null}
+2023/06/03 11:30:19 ws-client.go:90: Client read message from:  127.0.0.1:59886
+2023/06/03 11:30:19 ws-manager.go:116: History Request:  {0 admin usr1 false   10 40}
+2023/06/03 11:30:19 ws-manager.go:141: History of Messages:  []
+2023/06/03 11:30:19 ws-manager.go:155: History sent to:  admin
+2023/06/03 11:30:19 ws-client.go:177: Message sent to client: 127.0.0.1:59886 Message: {"type":"chat_history","payload":null}
+2023/06/03 11:35:35 main.go:41: Server stopped.
