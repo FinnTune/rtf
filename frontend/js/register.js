@@ -20,6 +20,9 @@ export function register() {
         gender: document.getElementById('reggender').value,
         password: document.getElementById('regpassword').value,
     };
+    // if(!fname && !lname){
+    //     return
+    // } For preventing null exceptions
 
     // console.log(loginFormData);
     console.log(formData);
@@ -27,7 +30,7 @@ export function register() {
     fetch('register', {
         method: 'POST',
         body: JSON.stringify(formData),
-        mode: 'cors',
+        mode: 'cors', // not needed
         headers: {
             'Content-Type': 'application/json'
         }}

@@ -213,40 +213,41 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 		for client := range m.clients {
 			if client.sessionID == sessionCookie.Value {
 				log.Println("Client found.")
-				if client.loggedIn {
-					// If the client is found, the user is logged in
-					client.loggedIn = false
-					delete(LoggedInList, client.username)
-					m.removeClient(client)
+				// If the client is found, the user is logged in
+				client.loggedIn = false
+				delete(LoggedInList, client.username)
+				m.removeClient(client)
 
-					data, err := json.Marshal(LoggedInList)
-					if err != nil {
-						fmt.Printf("failed to marshal broadcast message error: %s", err)
-						// return fmt.Errorf("failed to marshal broadcast message error: %s", err)
-					}
-					outgoingEvent := Event{
-						Payload: json.RawMessage(data),
-						Type:    UsersList,
-					}
-
-					for c := range m.clients {
-						c.egress <- outgoingEvent
-					}
-
-					// Send the login status to the client
-					w.Header().Set("Content-Type", "application/json")
-					json.NewEncoder(w).Encode(UserLoginResponse{
-						LoggedIn: client.loggedIn,
-					})
-					return
+				data, err := json.Marshal(LoggedInList)
+				if err != nil {
+					fmt.Printf("failed to marshal broadcast message error: %s", err)
+					// return fmt.Errorf("failed to marshal broadcast message error: %s", err)
 				}
+				outgoingEvent := Event{
+					Payload: json.RawMessage(data),
+					Type:    UsersList,
+				}
+
+				log.Println("Logout and new users list sent")
+
+				for c := range m.clients {
+					c.egress <- outgoingEvent
+				}
+
+				// Send the login status to the client
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(UserLoginResponse{
+					LoggedIn: client.loggedIn,
+				})
+				return
+
 			}
 		}
 	}
 }
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	manager.serveLogout(w, r)
+	manager.serveLogout(w, r) // logout
 }
 
 // Serve websocket, upgrade incoming requests, and begin client routines for reading and writing messages

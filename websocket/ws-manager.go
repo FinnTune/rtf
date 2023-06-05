@@ -259,6 +259,6 @@ func (m *Manager) removeClient(client *Client) {
 	if _, ok := m.clients[client]; ok { //Checko if client exists in manager
 		client.connection.Close()
 		delete(m.clients, client)
-		log.Println("Client:", client.connection.RemoteAddr(), "removed from manager.")
+		// log.Println("Client:", client.connection.RemoteAddr(), "removed from manager.")
 	}
 }

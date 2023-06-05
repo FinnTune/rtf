@@ -53,6 +53,9 @@ func startServer() {
 		database.ForumDB.Close()
 		log.Println("Database closed.")
 	}()
+
+	// fs := http.FileServer(http.Dir("./frontend"))
+	// http.Handle("/", fs)
 	// Start file servers
 	log.Println("File Servers Started.")
 	cssFS := http.FileServer(http.Dir("./frontend/css"))
@@ -81,6 +84,7 @@ func startServer() {
 		}
 		http.ServeFile(w, r, "./frontend/index.html")
 	})
+
 	http.HandleFunc("/checkLogin", websocket.CheckLoginHandler)
 	http.HandleFunc("/getAllPosts", websocket.AllPostsHandler)
 	http.HandleFunc("/logout", websocket.LogoutHandler)

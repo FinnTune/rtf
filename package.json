@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "lint": "npx eslint frontend"
+  },
+  "dependencies": {
+    "eslint": "^8.42.0"
+  }
+}

@@ -44,6 +44,9 @@ class TypingEvent {
     }
 }
 
+
+let alertUsers = [];
+
 export function routeEvent(event) {
     if (event.type ==undefined) {
         alert("No type field in the event.");
@@ -58,6 +61,7 @@ export function routeEvent(event) {
             break;
         case "users-online":
             //Functionality to display online users
+            console.log("Users online updated")
             const usersOnline = event;
             appendUsers(usersOnline);
             break;
@@ -98,6 +102,7 @@ export function routeEvent(event) {
 
 function appendChatMsg(event) {
     var date = new Date(event.sent);
+    // Create element
     const formattedMsg = `<strong>${event.from} (${date.toLocaleDateString()}-${date.toLocaleTimeString()}): </strong>${event.message.replace(/\n/g, '<br>')}<br>`;
     if (document.getElementById('chat-messages-' + event.from)) {
         let msgArea1 = document.getElementById('chat-messages-' + event.from);
@@ -105,6 +110,7 @@ function appendChatMsg(event) {
         if (spacer1) {
             spacer1.insertAdjacentHTML('beforebegin', formattedMsg);
         } else {
+            // Either appendChild
             msgArea1.innerHTML += formattedMsg;
         }
         msgArea1.scrollTop = msgArea1.scrollHeight;
@@ -123,19 +129,27 @@ function appendChatMsg(event) {
         const msgAlert = document.createElement("span");
         msgAlert.className = "msg-alert";
         msgAlert.innerHTML = "!";
-        let localUser = localStorage.getItem("username")
-        console.log("Local User: ", localUser)
-        console.log("Event.from: ", event.from)
-        //Add msgAlert to the user's name in the users list
-        if (localUser != event.from) {
-            for (let i = 0; i < usersList.children.length; i++) {
-                if (usersList.children[i].textContent == event.from) {
-                    usersList.children[i].appendChild(msgAlert);
-                }
+       
+    let localUser = localStorage.getItem("username");
+
+    // Add msgAlert to the user's name in the users list
+    if (localUser != event.from) {
+        let userItem;
+        for (let i = 0; i < usersList.children.length; i++) {
+            if (usersList.children[i].textContent == event.from) {
+                usersList.children[i].appendChild(msgAlert);
+                userItem = usersList.children[i];  // keep the reference to the user item
             }
         }
+
+        // Move user to the top of the list
+        if (userItem) {
+            usersList.insertBefore(userItem, usersList.firstChild);
+        }
+    }
     }
 }
+
 
 
 function prependChatMsg(event) {
@@ -202,29 +216,47 @@ export function appendUsers(event) {
     // let users = JSON.parse(new TextDecoder().decode(new Uint8Array(event.payload))); // parse the JSON object
     let users = event.payload;
 
-    // Loop through the keys in the users object and add green cicrlce to indicate online
-    for (let user in users) {
+      // First convert the object keys to an array
+      let usersArray = Object.keys(users);
 
-    let newUser = document.createElement('li');
+      // Now sort the array
+      usersArray.sort();
+  
+      // Remove alertUsers from usersArray
+      alertUsers = alertUsers.filter(user => usersArray.includes(user));
+      usersArray = usersArray.filter(user => !alertUsers.includes(user));
+  
+      // Then add alertUsers to the top of usersArray
+      usersArray = alertUsers.concat(usersArray);
+  
+      // Loop through the keys in the sorted users array and add green circle to indicate online
+      for (let i = 0; i < usersArray.length; i++) {
+          let user = usersArray[i];
+
+
+        let newUser = document.createElement('li');
+            
+        newUser.textContent = user;
         
-    newUser.textContent = user;
-    
-    const greenCircle = document.createElement("span");
-    greenCircle.style.backgroundColor = "green";
-    greenCircle.style.width = "10px";
-    greenCircle.style.height = "10px";
-    greenCircle.style.borderRadius = "50%";
-    greenCircle.style.display = "inline-block";
-    greenCircle.style.marginRight = "10px";
-    
-    newUser.appendChild(greenCircle);
+        const greenCircle = document.createElement("span");
+        greenCircle.style.backgroundColor = "green";
+        greenCircle.style.width = "10px";
+        greenCircle.style.height = "10px";
+        greenCircle.style.borderRadius = "50%";
+        greenCircle.style.display = "inline-block";
+        greenCircle.style.marginRight = "10px";
+        
+        newUser.appendChild(greenCircle);
 
-    newUser.addEventListener("click", () => {
+        newUser.addEventListener("click", () => {
         // New code: remove "!" sign when the user is clicked
         const msgAlerts = newUser.getElementsByClassName('msg-alert');
         for (let i = 0; i < msgAlerts.length; i++) {
             msgAlerts[i].remove();
         }
+
+         // Remove user from alertUsers
+        alertUsers = alertUsers.filter(alertUser => alertUser != user);
 
         if (user != currUser) {
             openChatWindow(user);

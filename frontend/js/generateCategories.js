@@ -1,6 +1,6 @@
 export function generateCategoryDropdown() {
   if (document.getElementById('categories') != null) {
-    var categories = [
+    const categories = [ // Replace all var with const
         { id: 1, name: 'Cuisine' },
         { id: 2, name: 'Places' },
         { id: 3, name: 'Activities' },
@@ -18,7 +18,7 @@ export function generateCategoryDropdown() {
         { id: 15, name: 'Other' }
       ];
 
-      var form = document.getElementById('categories');
+      const form = document.getElementById('categories');
       var dropdown = document.createElement('div');
       dropdown.className = 'dropdown';
 
