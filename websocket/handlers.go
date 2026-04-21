@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"rtForum/database"
 	"rtForum/utility"
 	"strconv"
@@ -28,12 +29,27 @@ var (
 func checkOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	log.Printf("Checking origin: %s", origin)
-	switch origin {
-	case "https://localhost":
-		return true
-	default:
-		return false
+	allowedOrigin := "https://localhost:8443"
+	if envOrigin := os.Getenv("ALLOWED_ORIGIN"); envOrigin != "" {
+		allowedOrigin = envOrigin
 	}
+	return origin == allowedOrigin
+}
+
+func authenticatedClientFromRequest(r *http.Request) (*Client, error) {
+	sessionCookie, err := r.Cookie("session_id")
+	if err != nil {
+		return nil, err
+	}
+
+	manager.Lock()
+	defer manager.Unlock()
+	for client := range manager.clients {
+		if client.sessionID == sessionCookie.Value && client.loggedIn {
+			return client, nil
+		}
+	}
+	return nil, fmt.Errorf("no authenticated client found")
 }
 
 func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
@@ -410,10 +426,8 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 
 		// Decode request body to struct
 		var requestBody struct {
-			UserID     int    `json:"userID"`
 			Title      string `json:"title"`
 			Content    string `json:"content"`
-			Author     string `json:"author"`
 			Categories []struct {
 				ID   int    `json:"id"`
 				Name string `json:"name"`
@@ -441,9 +455,14 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 		//createdAt := time.Now().Format("02-01-2006 15:04")
 
 		// You can obtain the UserID and UserName from the authenticated user
+		client, err := authenticatedClientFromRequest(r)
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 		post := DBPost{
-			UserID:   requestBody.UserID, // Replace with actual UserID
-			UserName: requestBody.Author, // Replace with actual UserName
+			UserID:   client.userID,
+			UserName: client.username,
 			Title:    requestBody.Title,
 			Content:  requestBody.Content,
 		}
@@ -452,13 +471,17 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 		insertPostQuery := "INSERT INTO post (user_id, title, content, author, created_at) VALUES (?, ?, ?, ?, ?)"
 		result, err := database.ForumDB.Exec(insertPostQuery, post.UserID, post.Title, post.Content, post.UserName, createdAt)
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("failed to insert post: %s", err)
+			http.Error(w, "Failed to create post", http.StatusInternalServerError)
+			return
 		}
 
 		// Get the auto-generated post ID
 		postID, err := result.LastInsertId()
 		if err != nil {
-			log.Fatal(err)
+			log.Printf("failed to fetch inserted post id: %s", err)
+			http.Error(w, "Failed to create post", http.StatusInternalServerError)
+			return
 		}
 
 		// Store the category relations in the category_relation table
@@ -466,7 +489,9 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 		for _, category := range requestBody.Categories {
 			_, err := database.ForumDB.Exec(insertCategoryQuery, category.ID, postID)
 			if err != nil {
-				log.Fatal(err)
+				log.Printf("failed to insert post category relation: %s", err)
+				http.Error(w, "Failed to assign category", http.StatusInternalServerError)
+				return
 			}
 		}
 		log.Println("Post added successfully: ", post)
@@ -562,13 +587,19 @@ func AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	client, err := authenticatedClientFromRequest(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	log.Println("Adding comment...", comment)
 
 	// Use your existing database connection to insert the comment
 	_, err = database.ForumDB.Exec(`
 	INSERT INTO comment (user_id, post_id, content, created_at) 
 	VALUES ($1, $2, $3, $4)`,
-		comment.UserID, comment.PostID, comment.Content, created)
+		client.userID, comment.PostID, comment.Content, created)
 
 	if err != nil {
 		http.Error(w, "Failed to add comment", http.StatusInternalServerError)
@@ -576,6 +607,8 @@ func AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
+	comment.UserID = client.userID
+	comment.Username = client.username
 	json.NewEncoder(w).Encode(comment)
 }
 

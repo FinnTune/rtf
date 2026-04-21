@@ -8,15 +8,10 @@ export function addPost() {
     };
   });
 
-  const uname = localStorage.getItem('username');
-  const userID = parseInt(localStorage.getItem('id'));
-
   var postData = {
     title: title,
     content: content,
-    userID: userID,
-    categories: selCat,
-    author: uname
+    categories: selCat
   };
 
   console.log("PostData: ",postData)
@@ -31,7 +26,7 @@ export function addPost() {
   .then(function(response) {
     if (response.ok) {
       console.log('Post data sent successfully!');
-      document.getElementById('msg').innerHTML = "Your post was submitted."
+      document.getElementById('msg').textContent = "Your post was submitted."
       // Add any additional logic or UI updates here after successful submission
       
         // Uncheck all checkboxes after adding a post

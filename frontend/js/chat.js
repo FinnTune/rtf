@@ -47,6 +47,20 @@ class TypingEvent {
 
 let alertUsers = [];
 
+function appendMessageFragment(container, sender, message, date, prepend = false) {
+    const fragment = document.createDocumentFragment();
+    const header = document.createElement('strong');
+    header.textContent = `${sender} (${date.toLocaleDateString()}-${date.toLocaleTimeString()}): `;
+    fragment.appendChild(header);
+    fragment.appendChild(document.createTextNode(String(message ?? '')));
+    fragment.appendChild(document.createElement('br'));
+    if (prepend) {
+        container.prepend(fragment);
+    } else {
+        container.appendChild(fragment);
+    }
+}
+
 export function routeEvent(event) {
     if (event.type ==undefined) {
         alert("No type field in the event.");
@@ -102,25 +116,22 @@ export function routeEvent(event) {
 
 function appendChatMsg(event) {
     var date = new Date(event.sent);
-    // Create element
-    const formattedMsg = `<strong>${event.from} (${date.toLocaleDateString()}-${date.toLocaleTimeString()}): </strong>${event.message.replace(/\n/g, '<br>')}<br>`;
     if (document.getElementById('chat-messages-' + event.from)) {
         let msgArea1 = document.getElementById('chat-messages-' + event.from);
         let spacer1 = msgArea1.querySelector('.spacer');
         if (spacer1) {
-            spacer1.insertAdjacentHTML('beforebegin', formattedMsg);
+            appendMessageFragment(msgArea1, event.from, event.message, date);
         } else {
-            // Either appendChild
-            msgArea1.innerHTML += formattedMsg;
+            appendMessageFragment(msgArea1, event.from, event.message, date);
         }
         msgArea1.scrollTop = msgArea1.scrollHeight;
     } else if (document.getElementById('chat-messages-' + event.to)) {
         let msgArea2 = document.getElementById('chat-messages-' + event.to);
         let spacer2 = msgArea2.querySelector('.spacer');
         if (spacer2) {
-            spacer2.insertAdjacentHTML('beforebegin', formattedMsg);
+            appendMessageFragment(msgArea2, event.from, event.message, date);
         } else {
-            msgArea2.innerHTML += formattedMsg;
+            appendMessageFragment(msgArea2, event.from, event.message, date);
         }
         msgArea2.scrollTop = msgArea2.scrollHeight;
     } else {
@@ -128,7 +139,7 @@ function appendChatMsg(event) {
         let usersList = document.getElementById('users-list');
         const msgAlert = document.createElement("span");
         msgAlert.className = "msg-alert";
-        msgAlert.innerHTML = "!";
+        msgAlert.textContent = "!";
        
     let localUser = localStorage.getItem("username");
 
@@ -155,7 +166,6 @@ function appendChatMsg(event) {
 function prependChatMsg(event) {
     var date = new Date(event.created_at);
     console.log("Date: ", date)
-    const formattedMsg = `<strong>${event.from} (${date.toLocaleDateString()}-${date.toLocaleTimeString()}): </strong>${event.message.replace(/\n/g, '<br>')}<br>`;
     let msgArea;
     if (document.getElementById('chat-messages-' + event.from)) {
         msgArea = document.getElementById('chat-messages-' + event.from);
@@ -166,7 +176,7 @@ function prependChatMsg(event) {
         let usersList = document.getElementById('users-list');
         const msgAlert = document.createElement("span");
         msgAlert.className = "msg-alert";
-        msgAlert.innerHTML = "!";
+        msgAlert.textContent = "!";
         let localUser = localStorage.getItem("username")
         console.log("Local User: ", localUser)
         console.log("Event.from: ", event.from)
@@ -180,7 +190,7 @@ function prependChatMsg(event) {
         }
         return; // Exit if chat window is not open
     }
-    msgArea.innerHTML = formattedMsg + msgArea.innerHTML; // Prepend new message
+    appendMessageFragment(msgArea, event.from, event.message, date, true);
     // Save the current scroll position
     let savedScrollTop = msgArea.scrollTop;
     setTimeout(function() {

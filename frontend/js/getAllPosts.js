@@ -33,15 +33,15 @@ export function getAllPosts() {
             let link = document.createElement("a");
             link.href = "/posts/" + posts[i].Id;
             link.className = "post-link";
-            link.innerHTML = posts[i].Title;
+            link.textContent = posts[i].Title;
             link.addEventListener("click", function(event){
                 event.preventDefault();
                 displaySinglePost(posts[i]);
             });
             title.appendChild(link);
-            content.innerHTML = posts[i].Content;
-            author.innerHTML = posts[i].Author;
-            dateCreated.innerHTML = posts[i].Created;
+            content.textContent = posts[i].Content;
+            author.textContent = posts[i].Author;
+            dateCreated.textContent = posts[i].Created;
     }}).catch((error) => {
         alert("Err: " + error);
         console.log("Err: ", error);
@@ -114,16 +114,16 @@ export async function displaySinglePost(post) {
     let singlePostDiv = document.createElement("div");
     singlePostDiv.id = "single-post";
     let title = document.createElement("h3");
-    title.innerHTML = post.Title;
+    title.textContent = post.Title;
     let content = document.createElement("p");
-    content.innerHTML = post.Content;
+    content.textContent = post.Content;
     let author = document.createElement("p");
-    author.innerHTML = "Author: " + post.Author;
+    author.textContent = "Author: " + post.Author;
     let dateCreated = document.createElement("p");
-    dateCreated.innerHTML = "Created: " + post.Created;
+    dateCreated.textContent = "Created: " + post.Created;
     let backButton = document.createElement("button");
     backButton.className = "btns";
-    backButton.innerHTML = "Back to Posts";
+    backButton.textContent = "Back to Posts";
     backButton.addEventListener("click", function(event){
         event.preventDefault();
         mainContent.innerHTML = "";
@@ -140,7 +140,9 @@ export async function displaySinglePost(post) {
     // Create a comments section
     let commentsSection = document.createElement("div");
     commentsSection.id = "comments-section";
-    commentsSection.innerHTML = "<h4>Comments:</h4>";
+    let commentsHeading = document.createElement("h4");
+    commentsHeading.textContent = "Comments:";
+    commentsSection.appendChild(commentsHeading);
 
     // Fetch comments for the post
     let comments = await fetchComments(post.PostId);
@@ -148,7 +150,7 @@ export async function displaySinglePost(post) {
     comments.forEach(comment => {
         console.log("Comment content: ", comment.content)
         let commentElement = document.createElement("p");
-        commentElement.innerHTML = comment.username + ": " + comment.content;
+        commentElement.textContent = comment.username + ": " + comment.content;
         commentsSection.appendChild(commentElement);
     });
 
@@ -160,7 +162,7 @@ export async function displaySinglePost(post) {
     commentInput.placeholder = "Enter your comment here";
     let submitButton = document.createElement("button");
     submitButton.type = "submit";
-    submitButton.innerHTML = "Submit Comment";
+    submitButton.textContent = "Submit Comment";
     commentForm.appendChild(commentInput);
     commentForm.appendChild(submitButton);
 
@@ -172,14 +174,16 @@ export async function displaySinglePost(post) {
         if (commentContent) {
             await submitComment(post.PostId, commentContent);
             commentInput.value = "";
-            commentsSection.innerHTML = "";
-            commentsSection.innerHTML = "<h4>Comments:</h4>";
+            commentsSection.replaceChildren();
+            let refreshedHeading = document.createElement("h4");
+            refreshedHeading.textContent = "Comments:";
+            commentsSection.appendChild(refreshedHeading);
             let updatedComments = await fetchComments(post.PostId);
             updatedComments.forEach(comment => {
                 let commentElement = document.createElement("p");
                 console.log("Comment content: ", comment.content)
                 console.log("Comment username: ", comment.username)
-                commentElement.innerHTML = comment.username + ": " + comment.content;
+                commentElement.textContent = comment.username + ": " + comment.content;
                 commentsSection.appendChild(commentElement);
             });
         }
@@ -198,13 +202,12 @@ async function fetchComments(postId) {
 }
 
 async function submitComment(postId, commentContent) {
-    const userID = parseInt(localStorage.getItem("id"));
     const response = await fetch('/addcomment', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ post_id: postId, content: commentContent, user_id: userID })
+        body: JSON.stringify({ post_id: postId, content: commentContent })
     });
     const result = await response.json();
     return result;

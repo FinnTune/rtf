@@ -25,10 +25,19 @@ const (
 
 // initMessage prints a message when the server starts
 func initMessage() {
+	port := getEnv("PORT", "8443")
 	fmt.Printf(Cyan + "===============================================\n")
 	fmt.Printf(Magenta + "Starting Realtime Forum\n")
-	fmt.Printf(Magenta + "Server is running on port: " + Blue + "443\n")
+	fmt.Printf(Magenta+"Server is running on port: "+Blue+"%s\n", port)
 	fmt.Printf(Cyan + "===============================================\n")
+}
+
+func getEnv(key, fallback string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	return value
 }
 
 // quitServer prompts user to type 'x' and 'enter' to quit server.
@@ -97,16 +106,19 @@ func startServer() {
 	http.HandleFunc("/comments", websocket.GetCommentsHandler)
 
 	// Declare and initialize server struct then listen and serve
+	port := getEnv("PORT", "8443")
 	ser := &http.Server{
-		Addr:    ":443", // Port 443 is used for HTTPS
+		Addr:    ":" + port,
 		Handler: http.DefaultServeMux,
 	}
 
 	// localhost.crt and localhost.key files were created using the following CLI commands:
 	// openssl req  -new  -newkey rsa:2048  -nodes  -keyout localhost.key  -out localhost.csr
 	// openssl  x509  -req  -days 365  -in localhost.csr  -signkey localhost.key  -out localhost.crt
+	tlsCert := getEnv("TLS_CERT", "localhost.crt")
+	tlsKey := getEnv("TLS_KEY", "localhost.key")
 	log.Printf("Server Started and listening on port %s.", ser.Addr)
-	err := ser.ListenAndServeTLS("localhost.crt", "localhost.key")
+	err := ser.ListenAndServeTLS(tlsCert, tlsKey)
 	if err != nil {
 		log.Fatalf("ListenAndServeTLS error: %s", err)
 	}

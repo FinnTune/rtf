@@ -14,7 +14,34 @@ Type the following in the repos root directory:
 go run .
 ```
 
-You may have to use sudo as it runs on port 443.
+### Runtime configuration
+
+You can run the server without `sudo` by using a non-privileged port:
+
+```
+PORT=8443 go run .
+```
+
+Optional environment variables:
+
+- `PORT` (default `8443`)
+- `TLS_CERT` (default `localhost.crt`)
+- `TLS_KEY` (default `localhost.key`)
+- `ALLOWED_ORIGIN` (default `https://localhost:8443`)
+
+### SQLite compile warning (optional)
+
+On some Linux toolchains, `go run .` can print a warning from `github.com/mattn/go-sqlite3` similar to:
+
+`assignment discards 'const' qualifier from pointer target type`
+
+This warning comes from SQLite C bindings during compilation and does not prevent the app from starting.
+
+If you want to suppress it for local development:
+
+```
+CGO_CFLAGS="-Wno-discarded-qualifiers" PORT=8443 go run .
+```
 
 
 ![Screenshot](picture_test.png)

@@ -24,7 +24,7 @@ export function connectWebSocket(data) {
             console.log("Websocket connection closed!");
             createMainHTML();
             let msg = document.getElementById("msg")
-            msg.innerHTML = "You've been logged out."
+            msg.textContent = "You've been logged out."
             //Possible to reconnect here??? if accidentally closed because of network issues.
         };
 

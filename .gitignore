@@ -4,3 +4,7 @@
 *.crt
 *.key
 *.csr
+node_modules/
+database/forum.db
+logfiles/*.log
+.VSCodeCounter/
