@@ -1,9 +1,13 @@
 import { createPostsTable, getAllPosts, displaySinglePost } from "./getAllPosts.js";
+import { clearTable } from "./getAllPosts.js";
 
 export function createCategoryFilter() {
     const categoryFilterDiv = document.getElementById('category-selection');
     categoryFilterDiv.className = "category-filter";
-    categoryFilterDiv.innerHTML = `<h4>Filter by Category:</h4>`;
+    categoryFilterDiv.replaceChildren();
+    const heading = document.createElement('h4');
+    heading.textContent = 'Filter by Category:';
+    categoryFilterDiv.appendChild(heading);
 
     const categories = [
         "Cuisine", "Places", "Activities", "Events", "Code", 
@@ -38,7 +42,7 @@ export function createCategoryFilter() {
     return categoryFilterDiv;  // Line break for readability
 }
 
-export function getPostsByCategory(categoryId) {
+export function getPostsByCategory() {
     document.getElementById('main-content').innerHTML = "";
     console.log("Getting posts by category.")
      // Collect all the selected categories
@@ -86,15 +90,15 @@ export function getPostsByCategory(categoryId) {
             let link = document.createElement("a");
             link.href = "/posts/" + posts[i].Id;
             link.className = "post-link";
-            link.innerHTML = posts[i].Title;
+            link.textContent = posts[i].Title;
             link.addEventListener("click", function(event){
                 event.preventDefault();
                 displaySinglePost(posts[i]);
             });
             title.appendChild(link);
-            content.innerHTML = posts[i].Content;
-            author.innerHTML = posts[i].Author;
-            dateCreated.innerHTML = posts[i].Created;
+            content.textContent = posts[i].Content;
+            author.textContent = posts[i].Author;
+            dateCreated.textContent = posts[i].Created;
         }
         return
     }).catch((error) => {

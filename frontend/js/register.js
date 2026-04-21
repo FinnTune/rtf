@@ -38,7 +38,7 @@ export function register() {
         if(response.ok){
         console.log("User registered.")
             createMainHTML();
-            document.getElementById('msg').innerHTML = 'You are now registered. Please login.';
+            document.getElementById('msg').textContent = 'You are now registered. Please login.';
             return;
         } else {
             // throw new Error('Unauthorized');

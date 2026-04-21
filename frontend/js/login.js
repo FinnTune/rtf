@@ -50,7 +50,7 @@ export function login() {
                 localStorage.setItem('joined', data.joined);
                 //At this point user is authenticated
                 connectWebSocket(data);
-                document.getElementById('msg').innerHTML = data.username + ', you are now logged in.';
+                document.getElementById('msg').textContent = data.username + ', you are now logged in.';
                 getAllPosts();
             }).catch((error) => {
                 alert("Err: " + error);
@@ -60,4 +60,4 @@ export function login() {
             return false;
         }
     });
-};
+}

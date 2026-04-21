@@ -47,4 +47,4 @@ export function addPost() {
     // Handle the error condition appropriately
     return
   });
-};
+}

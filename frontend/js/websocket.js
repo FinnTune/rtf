@@ -8,7 +8,7 @@ export function connectWebSocket(data) {
         console.log("WebSocket is supported by client browser!");
         console.log("OTP from connectWS: ", data.otp);
         // Request websocket connection with otp as query parameter
-        conn = new WebSocket("wss://localhost:443/ws?otp="+ data.otp)  //Instead of 'localhost' you can use 'document.location.host' 
+        conn = new WebSocket(`wss://${window.location.host}/ws?otp=${data.otp}`)
         console.log("Connection print: ",conn);
 
         conn.onopen = function() {
@@ -32,7 +32,7 @@ export function connectWebSocket(data) {
     } else {
         alert("WebSocket NOT supported by client browser!");
         console.log("WebSocket NOT supported by client browser!");
-    };
+    }
 }
 
 function doOnMessage(event) {
@@ -41,4 +41,4 @@ function doOnMessage(event) {
     const eventData = JSON.parse(event.data);
     const eventObj = Object.assign(new Event, eventData);
     routeEvent(eventObj);
-};
+}

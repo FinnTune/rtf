@@ -9,7 +9,7 @@ export function addEventListeners() {
     // document.getElementById('new-message').onsubmit = sendMessage;
     document.getElementById('all-posts-button').addEventListener('click', function(event) {
         event.preventDefault();
-        document.getElementById('msg').innerHTML = "";
+        document.getElementById('msg').textContent = "";
         if (document.getElementById('single-post')) {
         document.getElementById('single-post').style.display = "none";
         }
@@ -39,7 +39,7 @@ export function addEventListeners() {
     });
 
     document.getElementById('title').addEventListener('click', function() {
-        document.getElementById('msg').innerHTML = "";
+        document.getElementById('msg').textContent = "";
         if (document.getElementById('intro')) {
             document.getElementById('intro').style.display = "flex";
         }
@@ -60,5 +60,5 @@ export function addEventListeners() {
             event.preventDefault();
             addPost();
         });
-    };
-};
+    }
+}

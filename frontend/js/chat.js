@@ -8,7 +8,7 @@ export class Event {
         this.type = type;
         this.payload = payload;
     }
-};
+}
 
 class SendMessageEvent {
     constructor(message, from, to){
@@ -68,18 +68,20 @@ export function routeEvent(event) {
         return;
     }
     switch (event.type) {
-        case "sent-message":
+        case "sent-message": {
             const messageEvent = Object.assign(new ReceiveMessageEvent, event.payload)
             console.log("New message: ", event.payload);
-             appendChatMsg(messageEvent);
+            appendChatMsg(messageEvent);
             break;
-        case "users-online":
+        }
+        case "users-online": {
             //Functionality to display online users
             console.log("Users online updated")
             const usersOnline = event;
             appendUsers(usersOnline);
             break;
-        case "chat_history":
+        }
+        case "chat_history": {
             //Functionality to display chat history
             if (event.payload == null) {
                 console.log("No more chat history");
@@ -95,6 +97,7 @@ export function routeEvent(event) {
             });
             }
             break;
+        }
         case "typing":
             if (document.getElementById('typing-indicator-' + event.payload.from)) {
                 document.getElementById('typing-indicator-' + event.payload.from).style.display = 'block';
@@ -273,7 +276,7 @@ export function appendUsers(event) {
             console.log("Clicked on user: " + user);
         } else {
             console.log("This is you foo!")
-        };
+        }
     });
     
     usersList.appendChild(newUser);
