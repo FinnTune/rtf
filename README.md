@@ -220,3 +220,10 @@ PORT=9443 go run .
    - `npm run lint`
    - `go test ./...`
 4. Include reproduction steps or test notes for bug fixes.
+
+## License
+
+Copyright (C) 2026 Andre Teetor
+
+This project is licensed under the GNU General Public License v2.0 —
+see the [LICENSE](LICENSE) file for details.
