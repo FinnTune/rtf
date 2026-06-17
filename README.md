@@ -26,6 +26,7 @@ This repository runs a forum with posts/comments plus private chat and online-us
 - `database/`: DB open/init helpers and SQL schema files
 - `frontend/`: static SPA assets (`index.html`, CSS, JS)
 - `utility/`: password hashing, cookie helpers
+- `tests/`: automated test suites and shared test helpers
 - `logfiles/`: runtime logs
 
 ## Prerequisites
@@ -143,10 +144,10 @@ Run server:
 PORT=8443 go run .
 ```
 
-Run Go tests:
+Run all backend tests (requires CGO for SQLite):
 
 ```bash
-go test ./...
+CGO_ENABLED=1 CGO_CFLAGS="-Wno-discarded-qualifiers" go test ./...
 ```
 
 Run frontend lint:
@@ -155,19 +156,81 @@ Run frontend lint:
 npm run lint
 ```
 
-## Testing Status
-
-Current test coverage includes backend handler tests around:
-
-- origin validation behavior
-- authenticated identity enforcement for posts/comments
-- unauthorized request rejection for protected writes
-
-Run package coverage:
+Run the full local check (same as CI):
 
 ```bash
-go test ./websocket -cover
+npm run lint
+CGO_ENABLED=1 CGO_CFLAGS="-Wno-discarded-qualifiers" go test ./...
 ```
+
+## Continuous Integration
+
+GitHub Actions runs on every push and pull request to `master` (see `.github/workflows/test.yml`):
+
+- `npm ci` + `npm run lint`
+- `go test ./...` with CGO enabled for SQLite
+
+Dependabot (`.github/dependabot.yml`) opens weekly PRs for Go module, npm, and GitHub Actions updates.
+
+## Testing
+
+The backend has **37 automated tests** under `tests/`. Tests use an in-memory SQLite database so they do not touch `database/forum.db`.
+
+### Test layout
+
+```
+tests/
+├── testutil/          # shared in-memory DB setup
+├── utility/           # password and cookie tests
+└── websocket/         # HTTP handler, OTP, and WS event tests
+```
+
+| Location | Files | What is covered |
+|----------|-------|-----------------|
+| `tests/testutil/` | `database.go` | Shared in-memory SQLite schema and seed data |
+| `tests/utility/` | `utility_test.go` | Password hashing/verification, session cookie creation and detection |
+| `tests/websocket/` | `handlers_test.go` | Origin checks, post/comment auth enforcement |
+| `tests/websocket/` | `handlers_auth_test.go` | Registration, login, logout, session status |
+| `tests/websocket/` | `handlers_posts_test.go` | Posts, comments, category filtering |
+| `tests/websocket/` | `otp_test.go` | One-time password creation, verification, expiry |
+| `tests/websocket/` | `ws_events_test.go` | Chat messages, user presence, typing indicators, chat history |
+
+Internal test hooks used by `tests/websocket/` live in `websocket/testhooks.go`.
+
+### Coverage areas
+
+- **Security**: WebSocket origin validation, session-based identity for writes (client-sent user IDs are ignored)
+- **Auth**: Registration, login (valid/invalid credentials), logout, login status checks
+- **Forum API**: Listing posts, filtering by category, adding posts with categories, reading and adding comments
+- **Real-time**: OTP lifecycle, chat message persistence, online user broadcasts, typing/stop-typing events, chat history pagination
+
+### Commands
+
+Run all tests with coverage:
+
+```bash
+CGO_ENABLED=1 CGO_CFLAGS="-Wno-discarded-qualifiers" go test ./... -cover
+```
+
+Run a single test package:
+
+```bash
+CGO_ENABLED=1 go test ./tests/utility -v
+CGO_ENABLED=1 go test ./tests/websocket -v
+```
+
+Run one test by name:
+
+```bash
+CGO_ENABLED=1 go test ./tests/websocket -run TestLoginHandler_Success -v
+```
+
+Current coverage (approximate, measured against source packages):
+
+- `utility/`: ~93%
+- `websocket/`: ~63%
+
+Not yet covered: full WebSocket upgrade handshake, live connection read/write loops, and the `main`/`database`/`logfiles` packages.
 
 ## Troubleshooting
 
@@ -208,9 +271,8 @@ PORT=9443 go run .
 ## Known Limitations
 
 - no production-grade deployment configuration yet
-- no CI workflow committed yet
 - frontend uses direct DOM manipulation and can benefit from modular refactoring
-- test coverage is still limited and should be expanded
+- WebSocket connection lifecycle and server startup code are not yet covered by tests
 
 ## Contributing
 
@@ -218,7 +280,7 @@ PORT=9443 go run .
 2. Keep changes small and focused.
 3. Run lint/tests before opening a PR:
    - `npm run lint`
-   - `go test ./...`
+   - `CGO_ENABLED=1 CGO_CFLAGS="-Wno-discarded-qualifiers" go test ./...`
 4. Include reproduction steps or test notes for bug fixes.
 
 ## License
