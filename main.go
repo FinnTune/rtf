@@ -14,6 +14,8 @@ import (
 	"rtForum/websocket"
 	"syscall"
 	"time"
+
+	"golang.org/x/time/rate"
 )
 
 // ASCI esacpe codes for colors
@@ -74,15 +76,23 @@ func buildServer() *http.Server {
 		http.ServeFile(w, r, "./frontend/index.html")
 	})
 
+	// authLimiter guards login/registration against brute-force and signup
+	// spam: ~5 requests/minute per IP, with a small burst for legitimate
+	// typo-and-retry flows.
+	authLimiter := utility.NewIPRateLimiter(rate.Every(12*time.Second), 5)
+	// writeLimiter guards authenticated write endpoints against automated
+	// abuse while staying out of the way of normal posting/commenting.
+	writeLimiter := utility.NewIPRateLimiter(rate.Every(2*time.Second), 10)
+
 	http.HandleFunc("/checkLogin", websocket.CheckLoginHandler)
 	http.HandleFunc("/getAllPosts", websocket.AllPostsHandler)
 	http.HandleFunc("/logout", websocket.LogoutHandler)
-	http.HandleFunc("/register", websocket.RegistrationHandler)
-	http.HandleFunc("/login", websocket.LoginHandler)
+	http.HandleFunc("/register", authLimiter.Limit(websocket.RegistrationHandler))
+	http.HandleFunc("/login", authLimiter.Limit(websocket.LoginHandler))
 	http.HandleFunc("/ws", websocket.WebsocketHandler)
-	http.HandleFunc("/addPost", websocket.AddPost)
+	http.HandleFunc("/addPost", writeLimiter.Limit(websocket.AddPost))
 	http.HandleFunc("/getPostsByCategory", websocket.PostsByCategoryHandler)
-	http.HandleFunc("/addcomment", websocket.AddCommentHandler)
+	http.HandleFunc("/addcomment", writeLimiter.Limit(websocket.AddCommentHandler))
 	http.HandleFunc("/comments", websocket.GetCommentsHandler)
 
 	port := getEnv("PORT", "8443")

@@ -134,13 +134,13 @@ Recent hardening includes:
 - multiple frontend user-content render paths were moved from unsafe `innerHTML` usage to safer text-based rendering
 - request-path fatal exits were removed from handlers in favor of safe HTTP error responses
 - origin checks are now configurable through `ALLOWED_ORIGIN`
+- per-IP rate limiting on `/login`, `/register`, `/addPost`, and `/addcomment` (see `utility/ratelimit.go`)
 
 Recommended next security improvements:
 
 - CSRF protection for state-changing routes
 - tighter input length/validation constraints at API boundaries
 - cookie/session expiration and refresh policy review
-- rate limiting for login and write endpoints
 
 ## Development Workflow
 
