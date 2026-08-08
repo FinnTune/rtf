@@ -1,14 +1,19 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"rtForum/database"
 	"rtForum/logfiles"
 	"rtForum/utility"
 	"rtForum/websocket"
+	"syscall"
+	"time"
 )
 
 // ASCI esacpe codes for colors
@@ -40,32 +45,8 @@ func getEnv(key, fallback string) string {
 	return value
 }
 
-// quitServer prompts user to type 'x' and 'enter' to quit server.
-func quitServer() {
-quitPrompt:
-	xpressed := ""
-	fmt.Println(Red + "Type 'x' and 'enter' to quit server.")
-	fmt.Scan(&xpressed)
-	if xpressed == "x" {
-		log.Println("Server stopped.")
-		os.Exit(0)
-	} else {
-		goto quitPrompt // Go back to quitPrompt if anything but 'x' and 'enter' is pressed.
-	}
-}
-
-// Opens database, starts file servers, starts handlers, and starts server
-func startServer() {
-	//Open database
-	database.ForumDB = database.OpenDB()
-	defer func() {
-		database.ForumDB.Close()
-		log.Println("Database closed.")
-	}()
-
-	// fs := http.FileServer(http.Dir("./frontend"))
-	// http.Handle("/", fs)
-	// Start file servers
+// buildServer registers all routes/handlers and returns the configured HTTP server.
+func buildServer() *http.Server {
 	log.Println("File Servers Started.")
 	cssFS := http.FileServer(http.Dir("./frontend/css"))
 	http.Handle("/css/", http.StripPrefix("/css/", cssFS))
@@ -76,7 +57,6 @@ func startServer() {
 	imgFS := http.FileServer(http.Dir("./frontend/img"))
 	http.Handle("/img/", http.StripPrefix("/img/", imgFS))
 
-	// Start handlers
 	log.Printf("Handlers Started.")
 	//Serve index.html for all root requests to comply with Single Page Application (SPA) design
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -105,22 +85,56 @@ func startServer() {
 	http.HandleFunc("/addcomment", websocket.AddCommentHandler)
 	http.HandleFunc("/comments", websocket.GetCommentsHandler)
 
-	// Declare and initialize server struct then listen and serve
 	port := getEnv("PORT", "8443")
-	ser := &http.Server{
+	return &http.Server{
 		Addr:    ":" + port,
 		Handler: http.DefaultServeMux,
 	}
+}
+
+// runServer opens the database, starts the HTTP server, and blocks until ctx
+// is cancelled (SIGINT/SIGTERM), then shuts the server down gracefully.
+func runServer(ctx context.Context) {
+	//Open database
+	database.ForumDB = database.OpenDB()
+	defer func() {
+		database.ForumDB.Close()
+		log.Println("Database closed.")
+	}()
+
+	ser := buildServer()
 
 	// localhost.crt and localhost.key files were created using the following CLI commands:
 	// openssl req  -new  -newkey rsa:2048  -nodes  -keyout localhost.key  -out localhost.csr
 	// openssl  x509  -req  -days 365  -in localhost.csr  -signkey localhost.key  -out localhost.crt
 	tlsCert := getEnv("TLS_CERT", "localhost.crt")
 	tlsKey := getEnv("TLS_KEY", "localhost.key")
-	log.Printf("Server Started and listening on port %s.", ser.Addr)
-	err := ser.ListenAndServeTLS(tlsCert, tlsKey)
-	if err != nil {
-		log.Fatalf("ListenAndServeTLS error: %s", err)
+
+	serverErr := make(chan error, 1)
+	go func() {
+		log.Printf("Server Started and listening on port %s.", ser.Addr)
+		err := ser.ListenAndServeTLS(tlsCert, tlsKey)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverErr <- err
+			return
+		}
+		serverErr <- nil
+	}()
+
+	select {
+	case err := <-serverErr:
+		if err != nil {
+			log.Fatalf("ListenAndServeTLS error: %s", err)
+		}
+	case <-ctx.Done():
+		fmt.Println(Red + "Shutting down server... (Ctrl+C again to force)")
+		log.Println("Shutdown signal received. Shutting down server.")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := ser.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Error during server shutdown: %s", err)
+		}
+		<-serverErr
 	}
 }
 
@@ -143,8 +157,13 @@ func main() {
 	log.Println("Main begun. Log file checked, opened, and set.")
 	log.Println("New Forum Begun")
 
-	// Initialize server start message, run go routine to prompt quit server function, and start server.
 	initMessage()
-	go quitServer()
-	startServer()
+
+	// Ctrl+C (SIGINT) or a `docker stop`/systemd stop (SIGTERM) trigger a graceful shutdown.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	runServer(ctx)
+
+	log.Println("Server stopped.")
 }
