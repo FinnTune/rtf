@@ -40,6 +40,7 @@ This repository runs a forum with posts/comments plus private chat and online-us
 From repository root:
 
 ```bash
+cd database && ./createDB.sh && cd ..
 PORT=8443 go run .
 ```
 
@@ -75,11 +76,16 @@ Your browser may warn for self-signed certs; accept locally for development.
 
 ## Database
 
-The app uses SQLite at `database/forum.db`.
+The app uses SQLite at `database/forum.db`. This file is not checked into git (see `.gitignore`), so it must be created locally before the first run:
 
-- On startup, the app opens the DB connection.
+```bash
+cd database && ./createDB.sh && cd ..
+```
+
+- On startup, the app opens the DB connection; it does not create the schema itself.
 - Schema/seed SQL lives in `database/createTables.sql`.
 - The seeded categories and example posts support immediate local testing.
+- `createDB.sh` only creates the file — rerunning it against an existing `forum.db` will fail because the tables already exist. Delete `database/forum.db` first if you want to reset to a clean seeded state.
 
 ## Core Features
 

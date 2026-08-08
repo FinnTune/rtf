@@ -11,9 +11,11 @@ import (
 	"rtForum/database"
 	"rtForum/utility"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
+	sqlite3 "github.com/mattn/go-sqlite3"
 )
 
 var (
@@ -140,7 +142,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 		log.Println("Login POST request received.")
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			log.Printf("Error decoding request: %s", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
@@ -193,7 +195,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			data, err := json.Marshal(resp)
 			if err != nil {
 				log.Printf("Error marshalling response: %s", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Failed to process login", http.StatusInternalServerError)
 				return
 			}
 
@@ -352,7 +354,7 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 	var user = RegUser{}
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		log.Printf("Error decoding request body: %s", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
@@ -374,7 +376,11 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		log.Printf("Error executing user query: %s", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.Code == sqlite3.ErrConstraint {
+			http.Error(w, "Username or email already exists", http.StatusConflict)
+			return
+		}
+		http.Error(w, "Failed to register user", http.StatusInternalServerError)
 		return
 	}
 	log.Printf("User registered result: %s", result)
@@ -396,7 +402,7 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 		rows, err := database.ForumDB.Query(query)
 		if err != nil {
 			log.Printf("Error executing query: %s", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
 		defer rows.Close()
@@ -410,7 +416,7 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 			err = rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created)
 			if err != nil {
 				log.Printf("Error scanning rows: %s", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 				return
 			}
 			posts = append(posts, post)
@@ -437,7 +443,7 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 		err := json.NewDecoder(r.Body).Decode(&requestBody)
 		if err != nil {
 			// Handle error
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
 
@@ -518,22 +524,25 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("PostsByCategoryHandler reached.")
 		log.Printf("Categories: %+v", categories)
 
+		if len(categories.Categories) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode([]Post{})
+			return
+		}
+
 		args := make([]interface{}, len(categories.Categories))
 		for i, v := range categories.Categories {
 			args[i] = v
 		}
 
-		query := `SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at 
-		FROM post 
-		INNER JOIN category_relation ON post.id = category_relation.post_id 
-		WHERE category_relation.category_id IN (
-		SELECT id FROM category WHERE category_name IN (`
+		placeholders := strings.Repeat("?,", len(categories.Categories))
+		placeholders = placeholders[:len(placeholders)-1]
 
-		for range categories.Categories {
-			query += "?,"
-		}
-		// remove the last comma
-		query = query[:len(query)-1] + "))"
+		query := `SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at
+		FROM post
+		INNER JOIN category_relation ON post.id = category_relation.post_id
+		WHERE category_relation.category_id IN (
+		SELECT id FROM category WHERE category_name IN (` + placeholders + `))`
 
 		log.Printf("Executing query: %s", query)
 		log.Printf("With arguments: %+v", args)
@@ -541,7 +550,7 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		rows, err := database.ForumDB.Query(query, args...)
 		if err != nil {
 			log.Printf("Error executing query: %s", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
 		defer rows.Close()
@@ -554,7 +563,7 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 			err = rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created)
 			if err != nil {
 				log.Printf("Error scanning rows: %s", err)
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 				return
 			}
 			log.Printf("Scanned post: %+v", post)
@@ -564,7 +573,7 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 		if err = rows.Err(); err != nil {
 			log.Printf("Rows processing error: %s", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
 
