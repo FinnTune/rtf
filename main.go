@@ -86,13 +86,13 @@ func buildServer() *http.Server {
 
 	http.HandleFunc("/checkLogin", websocket.CheckLoginHandler)
 	http.HandleFunc("/getAllPosts", websocket.AllPostsHandler)
-	http.HandleFunc("/logout", websocket.LogoutHandler)
-	http.HandleFunc("/register", authLimiter.Limit(websocket.RegistrationHandler))
-	http.HandleFunc("/login", authLimiter.Limit(websocket.LoginHandler))
+	http.HandleFunc("/logout", websocket.CSRFProtect(websocket.LogoutHandler))
+	http.HandleFunc("/register", authLimiter.Limit(websocket.CSRFProtect(websocket.RegistrationHandler)))
+	http.HandleFunc("/login", authLimiter.Limit(websocket.CSRFProtect(websocket.LoginHandler)))
 	http.HandleFunc("/ws", websocket.WebsocketHandler)
-	http.HandleFunc("/addPost", writeLimiter.Limit(websocket.AddPost))
+	http.HandleFunc("/addPost", writeLimiter.Limit(websocket.CSRFProtect(websocket.AddPost)))
 	http.HandleFunc("/getPostsByCategory", websocket.PostsByCategoryHandler)
-	http.HandleFunc("/addcomment", writeLimiter.Limit(websocket.AddCommentHandler))
+	http.HandleFunc("/addcomment", writeLimiter.Limit(websocket.CSRFProtect(websocket.AddCommentHandler)))
 	http.HandleFunc("/comments", websocket.GetCommentsHandler)
 
 	port := getEnv("PORT", "8443")
