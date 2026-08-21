@@ -146,6 +146,11 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if err := validateLogin(req.Username, req.Password); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		//Create instance of User struct to hold user info from database
 		userInfo := User{}
 
@@ -358,6 +363,11 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := validateRegistration(&user); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	//Hash password in user struct
 	user.Pass = utility.HashPassword(user.Pass)
 
@@ -447,6 +457,19 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		title, content, err := validatePost(requestBody.Title, requestBody.Content)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		requestBody.Title = title
+		requestBody.Content = content
+
+		if len(requestBody.Categories) > maxCategoriesPerPost {
+			http.Error(w, fmt.Sprintf("a post may have at most %d categories", maxCategoriesPerPost), http.StatusBadRequest)
+			return
+		}
+
 		log.Println("Add Post Request body: ", requestBody)
 
 		// Connect to the database when mySQL!!!
@@ -524,6 +547,11 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("PostsByCategoryHandler reached.")
 		log.Printf("Categories: %+v", categories)
 
+		if len(categories.Categories) > maxCategoriesPerReq {
+			http.Error(w, fmt.Sprintf("at most %d categories may be requested", maxCategoriesPerReq), http.StatusBadRequest)
+			return
+		}
+
 		if len(categories.Categories) == 0 {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode([]Post{})
@@ -593,6 +621,18 @@ func AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&comment)
 	if err != nil {
 		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	content, err := validateComment(comment.Content)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	comment.Content = content
+
+	if comment.PostID <= 0 {
+		http.Error(w, "a valid post_id is required", http.StatusBadRequest)
 		return
 	}
 
