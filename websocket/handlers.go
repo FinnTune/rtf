@@ -48,6 +48,15 @@ func authenticatedClientFromRequest(r *http.Request) (*Client, error) {
 	defer manager.Unlock()
 	for client := range manager.clients {
 		if client.sessionID == sessionCookie.Value && client.loggedIn {
+			if client.expired() {
+				log.Println("Session expired for client:", client.username)
+				if client.connection != nil {
+					client.connection.Close()
+				}
+				delete(manager.clients, client)
+				break
+			}
+			client.touch()
 			return client, nil
 		}
 	}
@@ -74,6 +83,21 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	log.Println("Manager's clients: ", m.clients)
 	for client := range m.clients {
 		if client.sessionID == sessionCookie.Value {
+			if client.expired() {
+				log.Println("Session expired for client:", client.username)
+				if client.connection != nil {
+					client.connection.Close()
+				}
+				delete(m.clients, client)
+				utility.ClearCookie(w)
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(UserLoginResponse{
+					LoggedIn: false,
+				})
+				return
+			}
+			client.touch()
+			utility.RefreshCookie(w, client.sessionID)
 			if !client.loggedIn {
 				log.Println("Client found.")
 				json.NewEncoder(w).Encode(UserLoginResponse{
@@ -166,6 +190,12 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			log.Printf("User found: %+v\n", userInfo)
 			log.Println("Authentication condition reached.")
 			log.Println("User Login list: ", LoggedInList)
+
+			// Rotate the session cookie on every successful login so a
+			// session_id observed/fixed before authentication can never be
+			// reused to hijack the now-authenticated session.
+			utility.CreateCookie(w, r)
+
 			//Check to see if client is already logged in
 			m.Lock()
 			defer m.Unlock()
@@ -220,6 +250,10 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		log.Println("Logout POST request received.")
+		// Always drop the cookie on logout, even if no matching in-memory
+		// client is found below (e.g. it already expired server-side) -
+		// logout must never leave a reusable session_id in the browser.
+		utility.ClearCookie(w)
 		//Check if user is logged in
 		sessionCookie, err := r.Cookie("session_id")
 		if err != nil {
@@ -314,11 +348,17 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	log.Println("Session Id in ServeWS: ", sessionID)
 	for c := range m.clients {
 		if c.sessionID == sessionID {
+			if c.expired() {
+				log.Println("Session expired; discarding stale client:", c.username)
+				delete(m.clients, c)
+				break
+			}
 			log.Println("Client already exists.")
 			log.Println("ClientUName Debug: ", c.username)
 			delete(LoggedInList, c.username)
 			LoggedInList[c.username] = true
 			c.connection = conn
+			c.touch()
 			go c.readMessages()
 			go c.writeMesssage()
 			return
@@ -486,6 +526,7 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 		// You can obtain the UserID and UserName from the authenticated user
 		client, err := authenticatedClientFromRequest(r)
 		if err != nil {
+			utility.ClearCookie(w)
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -638,6 +679,7 @@ func AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	client, err := authenticatedClientFromRequest(r)
 	if err != nil {
+		utility.ClearCookie(w)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
