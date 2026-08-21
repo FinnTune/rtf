@@ -33,6 +33,7 @@ func AddTestClient(sessionID, username string, userID int) *TestClientHandle {
 		userID:    userID,
 		loggedIn:  true,
 		egress:    make(chan Event, 4),
+		lastSeen:  time.Now(),
 	}
 	manager.clients[client] = true
 	return &TestClientHandle{client: client}

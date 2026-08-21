@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"rtForum/utility"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -23,6 +24,11 @@ type Client struct {
 	email    string
 	joined   string
 	cookie   *http.Cookie
+	// lastSeen backs a sliding session expiry: it is refreshed on every
+	// authenticated request and checked against utility.SessionDuration so
+	// a leaked/replayed session_id can't be used indefinitely regardless of
+	// what the browser does with its own copy of the cookie.
+	lastSeen time.Time
 	// type UserSession struct {
 	// 	Username string `json:"username"`
 	// 	UserID   int    `json:"id"`
@@ -48,7 +54,19 @@ func newClient(conn *websocket.Conn, manager *Manager, session_id string) *Clien
 		sessionID:  session_id,
 		egress:     make(chan Event),
 		loggedIn:   false,
+		lastSeen:   time.Now(),
 	}
+}
+
+// touch refreshes the session's sliding expiry.
+func (c *Client) touch() {
+	c.lastSeen = time.Now()
+}
+
+// expired reports whether the session has been idle longer than
+// utility.SessionDuration.
+func (c *Client) expired() bool {
+	return time.Since(c.lastSeen) > utility.SessionDuration
 }
 
 // Function to reset timer after pong is received.

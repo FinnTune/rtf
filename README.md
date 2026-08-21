@@ -136,11 +136,11 @@ Recent hardening includes:
 - origin checks are now configurable through `ALLOWED_ORIGIN`
 - per-IP rate limiting on `/login`, `/register`, `/addPost`, and `/addcomment` (see `utility/ratelimit.go`)
 - input length/format validation on registration, login, posts, comments, and category filters at the API boundary (see `websocket/validate.go`)
+- session cookie is rotated on login, actively cleared on logout, and expires server-side after 24h of inactivity with a sliding refresh on active use (see `Client.expired`/`Client.touch` in `websocket/ws-client.go` and `utility.RefreshCookie`/`ClearCookie`)
 
 Recommended next security improvements:
 
 - CSRF protection for state-changing routes
-- cookie/session expiration and refresh policy review
 
 ## Development Workflow
 

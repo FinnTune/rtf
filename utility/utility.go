@@ -30,6 +30,12 @@ func CheckPasswordHash(password, hash string) bool {
 	return true
 }
 
+// SessionDuration is the idle timeout for a session: both the session_id
+// cookie's Max-Age and the server-side session expiry (see Client.expired
+// in the websocket package) are derived from this single value so the two
+// never drift apart.
+const SessionDuration = 24 * time.Hour
+
 // Create Cookie for user logging in
 func CreateCookie(w http.ResponseWriter, r *http.Request) {
 	sessionID := uuid.Must(uuid.NewV4()).String()
@@ -38,13 +44,45 @@ func CreateCookie(w http.ResponseWriter, r *http.Request) {
 		Name:     "session_id",
 		Value:    sessionID,
 		Path:     "/",
-		Expires:  time.Now().Add(24 * time.Hour),
+		Expires:  time.Now().Add(SessionDuration),
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	})
 	//Different struct for user info???
 	// sql.UpdateUser(data.User{Id: userId, Session: sessionToken}, true)
+}
+
+// RefreshCookie re-issues the session_id cookie with the same value but a
+// renewed expiry, implementing the sliding half of the session's
+// expiration/refresh policy: an active session stays alive, an idle one
+// still expires after SessionDuration.
+func RefreshCookie(w http.ResponseWriter, sessionID string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    sessionID,
+		Path:     "/",
+		Expires:  time.Now().Add(SessionDuration),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
+}
+
+// ClearCookie actively expires the session_id cookie in the browser. Used on
+// logout and when a stale/expired session is detected server-side, so a
+// dead session can never be silently reused.
+func ClearCookie(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+	})
 }
 
 func CheckCookieExist(w http.ResponseWriter, r *http.Request) bool {
