@@ -173,6 +173,7 @@ GitHub Actions runs on every push and pull request to `master` (see `.github/wor
 
 - `npm ci` + `npm run lint`
 - `go test ./...` with CGO enabled for SQLite
+- `govulncheck ./...` to catch known-vulnerable Go dependencies
 
 Dependabot (`.github/dependabot.yml`) opens weekly PRs for Go module, npm, and GitHub Actions updates.
 
