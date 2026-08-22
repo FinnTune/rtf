@@ -138,6 +138,7 @@ Recent hardening includes:
 - input length/format validation on registration, login, posts, comments, and category filters at the API boundary (see `websocket/validate.go`)
 - session cookie is rotated on login, actively cleared on logout, and expires server-side after 24h of inactivity with a sliding refresh on active use (see `Client.expired`/`Client.touch` in `websocket/ws-client.go` and `utility.RefreshCookie`/`ClearCookie`)
 - state-changing routes (`/register`, `/login`, `/logout`, `/addPost`, `/addcomment`) reject requests whose `Origin` header doesn't match `ALLOWED_ORIGIN`, blocking cross-site CSRF submissions (see `websocket/csrf.go`)
+- every response now carries a strict CSP plus `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and HSTS headers (see `securityHeaders` in `main.go`)
 
 ## Development Workflow
 
