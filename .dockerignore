@@ -1,0 +1,8 @@
+.git
+node_modules
+logfiles/*.log
+database/forum.db
+*.key
+*.crt
+*.csr
+.VSCodeCounter
