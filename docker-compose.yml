@@ -1,0 +1,15 @@
+services:
+  rtforum:
+    build: .
+    ports:
+      - "8443:8443"
+    environment:
+      PORT: "8443"
+      TLS_CERT: "localhost.crt"
+      TLS_KEY: "localhost.key"
+      ALLOWED_ORIGIN: "https://localhost:8443"
+    volumes:
+      - ./database:/app/database
+      - ./localhost.crt:/app/localhost.crt:ro
+      - ./localhost.key:/app/localhost.key:ro
+      - ./logfiles:/app/logfiles

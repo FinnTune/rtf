@@ -34,6 +34,7 @@ This repository runs a forum with posts/comments plus private chat and online-us
 - Go (1.20+ recommended)
 - Node.js + npm (for linting frontend code)
 - OpenSSL (if generating local TLS certificates)
+- Docker + Docker Compose (optional, for the containerized run path - see [Docker](#docker))
 
 ## Quick Start
 
@@ -86,6 +87,19 @@ cd database && ./createDB.sh && cd ..
 - Schema/seed SQL lives in `database/createTables.sql`.
 - The seeded categories and example posts support immediate local testing.
 - `createDB.sh` only creates the file — rerunning it against an existing `forum.db` will fail because the tables already exist. Delete `database/forum.db` first if you want to reset to a clean seeded state.
+
+## Docker
+
+Generate `localhost.crt`/`localhost.key` first (see [TLS Certificates](#tls-certificates-local-development)), then:
+
+```bash
+docker compose up --build
+```
+
+- `docker-compose.yml` builds the app from the `Dockerfile` (multi-stage: `golang:1.25-bookworm` build stage, `debian:bookworm-slim` runtime) and maps port `8443`.
+- `database/`, `logfiles/`, and the TLS cert/key are bind-mounted from the repo root, so the SQLite file and logs persist across container restarts and rebuilds.
+- `docker-entrypoint.sh` creates `database/forum.db` from `database/createTables.sql` automatically on first run if it doesn't already exist - no manual `createDB.sh` step needed for the containerized path.
+- Runtime config (`PORT`, `TLS_CERT`, `TLS_KEY`, `ALLOWED_ORIGIN`) is set via `environment:` in `docker-compose.yml`, same variables as running with `go run .` directly.
 
 ## Core Features
 
@@ -275,7 +289,7 @@ PORT=9443 go run .
 
 ## Known Limitations
 
-- no production-grade deployment configuration yet
+- Docker Compose (see [Docker](#docker)) gives a containerized single-instance run, but there's still no reverse proxy/TLS termination, log aggregation, or multi-instance orchestration for actual production deployment
 - frontend uses direct DOM manipulation and can benefit from modular refactoring
 - WebSocket connection lifecycle and server startup code are not yet covered by tests
 
