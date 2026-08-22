@@ -40,12 +40,12 @@ export function register() {
             createMainHTML();
             document.getElementById('msg').textContent = 'You are now registered. Please login.';
             return;
-        } else {
-            // throw new Error('Unauthorized');
-            throw 'Unauthorized';
         }
+        return response.text().then((message) => {
+            throw new Error(message || `Registration failed (${response.status})`);
+        });
     }).catch((error) => {
-        alert("Err: " + error);
+        alert("Err: " + error.message);
         console.log("Err: ", error);
     });
  
