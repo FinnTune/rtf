@@ -42,3 +42,12 @@ jobs:
           CGO_ENABLED: 1
           CGO_CFLAGS: -Wno-discarded-qualifiers
         run: go test ./...
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+
+      - name: Scan Go dependencies for known vulnerabilities
+        env:
+          CGO_ENABLED: 1
+          CGO_CFLAGS: -Wno-discarded-qualifiers
+        run: govulncheck ./...
