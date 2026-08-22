@@ -37,10 +37,10 @@ export function login() {
                 // User is logged in
                 createLoggedInHTML();
                     return response.json();
-                } else {
-                    // throw new Error('Unauthorized');
-                    throw 'Unauthorized';
                 }
+                return response.text().then((message) => {
+                    throw new Error(message || `Login failed (${response.status})`);
+                });
             }).then((data) => {
                 console.log("Data from login:", data)
                 //Save data in local storage
@@ -53,7 +53,7 @@ export function login() {
                 document.getElementById('msg').textContent = data.username + ', you are now logged in.';
                 getAllPosts();
             }).catch((error) => {
-                alert("Err: " + error);
+                alert("Err: " + error.message);
                 console.log("Err: ", error);
             });
         
