@@ -98,8 +98,33 @@ func buildServer() *http.Server {
 	port := getEnv("PORT", "8443")
 	return &http.Server{
 		Addr:    ":" + port,
-		Handler: http.DefaultServeMux,
+		Handler: securityHeaders(http.DefaultServeMux),
 	}
+}
+
+// securityHeaders sets a conservative set of security response headers on
+// every response. The CSP has no external origins and no inline
+// scripts/styles because the whole frontend is same-origin static assets
+// and ES modules - it would need loosening if that ever changes.
+func securityHeaders(next http.Handler) http.Handler {
+	const csp = "default-src 'self'; " +
+		"script-src 'self'; " +
+		"style-src 'self'; " +
+		"img-src 'self'; " +
+		"connect-src 'self'; " +
+		"frame-ancestors 'none'; " +
+		"base-uri 'self'; " +
+		"form-action 'self'"
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
+		h.Set("Content-Security-Policy", csp)
+		next.ServeHTTP(w, r)
+	})
 }
 
 // runServer opens the database, starts the HTTP server, and blocks until ctx
