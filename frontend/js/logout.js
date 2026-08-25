@@ -1,8 +1,10 @@
 import { createMainHTML } from "./mainHTML.js";
 import { showMessage } from "./notify.js";
+import { disconnectWebSocket } from "./websocket.js";
 
 export async function logout () {
     console.log("Logging out...")
+    disconnectWebSocket();
     fetch('/logout', {
         method: 'POST',
         mode: 'cors',

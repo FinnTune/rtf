@@ -316,17 +316,29 @@ function openChatWindow(user) {
         e.preventDefault(); // to prevent form submission
 
         // Get message text
-        let messageText = newMessageInput.value;
-        
+        let messageText = newMessageInput.value.trim();
+        if (!messageText) {
+            return;
+        }
+
         // Create a message object
         sendMessage(messageText, user);
-        
+
         // Clear message text area
         newMessageInput.value = '';
     });
 
+    // Enter sends the message (Shift+Enter still inserts a newline), matching
+    // the behavior users expect from a chat composer.
+    newMessageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            messageSubmitButton.click();
+        }
+    });
+
     let typingTimeout;
-    
+
     newMessageInput.addEventListener('input', () => {
         // User started typing
         clearTimeout(typingTimeout);
