@@ -1,3 +1,5 @@
+import { showMessage, setButtonLoading } from "./notify.js";
+
 export function addPost() {
   var title = document.getElementById('post-title').value;
   var content = document.getElementById('post-content').value;
@@ -16,6 +18,9 @@ export function addPost() {
 
   console.log("PostData: ",postData)
 
+  const submitButton = document.getElementById('add-post-submit');
+  setButtonLoading(submitButton, true, 'Posting...');
+
   fetch('/addPost', {
     method: 'POST',
     headers: {
@@ -26,25 +31,25 @@ export function addPost() {
   .then(function(response) {
     if (response.ok) {
       console.log('Post data sent successfully!');
-      document.getElementById('msg').textContent = "Your post was submitted."
-      // Add any additional logic or UI updates here after successful submission
-      
+      showMessage('Your post was submitted.', 'success');
+
         // Uncheck all checkboxes after adding a post
       document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => checkbox.checked = false);
 
        // Clear all form fields after adding a post
        document.getElementById('add-post-form').reset();
 
-      return
-    } else {
-      console.error('Error sending post data.');
-      // Handle the error condition appropriately
-      return
+      return;
     }
+    return response.text().then((message) => {
+      throw new Error(message || `Failed to submit post (${response.status})`);
+    });
   })
   .catch(function(error) {
+    showMessage("Err: " + error.message, "error");
     console.error('Error sending post data:', error);
-    // Handle the error condition appropriately
-    return
+  })
+  .finally(function() {
+    setButtonLoading(submitButton, false);
   });
 }

@@ -1,3 +1,5 @@
+import { showMessage, setButtonLoading } from "./notify.js";
+
 export function getAllPosts() {
     console.log("Getting all posts.")
     fetch('getAllPosts', {
@@ -19,11 +21,18 @@ export function getAllPosts() {
         console.log("PostsBef:", posts);
         return posts;
         }
+        return response.text().then((message) => {
+            throw new Error(message || `Failed to load posts (${response.status})`);
+        });
     }).then((posts) => {
         console.log("PostsAft: ", posts)
         posts.sort((a, b) => (a.CreatedAt > b.CreatedAt) ? -1 : 1);
         let table = document.getElementById('posts-table');
         let tbody = table.querySelector('tbody');
+        if (posts.length === 0) {
+            showEmptyState(tbody, "No posts yet — be the first to post!");
+            return;
+        }
         for(let i = 0; i < posts.length; i++){
             let row = tbody.insertRow();
             let title = row.insertCell(0);
@@ -43,11 +52,19 @@ export function getAllPosts() {
             author.textContent = posts[i].Author;
             dateCreated.textContent = posts[i].Created;
     }}).catch((error) => {
-        alert("Err: " + error);
+        showMessage("Err: " + error.message, "error");
         console.log("Err: ", error);
     });
- 
+
     return false;
+}
+
+export function showEmptyState(tbody, message) {
+    const row = tbody.insertRow();
+    const cell = row.insertCell(0);
+    cell.colSpan = 4;
+    cell.className = 'empty-state';
+    cell.textContent = message;
 }
 
 export function createPostsTable() {
@@ -145,14 +162,19 @@ export async function displaySinglePost(post) {
     commentsSection.appendChild(commentsHeading);
 
     // Fetch comments for the post
-    let comments = await fetchComments(post.PostId);
-    console.log("Comments fetch: ", comments)
-    comments.forEach(comment => {
-        console.log("Comment content: ", comment.content)
-        let commentElement = document.createElement("p");
-        commentElement.textContent = comment.username + ": " + comment.content;
-        commentsSection.appendChild(commentElement);
-    });
+    try {
+        let comments = await fetchComments(post.PostId);
+        console.log("Comments fetch: ", comments)
+        comments.forEach(comment => {
+            console.log("Comment content: ", comment.content)
+            let commentElement = document.createElement("p");
+            commentElement.textContent = comment.username + ": " + comment.content;
+            commentsSection.appendChild(commentElement);
+        });
+    } catch (error) {
+        showMessage("Err: " + error.message, "error");
+        console.log("Err: ", error);
+    }
 
     // Create a form to submit a new comment
     let commentForm = document.createElement("form");
@@ -172,20 +194,28 @@ export async function displaySinglePost(post) {
         event.preventDefault();
         let commentContent = commentInput.value.trim();
         if (commentContent) {
-            await submitComment(post.PostId, commentContent);
-            commentInput.value = "";
-            commentsSection.replaceChildren();
-            let refreshedHeading = document.createElement("h4");
-            refreshedHeading.textContent = "Comments:";
-            commentsSection.appendChild(refreshedHeading);
-            let updatedComments = await fetchComments(post.PostId);
-            updatedComments.forEach(comment => {
-                let commentElement = document.createElement("p");
-                console.log("Comment content: ", comment.content)
-                console.log("Comment username: ", comment.username)
-                commentElement.textContent = comment.username + ": " + comment.content;
-                commentsSection.appendChild(commentElement);
-            });
+            setButtonLoading(submitButton, true, 'Posting...');
+            try {
+                await submitComment(post.PostId, commentContent);
+                commentInput.value = "";
+                commentsSection.replaceChildren();
+                let refreshedHeading = document.createElement("h4");
+                refreshedHeading.textContent = "Comments:";
+                commentsSection.appendChild(refreshedHeading);
+                let updatedComments = await fetchComments(post.PostId);
+                updatedComments.forEach(comment => {
+                    let commentElement = document.createElement("p");
+                    console.log("Comment content: ", comment.content)
+                    console.log("Comment username: ", comment.username)
+                    commentElement.textContent = comment.username + ": " + comment.content;
+                    commentsSection.appendChild(commentElement);
+                });
+            } catch (error) {
+                showMessage("Err: " + error.message, "error");
+                console.log("Err: ", error);
+            } finally {
+                setButtonLoading(submitButton, false);
+            }
         }
     });
 
@@ -196,6 +226,10 @@ export async function displaySinglePost(post) {
 
 async function fetchComments(postId) {
     const response = await fetch(`/comments?postId=${postId}`);
+    if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Failed to load comments (${response.status})`);
+    }
     const comments = await response.json();
     console.log("Comments: ", comments)
     return comments;
@@ -209,6 +243,10 @@ async function submitComment(postId, commentContent) {
         },
         body: JSON.stringify({ post_id: postId, content: commentContent })
     });
+    if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Failed to submit comment (${response.status})`);
+    }
     const result = await response.json();
     return result;
 }

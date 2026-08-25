@@ -1,5 +1,6 @@
-import { createPostsTable, getAllPosts, displaySinglePost } from "./getAllPosts.js";
+import { createPostsTable, getAllPosts, displaySinglePost, showEmptyState } from "./getAllPosts.js";
 import { clearTable } from "./getAllPosts.js";
+import { showMessage } from "./notify.js";
 
 export function createCategoryFilter() {
     const categoryFilterDiv = document.getElementById('category-selection');
@@ -72,13 +73,16 @@ export function getPostsByCategory() {
             console.log("PostsBef:", posts);
             return posts;
         }
+        return response.text().then((message) => {
+            throw new Error(message || `Failed to load posts (${response.status})`);
+        });
     }).then((posts) => {
         console.log("PostsAft: ", posts)
         posts.sort((a, b) => (a.CreatedAt > b.CreatedAt) ? -1 : 1);
         let table = document.getElementById('posts-table');
         let tbody = table.querySelector('tbody');
         if (posts.length == 0) {
-            table.innerHTML = "No posts for this category."
+            showEmptyState(tbody, "No posts for this category.");
             return
         }
         for(let i = 0; i < posts.length; i++){
@@ -102,7 +106,7 @@ export function getPostsByCategory() {
         }
         return
     }).catch((error) => {
-        alert("Err: " + error);
+        showMessage("Err: " + error.message, "error");
         console.log("Err: ", error);
         return
     });

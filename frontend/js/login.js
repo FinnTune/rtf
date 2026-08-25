@@ -2,6 +2,7 @@ import { connectWebSocket } from './websocket.js';
 import { createLoggedInHTML } from './loggedInHTML.js';
 import { getAllPosts } from './getAllPosts.js';
 import { checkLoginStatus } from './main.js';
+import { showMessage, setButtonLoading } from './notify.js';
 
 export function login() {
     //Below are two different was to get the form data
@@ -23,6 +24,9 @@ export function login() {
             return;
         } else {
             console.log(formData);
+
+            const submitButton = document.getElementById('login-submit-button');
+            setButtonLoading(submitButton, true, 'Logging in...');
 
             fetch('login', {
                 method: 'POST',
@@ -50,13 +54,15 @@ export function login() {
                 localStorage.setItem('joined', data.joined);
                 //At this point user is authenticated
                 connectWebSocket(data);
-                document.getElementById('msg').textContent = data.username + ', you are now logged in.';
+                showMessage(data.username + ', you are now logged in.', 'success');
                 getAllPosts();
             }).catch((error) => {
-                alert("Err: " + error.message);
+                showMessage("Err: " + error.message, "error");
                 console.log("Err: ", error);
+            }).finally(() => {
+                setButtonLoading(submitButton, false);
             });
-        
+
             return false;
         }
     });

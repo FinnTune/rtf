@@ -63,8 +63,7 @@ function appendMessageFragment(container, sender, message, date, prepend = false
 
 export function routeEvent(event) {
     if (event.type ==undefined) {
-        alert("No type field in the event.");
-        console.log("Event type is undefined");
+        console.error("No type field in the event.");
         return;
     }
     switch (event.type) {
@@ -112,8 +111,7 @@ export function routeEvent(event) {
             console.log("Error: ", event.payload);
             break;
         default:
-            alert("Unsupported event type: " + event.type);
-            console.log("Unknown event type: ", event.type);
+            console.error("Unsupported event type: ", event.type);
     }
 }
 
