@@ -1,4 +1,5 @@
 import { createMainHTML } from "./mainHTML.js";
+import { showMessage, setButtonLoading } from "./notify.js";
 
 export function register() {
      //Check if password and confirm password are the same
@@ -7,7 +8,7 @@ export function register() {
      let confirmPassword = document.getElementById('regconfpassword').value;
      console.log(confirmPassword);
      if(password != confirmPassword){
-         alert("Passwords do not match");
+         showMessage("Passwords do not match", "error");
          return false;
      }
     //Using document.getElementById for specific fields
@@ -27,6 +28,9 @@ export function register() {
     // console.log(loginFormData);
     console.log(formData);
 
+    const submitButton = document.getElementById('register-submit-button');
+    setButtonLoading(submitButton, true, 'Registering...');
+
     fetch('register', {
         method: 'POST',
         body: JSON.stringify(formData),
@@ -38,16 +42,18 @@ export function register() {
         if(response.ok){
         console.log("User registered.")
             createMainHTML();
-            document.getElementById('msg').textContent = 'You are now registered. Please login.';
+            showMessage('You are now registered. Please login.', 'success');
             return;
         }
         return response.text().then((message) => {
             throw new Error(message || `Registration failed (${response.status})`);
         });
     }).catch((error) => {
-        alert("Err: " + error.message);
+        showMessage("Err: " + error.message, "error");
         console.log("Err: ", error);
+    }).finally(() => {
+        setButtonLoading(submitButton, false);
     });
- 
+
     return false;
 }

@@ -1,4 +1,5 @@
 import { createMainHTML } from "./mainHTML.js";
+import { showMessage } from "./notify.js";
 
 export async function logout () {
     console.log("Logging out...")
@@ -18,7 +19,7 @@ export async function logout () {
           
           // User is logged in
           createMainHTML();
-          document.getElementById('msg').textContent = "You've been logged out."
+          showMessage("You've been logged out.", 'success');
         } else {
           console.log("User logout failed.")
           console.log(data.loggedIn)
@@ -27,6 +28,7 @@ export async function logout () {
         }
       })
       .catch(error => {
-        console.error('Error checking login status:', error);
+        console.error('Error logging out:', error);
+        showMessage('Failed to log out. Please try again.', 'error');
       });
 }

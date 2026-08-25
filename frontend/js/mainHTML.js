@@ -30,7 +30,7 @@ export function createMainHTML() {
       <label for="password">Password</label>
       <input type="password" name="password" id="password" placeholder="Enter your password" required>
     
-      <button type="submit" id="login-button">Login</button>
+      <button type="submit" id="login-submit-button">Login</button>
       <button type="button" id="register-switch-button">Go to registration</button>
     </form>
 

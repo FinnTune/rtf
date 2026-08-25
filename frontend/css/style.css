@@ -61,6 +61,29 @@ border-radius: 10px;
 background-color: var(--primary-color);
 color: #fff;
 font-size: 16px;
+transition: background-color 0.2s ease;
+}
+
+#msg.msg-error {
+background-color: #7a1f1f;
+border-color: #b33c3c;
+}
+
+#msg.msg-success {
+background-color: #1f6b3a;
+border-color: #3c9d5f;
+}
+
+button:disabled {
+opacity: 0.6;
+cursor: not-allowed;
+}
+
+.empty-state {
+text-align: center;
+font-style: italic;
+opacity: 0.8;
+padding: 20px;
 }
 
 .intro {
