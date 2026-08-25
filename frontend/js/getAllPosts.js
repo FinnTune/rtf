@@ -182,6 +182,8 @@ export async function displaySinglePost(post) {
     commentInput.type = "text";
     commentInput.name = "comment";
     commentInput.placeholder = "Enter your comment here";
+    commentInput.maxLength = 500;
+    commentInput.required = true;
     let submitButton = document.createElement("button");
     submitButton.type = "submit";
     submitButton.textContent = "Submit Comment";
