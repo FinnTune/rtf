@@ -2,6 +2,7 @@ import { logout } from "./logout.js";
 import { getAllPosts } from "./getAllPosts.js";
 import { addPost } from "./addPost.js";
 import { createCategoryFilter } from "./categoryFilter.js";
+import { searchPosts } from "./search.js";
 
 export function addEventListeners() {
     // Add event listeners to the buttons
@@ -21,6 +22,8 @@ export function addEventListeners() {
         }
         document.getElementById('category-selection').style.display = "flex";
         document.getElementById('main-content').style.display = "flex";
+        document.getElementById('search-input').value = "";
+        document.getElementById('clear-search-button').style.display = "none";
         createCategoryFilter();
         getAllPosts();
     });
@@ -51,6 +54,8 @@ export function addEventListeners() {
         }
         document.getElementById('category-selection').style.display = "flex";
         document.getElementById('main-content').style.display = "flex";
+        document.getElementById('search-input').value = "";
+        document.getElementById('clear-search-button').style.display = "none";
         createCategoryFilter();
         getAllPosts();
     });
@@ -61,4 +66,29 @@ export function addEventListeners() {
             addPost();
         });
     }
+
+    document.getElementById('search-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        document.getElementById('msg').textContent = "";
+        if (document.getElementById('single-post')) {
+            document.getElementById('single-post').style.display = "none";
+        }
+        if (document.getElementById('intro')) {
+            document.getElementById('intro').style.display = "none";
+        }
+        if (document.getElementById('add-post')) {
+            document.getElementById('add-post').style.display = "none";
+        }
+        document.getElementById('category-selection').style.display = "none";
+        document.getElementById('main-content').style.display = "flex";
+        searchPosts(document.getElementById('search-input').value);
+    });
+
+    document.getElementById('clear-search-button').addEventListener('click', function() {
+        document.getElementById('search-input').value = "";
+        document.getElementById('clear-search-button').style.display = "none";
+        document.getElementById('category-selection').style.display = "flex";
+        createCategoryFilter();
+        getAllPosts();
+    });
 }

@@ -235,6 +235,21 @@ color: #fff;
 margin: 0 10px;
 }
 
+#search-form {
+display: flex;
+align-items: center;
+margin: 10px 20px;
+}
+
+#search-input {
+padding: 8px;
+border-radius: 5px;
+border: 1px solid #ccc;
+margin-right: 10px;
+flex-grow: 1;
+max-width: 300px;
+}
+
 #add-post{
 display: none;
 flex-direction: column;

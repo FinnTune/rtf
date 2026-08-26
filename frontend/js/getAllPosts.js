@@ -41,25 +41,7 @@ export function getAllPosts(offset = 0) {
         if (posts.length === 0) {
             showEmptyState(tbody, "No posts yet — be the first to post!");
         } else {
-            for(let i = 0; i < posts.length; i++){
-                let row = tbody.insertRow();
-                let title = row.insertCell(0);
-                let content = row.insertCell(1);
-                let author = row.insertCell(2);
-                let dateCreated = row.insertCell(3);
-                let link = document.createElement("a");
-                link.href = "/posts/" + posts[i].Id;
-                link.className = "post-link";
-                link.textContent = posts[i].Title;
-                link.addEventListener("click", function(event){
-                    event.preventDefault();
-                    displaySinglePost(posts[i]);
-                });
-                title.appendChild(link);
-                content.textContent = posts[i].Content;
-                author.textContent = posts[i].Author;
-                dateCreated.textContent = posts[i].Created;
-            }
+            renderPostRows(tbody, posts);
         }
         renderPagination(offset, POSTS_PAGE_SIZE, total);
     }).catch((error) => {
@@ -113,6 +95,31 @@ export function showEmptyState(tbody, message) {
     cell.colSpan = 4;
     cell.className = 'empty-state';
     cell.textContent = message;
+}
+
+// Renders post rows into an existing #posts-table tbody. Shared by the all
+// posts, category filter, and search views so the row markup and the
+// single-post click handler only live in one place.
+export function renderPostRows(tbody, posts) {
+    for (let i = 0; i < posts.length; i++) {
+        let row = tbody.insertRow();
+        let title = row.insertCell(0);
+        let content = row.insertCell(1);
+        let author = row.insertCell(2);
+        let dateCreated = row.insertCell(3);
+        let link = document.createElement("a");
+        link.href = "/posts/" + posts[i].Id;
+        link.className = "post-link";
+        link.textContent = posts[i].Title;
+        link.addEventListener("click", function(event){
+            event.preventDefault();
+            displaySinglePost(posts[i]);
+        });
+        title.appendChild(link);
+        content.textContent = posts[i].Content;
+        author.textContent = posts[i].Author;
+        dateCreated.textContent = posts[i].Created;
+    }
 }
 
 export function createPostsTable() {

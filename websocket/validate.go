@@ -31,6 +31,9 @@ const (
 
 	defaultPostsPageSize = 10
 	maxPostsPageSize     = 50
+
+	maxSearchQueryLength = 100
+	maxSearchResults     = 50
 )
 
 // validateRegistration trims string fields in place and rejects the request
@@ -97,4 +100,19 @@ func validateComment(content string) (string, error) {
 		return "", fmt.Errorf("comment must be 1-%d characters", maxCommentLength)
 	}
 	return content, nil
+}
+
+func validateSearchQuery(q string) (string, error) {
+	q = strings.TrimSpace(q)
+	if q == "" || len(q) > maxSearchQueryLength {
+		return "", fmt.Errorf("search query must be 1-%d characters", maxSearchQueryLength)
+	}
+	return q, nil
+}
+
+// escapeLikePattern escapes SQLite LIKE wildcard characters in user input so
+// a search for a literal "%" or "_" doesn't get interpreted as a wildcard.
+func escapeLikePattern(s string) string {
+	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return replacer.Replace(s)
 }

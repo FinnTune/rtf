@@ -506,6 +506,49 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// SearchPostsHandler returns posts whose title or content contains the
+// query string (case-insensitive), newest first, capped at
+// maxSearchResults.
+func SearchPostsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	query, err := validateSearchQuery(r.URL.Query().Get("q"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	likePattern := "%" + escapeLikePattern(query) + "%"
+
+	rows, err := database.ForumDB.Query(
+		`SELECT * FROM post WHERE title LIKE ? ESCAPE '\' OR content LIKE ? ESCAPE '\' ORDER BY created_at DESC, id DESC LIMIT ?`,
+		likePattern, likePattern, maxSearchResults,
+	)
+	if err != nil {
+		log.Printf("Error executing search query: %s", err)
+		http.Error(w, "Failed to search posts", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	posts := []Post{}
+	for rows.Next() {
+		var post Post
+		if err := rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created); err != nil {
+			log.Printf("Error scanning rows: %s", err)
+			http.Error(w, "Failed to search posts", http.StatusInternalServerError)
+			return
+		}
+		posts = append(posts, post)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(posts)
+}
+
 func AddPost(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 

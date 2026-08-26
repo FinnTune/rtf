@@ -1,4 +1,4 @@
-import { createPostsTable, getAllPosts, displaySinglePost, showEmptyState } from "./getAllPosts.js";
+import { createPostsTable, getAllPosts, showEmptyState, renderPostRows } from "./getAllPosts.js";
 import { clearTable } from "./getAllPosts.js";
 import { showMessage } from "./notify.js";
 
@@ -85,25 +85,7 @@ export function getPostsByCategory() {
             showEmptyState(tbody, "No posts for this category.");
             return
         }
-        for(let i = 0; i < posts.length; i++){
-            let row = tbody.insertRow();
-            let title = row.insertCell(0);
-            let content = row.insertCell(1);
-            let author = row.insertCell(2);
-            let dateCreated = row.insertCell(3);
-            let link = document.createElement("a");
-            link.href = "/posts/" + posts[i].Id;
-            link.className = "post-link";
-            link.textContent = posts[i].Title;
-            link.addEventListener("click", function(event){
-                event.preventDefault();
-                displaySinglePost(posts[i]);
-            });
-            title.appendChild(link);
-            content.textContent = posts[i].Content;
-            author.textContent = posts[i].Author;
-            dateCreated.textContent = posts[i].Created;
-        }
+        renderPostRows(tbody, posts);
         return
     }).catch((error) => {
         showMessage("Err: " + error.message, "error");
