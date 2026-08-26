@@ -105,9 +105,17 @@ func TestAddComment_UsesAuthenticatedSessionIdentity(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusCreated, rr.Code)
 	}
 
+	var respComment websocket.Comment
+	if err := json.NewDecoder(rr.Body).Decode(&respComment); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if respComment.ID == 0 {
+		t.Fatalf("expected a non-zero comment id in the response, got %d", respComment.ID)
+	}
+
 	var userID int
 	var content string
-	err := db.QueryRow(`SELECT user_id, content FROM comment ORDER BY id DESC LIMIT 1`).Scan(&userID, &content)
+	err := db.QueryRow(`SELECT user_id, content FROM comment WHERE id = ?`, respComment.ID).Scan(&userID, &content)
 	if err != nil {
 		t.Fatalf("failed to fetch inserted comment: %v", err)
 	}
