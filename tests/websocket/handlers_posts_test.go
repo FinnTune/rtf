@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"rtForum/tests/testutil"
 	"rtForum/websocket"
+	"strings"
 	"testing"
 )
 
@@ -280,5 +281,113 @@ func TestAddPost_StoresCategoryRelations(t *testing.T) {
 	}
 	if relationCount != 2 {
 		t.Fatalf("expected 2 category relations, got %d", relationCount)
+	}
+}
+
+func TestSearchPostsHandler_MatchesTitle(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/searchPosts?q=Asian", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.SearchPostsHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var posts []websocket.Post
+	if err := json.NewDecoder(rr.Body).Decode(&posts); err != nil {
+		t.Fatalf("failed to decode posts: %v", err)
+	}
+	if len(posts) != 1 || posts[0].Title != "Asian Food" {
+		t.Fatalf("expected to find 'Asian Food', got %+v", posts)
+	}
+}
+
+func TestSearchPostsHandler_MatchesContentCaseInsensitive(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	// "Thai Khun Mom" is in the content of post 2, not its title. SQLite's
+	// LIKE is case-insensitive for ASCII by default.
+	req := httptest.NewRequest(http.MethodGet, "/searchPosts?q=thai", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.SearchPostsHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var posts []websocket.Post
+	if err := json.NewDecoder(rr.Body).Decode(&posts); err != nil {
+		t.Fatalf("failed to decode posts: %v", err)
+	}
+	if len(posts) != 1 || posts[0].Title != "Asian Food" {
+		t.Fatalf("expected content match for 'Asian Food', got %+v", posts)
+	}
+}
+
+func TestSearchPostsHandler_NoMatches(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/searchPosts?q=nonexistentxyz", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.SearchPostsHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var posts []websocket.Post
+	if err := json.NewDecoder(rr.Body).Decode(&posts); err != nil {
+		t.Fatalf("failed to decode posts: %v", err)
+	}
+	if len(posts) != 0 {
+		t.Fatalf("expected no matches, got %+v", posts)
+	}
+}
+
+func TestSearchPostsHandler_RejectsEmptyQuery(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/searchPosts?q=", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.SearchPostsHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+	}
+}
+
+func TestSearchPostsHandler_RejectsOverlongQuery(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	longQuery := strings.Repeat("a", 101)
+	req := httptest.NewRequest(http.MethodGet, "/searchPosts?q="+longQuery, nil)
+	rr := httptest.NewRecorder()
+
+	websocket.SearchPostsHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+	}
+}
+
+func TestSearchPostsHandler_RejectsNonGetMethod(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/searchPosts?q=Asian", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.SearchPostsHandler(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
 	}
 }

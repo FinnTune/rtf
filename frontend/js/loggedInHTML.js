@@ -37,6 +37,13 @@ export function createLoggedInHTML() {
     </div>
 
 
+    <!-- Search -->
+    <form id="search-form">
+      <input type="text" id="search-input" name="q" placeholder="Search posts..." maxlength="100">
+      <button type="submit" class="btns" id="search-submit-button">Search</button>
+      <button type="button" class="btns" id="clear-search-button" style="display: none;">Clear</button>
+    </form>
+
     <!-- Category Selection-->
     <div id="category-selection"></div>
 

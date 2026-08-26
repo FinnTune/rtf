@@ -94,6 +94,7 @@ func buildServer() *http.Server {
 	http.HandleFunc("/editPost", writeLimiter.Limit(websocket.CSRFProtect(websocket.EditPostHandler)))
 	http.HandleFunc("/deletePost", writeLimiter.Limit(websocket.CSRFProtect(websocket.DeletePostHandler)))
 	http.HandleFunc("/getPostsByCategory", websocket.PostsByCategoryHandler)
+	http.HandleFunc("/searchPosts", websocket.SearchPostsHandler)
 	http.HandleFunc("/addcomment", writeLimiter.Limit(websocket.CSRFProtect(websocket.AddCommentHandler)))
 	http.HandleFunc("/editComment", writeLimiter.Limit(websocket.CSRFProtect(websocket.EditCommentHandler)))
 	http.HandleFunc("/deleteComment", writeLimiter.Limit(websocket.CSRFProtect(websocket.DeleteCommentHandler)))
