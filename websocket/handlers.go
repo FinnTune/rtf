@@ -572,6 +572,138 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// EditPostHandler updates the title/content of a post. Only the post's
+// author may edit it.
+func EditPostHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var requestBody struct {
+		ID      int    `json:"id"`
+		Title   string `json:"title"`
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	title, content, err := validatePost(requestBody.Title, requestBody.Content)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	client, err := authenticatedClientFromRequest(r)
+	if err != nil {
+		utility.ClearCookie(w)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var ownerID int
+	err = database.ForumDB.QueryRow("SELECT user_id FROM post WHERE id = ?", requestBody.ID).Scan(&ownerID)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		log.Printf("failed to look up post owner: %s", err)
+		http.Error(w, "Failed to update post", http.StatusInternalServerError)
+		return
+	}
+	if ownerID != client.userID {
+		http.Error(w, "You can only edit your own posts", http.StatusForbidden)
+		return
+	}
+
+	if _, err := database.ForumDB.Exec("UPDATE post SET title = ?, content = ? WHERE id = ?", title, content, requestBody.ID); err != nil {
+		log.Printf("failed to update post: %s", err)
+		http.Error(w, "Failed to update post", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"title": title, "content": content})
+}
+
+// DeletePostHandler removes a post along with its comments and category
+// relations. Only the post's author may delete it.
+func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var requestBody struct {
+		ID int `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if requestBody.ID <= 0 {
+		http.Error(w, "a valid id is required", http.StatusBadRequest)
+		return
+	}
+
+	client, err := authenticatedClientFromRequest(r)
+	if err != nil {
+		utility.ClearCookie(w)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var ownerID int
+	err = database.ForumDB.QueryRow("SELECT user_id FROM post WHERE id = ?", requestBody.ID).Scan(&ownerID)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		log.Printf("failed to look up post owner: %s", err)
+		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
+		return
+	}
+	if ownerID != client.userID {
+		http.Error(w, "You can only delete your own posts", http.StatusForbidden)
+		return
+	}
+
+	tx, err := database.ForumDB.Begin()
+	if err != nil {
+		log.Printf("failed to begin transaction: %s", err)
+		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec("DELETE FROM comment WHERE post_id = ?", requestBody.ID); err != nil {
+		log.Printf("failed to delete post comments: %s", err)
+		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
+		return
+	}
+	if _, err := tx.Exec("DELETE FROM category_relation WHERE post_id = ?", requestBody.ID); err != nil {
+		log.Printf("failed to delete post category relations: %s", err)
+		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
+		return
+	}
+	if _, err := tx.Exec("DELETE FROM post WHERE id = ?", requestBody.ID); err != nil {
+		log.Printf("failed to delete post: %s", err)
+		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		log.Printf("failed to commit post deletion: %s", err)
+		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Post deleted"))
+}
+
 func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		// Get the category ID from the query string
@@ -687,8 +819,8 @@ func AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Adding comment...", comment)
 
 	// Use your existing database connection to insert the comment
-	_, err = database.ForumDB.Exec(`
-	INSERT INTO comment (user_id, post_id, content, created_at) 
+	result, err := database.ForumDB.Exec(`
+	INSERT INTO comment (user_id, post_id, content, created_at)
 	VALUES ($1, $2, $3, $4)`,
 		client.userID, comment.PostID, comment.Content, created)
 
@@ -697,9 +829,18 @@ func AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	commentID, err := result.LastInsertId()
+	if err != nil {
+		log.Printf("failed to fetch inserted comment id: %s", err)
+		http.Error(w, "Failed to add comment", http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusCreated)
+	comment.ID = int(commentID)
 	comment.UserID = client.userID
 	comment.Username = client.username
+	comment.CreatedAt = created
 	json.NewEncoder(w).Encode(comment)
 }
 
@@ -751,4 +892,112 @@ func GetCommentsHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(comments)
+}
+
+// EditCommentHandler updates a comment's content. Only the comment's author
+// may edit it.
+func EditCommentHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var requestBody struct {
+		ID      int    `json:"id"`
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	content, err := validateComment(requestBody.Content)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	client, err := authenticatedClientFromRequest(r)
+	if err != nil {
+		utility.ClearCookie(w)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var ownerID int
+	err = database.ForumDB.QueryRow("SELECT user_id FROM comment WHERE id = ?", requestBody.ID).Scan(&ownerID)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Comment not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		log.Printf("failed to look up comment owner: %s", err)
+		http.Error(w, "Failed to update comment", http.StatusInternalServerError)
+		return
+	}
+	if ownerID != client.userID {
+		http.Error(w, "You can only edit your own comments", http.StatusForbidden)
+		return
+	}
+
+	if _, err := database.ForumDB.Exec("UPDATE comment SET content = ? WHERE id = ?", content, requestBody.ID); err != nil {
+		log.Printf("failed to update comment: %s", err)
+		http.Error(w, "Failed to update comment", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"content": content})
+}
+
+// DeleteCommentHandler removes a comment. Only the comment's author may
+// delete it.
+func DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var requestBody struct {
+		ID int `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if requestBody.ID <= 0 {
+		http.Error(w, "a valid id is required", http.StatusBadRequest)
+		return
+	}
+
+	client, err := authenticatedClientFromRequest(r)
+	if err != nil {
+		utility.ClearCookie(w)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var ownerID int
+	err = database.ForumDB.QueryRow("SELECT user_id FROM comment WHERE id = ?", requestBody.ID).Scan(&ownerID)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Comment not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		log.Printf("failed to look up comment owner: %s", err)
+		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
+		return
+	}
+	if ownerID != client.userID {
+		http.Error(w, "You can only delete your own comments", http.StatusForbidden)
+		return
+	}
+
+	if _, err := database.ForumDB.Exec("DELETE FROM comment WHERE id = ?", requestBody.ID); err != nil {
+		log.Printf("failed to delete comment: %s", err)
+		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Comment deleted"))
 }
