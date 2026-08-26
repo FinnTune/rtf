@@ -27,9 +27,9 @@ export function createLoggedInHTML() {
     <div class="add-post" id="add-post">
         <h3>Add Post</h3>
         <form id="add-post-form">
-            <label for="title">Title:</label><br>
+            <label for="post-title">Title:</label><br>
             <input type="text" id="post-title" name="title" maxlength="100" required><br>
-            <label for="content">Content:</label><br>
+            <label for="post-content">Content:</label><br>
             <textarea type="text" id="post-content" cols="50" rows="4" name="content" maxlength="2000" required></textarea><br><br>
             <div id="categories"></div><br>
             <button type="submit" id="add-post-submit">Submit Post</button>

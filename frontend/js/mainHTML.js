@@ -36,32 +36,32 @@ export function createMainHTML() {
 
     <!-- Registration Form -->
     <form class="register-form" id="registration-form" method="post" style="display: none;">
-      <label for="firstname">First Name: </label>
+      <label for="regfname">First Name: </label>
       <input type="text" name="firstname" id="regfname" placeholder="First Name" required><br>
-  
-      <label for="lastname">Last Name: </label>
+
+      <label for="reglname">Last Name: </label>
       <input type="text" name="lastname" id="reglname" placeholder="Last Name" required><br>
-  
-      <label for="username">Username: </label>
+
+      <label for="reguname">Username: </label>
       <input type="text" name="username" id="reguname" placeholder="Username" required><br>
-  
-      <label for="email">Email: </label>
-      <input type="email" name="email" id="regemail"placeholder="Email" required><br>
-  
-      <label for="age">Age: </label>
+
+      <label for="regemail">Email: </label>
+      <input type="email" name="email" id="regemail" placeholder="Email" required><br>
+
+      <label for="regage">Age: </label>
       <input type="number" name="age" id="regage" placeholder="Age" min="0" max="150" required><br>
-  
-      <label for="gender">Gender: </label>
+
+      <label for="reggender">Gender: </label>
       <select name="gender" id="reggender">
           <option value="male">Male</option>
           <option value="female">Female</option>
           <option value="other">Other</option>
       </select><br>
-  
-      <label for="password">Password: </label>
+
+      <label for="regpassword">Password: </label>
       <input type="password" name="password" id="regpassword" placeholder="Password" required><br>
-  
-      <label for="confpassword">Confirm Password: </label>
+
+      <label for="regconfpassword">Confirm Password: </label>
       <input type="password" name="confpassword" id="regconfpassword" placeholder="Confirm Password" required><br>
   
       <button type="submit" id="register-submit-button">Register</button>
