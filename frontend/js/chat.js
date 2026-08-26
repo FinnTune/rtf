@@ -259,6 +259,13 @@ export function appendUsers(event) {
         
         newUser.appendChild(greenCircle);
 
+        if (alertUsers.includes(user)) {
+            const msgAlert = document.createElement("span");
+            msgAlert.className = "msg-alert";
+            msgAlert.textContent = "!";
+            newUser.appendChild(msgAlert);
+        }
+
         newUser.addEventListener("click", () => {
         // New code: remove "!" sign when the user is clicked
         const msgAlerts = newUser.getElementsByClassName('msg-alert');
@@ -285,11 +292,23 @@ export function appendUsers(event) {
 // Function to open a chat window between two users
 function openChatWindow(user) {
     let mainDiv = document.getElementById('main');
+
+    // If a chat window with this user is already open, focus it instead of
+    // opening a second, duplicate window.
+    const existingWindow = document.getElementById('chat:' + user);
+    if (existingWindow) {
+        const existingInput = existingWindow.querySelector('#new-message-' + user);
+        if (existingInput) {
+            existingInput.focus();
+        }
+        return;
+    }
+
     // Create a new chat window
     let chatWindow = document.createElement('div');
     chatWindow.id = 'chat:' + user;
     chatWindow.classList.add('chat-window');
-  
+
     // Add the inner HTML content to the chat window
     chatWindow.innerHTML = `
       <h3>Chat with ${user}</h3>
@@ -298,7 +317,7 @@ function openChatWindow(user) {
       <div class="spacer" style="height: 20px;"></div>
       </div>
       <div class="typing">
-      <img id="typing-indicator-${user}" src="/../img/typing.gif" style="display: none; width: 30px; height: 30px;">
+      <img id="typing-indicator-${user}" src="/img/typing.gif" style="display: none; width: 30px; height: 30px;">
       </div><br>
       <div class="chat-footer">
         <form>
