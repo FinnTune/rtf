@@ -223,6 +223,18 @@ overflow: auto;
 height: 200px; /* set a fixed height to limit the maximum size of the chat area */
 }
 
+#posts-pagination {
+display: flex;
+align-items: center;
+justify-content: center;
+margin: 10px;
+color: #fff;
+}
+
+#posts-pagination .pagination-range {
+margin: 0 10px;
+}
+
 #add-post{
 display: none;
 flex-direction: column;

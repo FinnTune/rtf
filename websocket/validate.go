@@ -28,6 +28,9 @@ const (
 	maxCommentLength     = 500
 	maxCategoriesPerPost = 20
 	maxCategoriesPerReq  = 50
+
+	defaultPostsPageSize = 10
+	maxPostsPageSize     = 50
 )
 
 // validateRegistration trims string fields in place and rejects the request

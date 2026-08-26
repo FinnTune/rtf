@@ -444,12 +444,40 @@ func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 	registerUser(w, r)
 }
 
+// AllPostsHandler returns a page of posts, newest first. Callers may pass
+// ?limit= and ?offset= query params; invalid or missing values fall back to
+// sane defaults rather than erroring, since pagination is an optional
+// refinement, not a required input. The total matching row count is
+// reported via the X-Total-Count response header so the frontend can render
+// Prev/Next controls without a second round trip.
 func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		log.Println("AllPostsHandler reached.")
-		//Get all posts from database
-		query := `SELECT * FROM post;`
-		rows, err := database.ForumDB.Query(query)
+
+		limit := defaultPostsPageSize
+		if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 {
+			limit = v
+		}
+		if limit > maxPostsPageSize {
+			limit = maxPostsPageSize
+		}
+
+		offset := 0
+		if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v >= 0 {
+			offset = v
+		}
+
+		var total int
+		if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM post").Scan(&total); err != nil {
+			log.Printf("Error counting posts: %s", err)
+			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+			return
+		}
+
+		//Get a page of posts from database, newest first. id DESC breaks ties
+		//between posts created within the same second.
+		query := `SELECT * FROM post ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?;`
+		rows, err := database.ForumDB.Query(query, limit, offset)
 		if err != nil {
 			log.Printf("Error executing query: %s", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
@@ -473,6 +501,7 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		//Encode posts slice to json and send to w
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Total-Count", strconv.Itoa(total))
 		json.NewEncoder(w).Encode(posts)
 	}
 }
@@ -743,7 +772,8 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		FROM post
 		INNER JOIN category_relation ON post.id = category_relation.post_id
 		WHERE category_relation.category_id IN (
-		SELECT id FROM category WHERE category_name IN (` + placeholders + `))`
+		SELECT id FROM category WHERE category_name IN (` + placeholders + `))
+		ORDER BY post.created_at DESC, post.id DESC`
 
 		log.Printf("Executing query: %s", query)
 		log.Printf("With arguments: %+v", args)
