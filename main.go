@@ -86,6 +86,7 @@ func buildServer() *http.Server {
 
 	http.HandleFunc("/checkLogin", websocket.CheckLoginHandler)
 	http.HandleFunc("/getAllPosts", websocket.AllPostsHandler)
+	http.HandleFunc("/getPost", websocket.GetPostHandler)
 	http.HandleFunc("/logout", websocket.CSRFProtect(websocket.LogoutHandler))
 	http.HandleFunc("/register", authLimiter.Limit(websocket.CSRFProtect(websocket.RegistrationHandler)))
 	http.HandleFunc("/login", authLimiter.Limit(websocket.CSRFProtect(websocket.LoginHandler)))

@@ -506,6 +506,36 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetPostHandler returns a single post by id, for deep-linking to a post
+// via /posts/:id.
+func GetPostHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+	if err != nil || id <= 0 {
+		http.Error(w, "a valid id is required", http.StatusBadRequest)
+		return
+	}
+
+	var post Post
+	err = database.ForumDB.QueryRow("SELECT * FROM post WHERE id = ?", id).
+		Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		log.Printf("Error fetching post: %s", err)
+		http.Error(w, "Failed to load post", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(post)
+}
+
 // SearchPostsHandler returns posts whose title or content contains the
 // query string (case-insensitive), newest first, capped at
 // maxSearchResults.

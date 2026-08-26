@@ -108,7 +108,7 @@ export function renderPostRows(tbody, posts) {
         let author = row.insertCell(2);
         let dateCreated = row.insertCell(3);
         let link = document.createElement("a");
-        link.href = "/posts/" + posts[i].Id;
+        link.href = "/posts/" + posts[i].PostId;
         link.className = "post-link";
         link.textContent = posts[i].Title;
         link.addEventListener("click", function(event){
@@ -190,6 +190,12 @@ export function clearTable() {
 
 export async function displaySinglePost(post) {
     console.log("Displaying single post.", post);
+    // Reflect the open post in the URL so it can be bookmarked/shared and
+    // survives a page refresh (see getPost() + main.js's deep-link bootstrap).
+    const targetPath = "/posts/" + post.PostId;
+    if (window.location.pathname !== targetPath) {
+        history.pushState({}, '', targetPath);
+    }
     let mainContent = document.getElementById("main-content");
     let singlePostDiv = document.createElement("div");
     singlePostDiv.id = "single-post";
@@ -206,6 +212,7 @@ export async function displaySinglePost(post) {
     backButton.textContent = "Back to Posts";
     backButton.addEventListener("click", function(event){
         event.preventDefault();
+        history.pushState({}, '', '/');
         mainContent.innerHTML = "";
         getAllPosts();
     });
@@ -298,6 +305,7 @@ export async function displaySinglePost(post) {
             try {
                 await deletePostRequest(post.PostId);
                 showMessage("Post deleted.", "success");
+                history.pushState({}, '', '/');
                 mainContent.innerHTML = "";
                 getAllPosts();
             } catch (error) {
@@ -378,6 +386,15 @@ export async function displaySinglePost(post) {
     // Add comments section and form to the singlePostDiv
     singlePostDiv.appendChild(commentsSection);
     singlePostDiv.appendChild(commentForm);
+}
+
+export async function getPost(id) {
+    const response = await fetch(`/getPost?id=${id}`);
+    if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Failed to load post (${response.status})`);
+    }
+    return response.json();
 }
 
 async function fetchComments(postId) {

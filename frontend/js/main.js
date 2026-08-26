@@ -1,15 +1,35 @@
 import { createLoggedInHTML } from './loggedInHTML.js';
 import { createMainHTML } from './mainHTML.js';
 import { connectWebSocket } from './websocket.js';
+import { displaySinglePost, getPost } from './getAllPosts.js';
+import { showMessage } from './notify.js';
 
 window.onload = function () {
   console.log("Window loading...")
     // Check login status
     checkLoginStatus().then(loggedIn => {
       console.log("User is logged in:", loggedIn);
-      // Do something based on the loggedIn status
+      if (loggedIn) {
+        openPostFromURLIfPresent();
+      }
     });
 };
+
+// Supports deep-linking to /posts/:id (e.g. a bookmarked or shared post
+// link) by fetching that post and opening it once the logged-in view has
+// been rendered.
+function openPostFromURLIfPresent() {
+  const match = window.location.pathname.match(/^\/posts\/(\d+)$/);
+  if (!match) {
+    return;
+  }
+  getPost(match[1]).then((post) => {
+    displaySinglePost(post);
+  }).catch((error) => {
+    console.log("Err: ", error);
+    showMessage("Err: " + error.message, "error");
+  });
+}
 
 export function checkLoginStatus() {
   console.log("Checking login status...")
