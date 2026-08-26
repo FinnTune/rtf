@@ -1,8 +1,7 @@
 import { logout } from "./logout.js";
-import { getAllPosts } from "./getAllPosts.js";
 import { addPost } from "./addPost.js";
-import { createCategoryFilter } from "./categoryFilter.js";
 import { searchPosts } from "./search.js";
+import { showPostsView } from "./navigation.js";
 
 export function addEventListeners() {
     // Add event listeners to the buttons
@@ -10,22 +9,10 @@ export function addEventListeners() {
     // document.getElementById('new-message').onsubmit = sendMessage;
     document.getElementById('all-posts-button').addEventListener('click', function(event) {
         event.preventDefault();
-        document.getElementById('msg').textContent = "";
-        if (document.getElementById('single-post')) {
-        document.getElementById('single-post').style.display = "none";
-        }
         if (document.getElementById('intro')) {
-        document.getElementById('intro').style.display = "none";
+            document.getElementById('intro').style.display = "none";
         }
-        if (document.getElementById('add-post')) {
-        document.getElementById('add-post').style.display = "none";
-        }
-        document.getElementById('category-selection').style.display = "flex";
-        document.getElementById('main-content').style.display = "flex";
-        document.getElementById('search-input').value = "";
-        document.getElementById('clear-search-button').style.display = "none";
-        createCategoryFilter();
-        getAllPosts();
+        showPostsView();
     });
 
     document.getElementById('create-post-button').addEventListener('click', function(event) {
@@ -42,22 +29,10 @@ export function addEventListeners() {
     });
 
     document.getElementById('title').addEventListener('click', function() {
-        document.getElementById('msg').textContent = "";
         if (document.getElementById('intro')) {
             document.getElementById('intro').style.display = "flex";
         }
-        if (document.getElementById('add-post')) {
-            document.getElementById('add-post').style.display = "none";
-        }
-        if (document.getElementById('single-post')) {
-            document.getElementById('single-post').style.display = "none";
-        }
-        document.getElementById('category-selection').style.display = "flex";
-        document.getElementById('main-content').style.display = "flex";
-        document.getElementById('search-input').value = "";
-        document.getElementById('clear-search-button').style.display = "none";
-        createCategoryFilter();
-        getAllPosts();
+        showPostsView();
     });
 
     if (document.getElementById('add-post-form')) {
@@ -85,10 +60,6 @@ export function addEventListeners() {
     });
 
     document.getElementById('clear-search-button').addEventListener('click', function() {
-        document.getElementById('search-input').value = "";
-        document.getElementById('clear-search-button').style.display = "none";
-        document.getElementById('category-selection').style.display = "flex";
-        createCategoryFilter();
-        getAllPosts();
+        showPostsView();
     });
 }

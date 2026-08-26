@@ -1,4 +1,5 @@
 import { showMessage, setButtonLoading } from "./notify.js";
+import { showPostsView } from "./navigation.js";
 
 export function addPost() {
   var title = document.getElementById('post-title').value;
@@ -31,13 +32,17 @@ export function addPost() {
   .then(function(response) {
     if (response.ok) {
       console.log('Post data sent successfully!');
-      showMessage('Your post was submitted.', 'success');
 
         // Uncheck all checkboxes after adding a post
       document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => checkbox.checked = false);
 
        // Clear all form fields after adding a post
        document.getElementById('add-post-form').reset();
+
+      // showPostsView() clears #msg as part of resetting the view, so the
+      // success message must be shown after it, not before.
+      showPostsView();
+      showMessage('Your post was submitted.', 'success');
 
       return;
     }
