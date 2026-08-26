@@ -78,7 +78,7 @@ export function getPostsByCategory() {
         });
     }).then((posts) => {
         console.log("PostsAft: ", posts)
-        posts.sort((a, b) => (a.CreatedAt > b.CreatedAt) ? -1 : 1);
+        // Posts already arrive newest-first from the server.
         let table = document.getElementById('posts-table');
         let tbody = table.querySelector('tbody');
         if (posts.length == 0) {

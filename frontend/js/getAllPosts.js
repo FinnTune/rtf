@@ -1,8 +1,10 @@
 import { showMessage, setButtonLoading } from "./notify.js";
 
-export function getAllPosts() {
-    console.log("Getting all posts.")
-    fetch('getAllPosts', {
+const POSTS_PAGE_SIZE = 10;
+
+export function getAllPosts(offset = 0) {
+    console.log("Getting all posts. offset=", offset)
+    fetch(`getAllPosts?limit=${POSTS_PAGE_SIZE}&offset=${offset}`, {
         method: 'GET',
         mode: 'cors',
         headers: {
@@ -11,52 +13,98 @@ export function getAllPosts() {
     ).then((response) => {
         if(response.ok){
         console.log("Received all posts.")
-        // Arrange posts in descending order by date created
         if (document.getElementById('posts')) {
             clearTable();
         } else {
             createPostsTable();
         }
-        let posts = response.json();
-        console.log("PostsBef:", posts);
-        return posts;
+        const total = parseInt(response.headers.get('X-Total-Count') || '0', 10);
+        return response.json().then((posts) => ({ posts, total }));
         }
         return response.text().then((message) => {
             throw new Error(message || `Failed to load posts (${response.status})`);
         });
-    }).then((posts) => {
+    }).then(({ posts, total }) => {
         console.log("PostsAft: ", posts)
-        posts.sort((a, b) => (a.CreatedAt > b.CreatedAt) ? -1 : 1);
+        // Posts already arrive newest-first from the server; no client-side
+        // sort needed (and none is possible — the API doesn't return a
+        // CreatedAt field, only Created).
+        if (offset > 0 && posts.length === 0) {
+            // The page we asked for is now empty (e.g. the last post on it
+            // was deleted) — snap back to the previous page instead of
+            // showing a dead end.
+            getAllPosts(Math.max(0, offset - POSTS_PAGE_SIZE));
+            return;
+        }
         let table = document.getElementById('posts-table');
         let tbody = table.querySelector('tbody');
         if (posts.length === 0) {
             showEmptyState(tbody, "No posts yet — be the first to post!");
-            return;
+        } else {
+            for(let i = 0; i < posts.length; i++){
+                let row = tbody.insertRow();
+                let title = row.insertCell(0);
+                let content = row.insertCell(1);
+                let author = row.insertCell(2);
+                let dateCreated = row.insertCell(3);
+                let link = document.createElement("a");
+                link.href = "/posts/" + posts[i].Id;
+                link.className = "post-link";
+                link.textContent = posts[i].Title;
+                link.addEventListener("click", function(event){
+                    event.preventDefault();
+                    displaySinglePost(posts[i]);
+                });
+                title.appendChild(link);
+                content.textContent = posts[i].Content;
+                author.textContent = posts[i].Author;
+                dateCreated.textContent = posts[i].Created;
+            }
         }
-        for(let i = 0; i < posts.length; i++){
-            let row = tbody.insertRow();
-            let title = row.insertCell(0);
-            let content = row.insertCell(1);
-            let author = row.insertCell(2);
-            let dateCreated = row.insertCell(3);
-            let link = document.createElement("a");
-            link.href = "/posts/" + posts[i].Id;
-            link.className = "post-link";
-            link.textContent = posts[i].Title;
-            link.addEventListener("click", function(event){
-                event.preventDefault();
-                displaySinglePost(posts[i]);
-            });
-            title.appendChild(link);
-            content.textContent = posts[i].Content;
-            author.textContent = posts[i].Author;
-            dateCreated.textContent = posts[i].Created;
-    }}).catch((error) => {
+        renderPagination(offset, POSTS_PAGE_SIZE, total);
+    }).catch((error) => {
         showMessage("Err: " + error.message, "error");
         console.log("Err: ", error);
     });
 
     return false;
+}
+
+function renderPagination(offset, limit, total) {
+    const paginationDiv = document.getElementById('posts-pagination');
+    if (!paginationDiv) {
+        return;
+    }
+    paginationDiv.replaceChildren();
+
+    if (total === 0) {
+        return;
+    }
+
+    const prevButton = document.createElement('button');
+    prevButton.type = 'button';
+    prevButton.className = 'btns';
+    prevButton.textContent = 'Previous';
+    prevButton.disabled = offset === 0;
+    prevButton.addEventListener('click', () => getAllPosts(Math.max(0, offset - limit)));
+
+    const hasMore = offset + limit < total;
+    const nextButton = document.createElement('button');
+    nextButton.type = 'button';
+    nextButton.className = 'btns';
+    nextButton.textContent = 'Next';
+    nextButton.disabled = !hasMore;
+    nextButton.addEventListener('click', () => getAllPosts(offset + limit));
+
+    const rangeLabel = document.createElement('span');
+    rangeLabel.className = 'pagination-range';
+    const rangeStart = offset + 1;
+    const rangeEnd = Math.min(offset + limit, total);
+    rangeLabel.textContent = ` ${rangeStart}-${rangeEnd} of ${total} `;
+
+    paginationDiv.appendChild(prevButton);
+    paginationDiv.appendChild(rangeLabel);
+    paginationDiv.appendChild(nextButton);
 }
 
 export function showEmptyState(tbody, message) {
@@ -110,13 +158,21 @@ export function createPostsTable() {
     // Append the thead and tbody to the table
     table.appendChild(thead);
     table.appendChild(tbody);
-  
+
     // Append the heading and table to the posts div
     postsDiv.appendChild(heading);
     postsDiv.appendChild(table);
-  
+
     // Append the posts div to the main content element
     mainContent.appendChild(postsDiv);
+
+    // Pagination controls, populated/updated by renderPagination(). Kept as
+    // a sibling of #posts rather than nested inside it, since #posts is a
+    // fixed-height scroll box — nesting Prev/Next in there would bury them
+    // below the fold whenever the post rows overflow it.
+    const paginationDiv = document.createElement('div');
+    paginationDiv.id = 'posts-pagination';
+    mainContent.appendChild(paginationDiv);
   }
   
   
