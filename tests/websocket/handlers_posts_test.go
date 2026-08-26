@@ -391,3 +391,66 @@ func TestSearchPostsHandler_RejectsNonGetMethod(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
 	}
 }
+
+func TestGetPostHandler_ReturnsPost(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/getPost?id=2", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.GetPostHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var post websocket.Post
+	if err := json.NewDecoder(rr.Body).Decode(&post); err != nil {
+		t.Fatalf("failed to decode post: %v", err)
+	}
+	if post.PostId != 2 || post.Title != "Asian Food" {
+		t.Fatalf("unexpected post: %+v", post)
+	}
+}
+
+func TestGetPostHandler_NotFound(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/getPost?id=9999", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.GetPostHandler(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d", http.StatusNotFound, rr.Code)
+	}
+}
+
+func TestGetPostHandler_RejectsInvalidId(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/getPost?id=abc", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.GetPostHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+	}
+}
+
+func TestGetPostHandler_RejectsNonGetMethod(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/getPost?id=2", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.GetPostHandler(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
+	}
+}
