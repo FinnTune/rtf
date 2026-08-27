@@ -80,6 +80,52 @@ func TestLoginHandler_Success(t *testing.T) {
 	}
 }
 
+func TestLoginHandler_BindsSessionToVerifiedIdentity(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	body := `{"username":"alice","password":"secret123"}`
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString(body))
+	rr := httptest.NewRecorder()
+
+	websocket.LoginHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	cookies := rr.Result().Cookies()
+	var sessionCookie *http.Cookie
+	for _, c := range cookies {
+		if c.Name == "session_id" {
+			sessionCookie = c
+		}
+	}
+	if sessionCookie == nil {
+		t.Fatal("expected a session_id cookie from login")
+	}
+
+	// The identity binding must already exist right after login — a
+	// websocket never has to connect (and send a client-trusted
+	// user-connect event) for the session to be recognized as alice.
+	checkReq := httptest.NewRequest(http.MethodGet, "/checkLogin", nil)
+	checkReq.AddCookie(sessionCookie)
+	checkRR := httptest.NewRecorder()
+
+	websocket.CheckLoginHandler(checkRR, checkReq)
+
+	var resp websocket.UserLoginResponse
+	if err := json.NewDecoder(checkRR.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode checkLogin response: %v", err)
+	}
+	if !resp.LoggedIn {
+		t.Fatal("expected the new session to already be recognized as logged in, before any websocket connects")
+	}
+	if resp.Username != "alice" {
+		t.Fatalf("expected username alice, got %q", resp.Username)
+	}
+}
+
 func TestLoginHandler_WrongPassword(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)

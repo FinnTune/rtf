@@ -36,8 +36,10 @@ func CheckPasswordHash(password, hash string) bool {
 // never drift apart.
 const SessionDuration = 24 * time.Hour
 
-// Create Cookie for user logging in
-func CreateCookie(w http.ResponseWriter, r *http.Request) {
+// CreateCookie issues a fresh session_id cookie and returns its value, so
+// callers that need to bind the new session to a verified identity (see
+// serveLogin) don't have to re-derive or guess it.
+func CreateCookie(w http.ResponseWriter, r *http.Request) string {
 	sessionID := uuid.Must(uuid.NewV4()).String()
 
 	http.SetCookie(w, &http.Cookie{
@@ -49,8 +51,7 @@ func CreateCookie(w http.ResponseWriter, r *http.Request) {
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	})
-	//Different struct for user info???
-	// sql.UpdateUser(data.User{Id: userId, Session: sessionToken}, true)
+	return sessionID
 }
 
 // RefreshCookie re-issues the session_id cookie with the same value but a
