@@ -112,12 +112,11 @@ type UserSession struct {
 // 	Send      chan []byte
 // }
 
-// Struct to define a post
+// Category mirrors the category table (id, category_name only — there is
+// no description/created_at column).
 type Category struct {
-	ID           int
-	CategoryName string
-	Description  string
-	CreatedAt    string
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 type Comment struct {

@@ -1,8 +1,9 @@
 import { createPostsTable, getAllPosts, showEmptyState, renderPostRows } from "./getAllPosts.js";
 import { clearTable } from "./getAllPosts.js";
 import { showMessage } from "./notify.js";
+import { getCategories } from "./categories.js";
 
-export function createCategoryFilter() {
+export async function createCategoryFilter() {
     const categoryFilterDiv = document.getElementById('category-selection');
     categoryFilterDiv.className = "category-filter";
     categoryFilterDiv.replaceChildren();
@@ -10,26 +11,29 @@ export function createCategoryFilter() {
     heading.textContent = 'Filter by Category:';
     categoryFilterDiv.appendChild(heading);
 
-    const categories = [
-        "Cuisine", "Places", "Activities", "Events", "Code", 
-        "Language", "Sports", "Politics", "Social", "Religion",
-        "Business", "Geography", "Science", "Health", "Other"
-    ];
+    let categories;
+    try {
+        categories = await getCategories();
+    } catch (error) {
+        showMessage("Err: " + error.message, "error");
+        console.log("Err: ", error);
+        return categoryFilterDiv;
+    }
 
     for (let category of categories) {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.name = 'category';
-        checkbox.value = category;
-        checkbox.id = category;
-        
+        checkbox.value = category.name;
+        checkbox.id = 'filter-category-' + category.id;
+
         const label = document.createElement('label')
-        label.htmlFor = category;
-        label.appendChild(document.createTextNode(category));
+        label.htmlFor = checkbox.id;
+        label.appendChild(document.createTextNode(category.name));
 
          // Create a new div
          const div = document.createElement('div');
-        
+
          // Append checkbox and label to the div
          div.appendChild(checkbox);
          div.appendChild(label);

@@ -536,6 +536,39 @@ func GetPostHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(post)
 }
 
+// GetCategoriesHandler returns every category from the database, so the
+// frontend's filter checkboxes and post-creation category picker read from
+// a single source of truth instead of duplicating a hardcoded list that can
+// drift out of sync with the actual category table.
+func GetCategoriesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := database.ForumDB.Query("SELECT id, category_name FROM category ORDER BY category_name ASC")
+	if err != nil {
+		log.Printf("Error querying categories: %s", err)
+		http.Error(w, "Failed to load categories", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	categories := []Category{}
+	for rows.Next() {
+		var c Category
+		if err := rows.Scan(&c.ID, &c.Name); err != nil {
+			log.Printf("Error scanning category: %s", err)
+			http.Error(w, "Failed to load categories", http.StatusInternalServerError)
+			return
+		}
+		categories = append(categories, c)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(categories)
+}
+
 // SearchPostsHandler returns posts whose title or content contains the
 // query string (case-insensitive), newest first, capped at
 // maxSearchResults.
