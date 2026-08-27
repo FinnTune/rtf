@@ -967,11 +967,32 @@ func GetCommentsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	limit := defaultCommentsPageSize
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 {
+		limit = v
+	}
+	if limit > maxCommentsPageSize {
+		limit = maxCommentsPageSize
+	}
+
+	offset := 0
+	if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v >= 0 {
+		offset = v
+	}
+
+	var total int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM comment WHERE post_id = ?", postId).Scan(&total); err != nil {
+		http.Error(w, "Failed to query database", http.StatusInternalServerError)
+		return
+	}
+
 	rows, err := database.ForumDB.Query(`
-	SELECT c.id, c.user_id, u.uname, c.post_id, c.content, c.created_at 
-	FROM comment c 
-	INNER JOIN user u ON c.user_id = u.id 
-	WHERE c.post_id = $1`, postId)
+	SELECT c.id, c.user_id, u.uname, c.post_id, c.content, c.created_at
+	FROM comment c
+	INNER JOIN user u ON c.user_id = u.id
+	WHERE c.post_id = $1
+	ORDER BY c.created_at ASC, c.id ASC
+	LIMIT $2 OFFSET $3`, postId, limit, offset)
 	if err != nil {
 		http.Error(w, "Failed to query database", http.StatusInternalServerError)
 		return
@@ -994,6 +1015,7 @@ func GetCommentsHandler(w http.ResponseWriter, r *http.Request) {
 	log.Println("Comments sent: ", comments)
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Total-Count", strconv.Itoa(total))
 	json.NewEncoder(w).Encode(comments)
 }
 

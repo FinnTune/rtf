@@ -1,6 +1,7 @@
 import { showMessage, setButtonLoading } from "./notify.js";
 
 const POSTS_PAGE_SIZE = 10;
+const COMMENTS_PAGE_SIZE = 20;
 
 export function getAllPosts(offset = 0) {
     console.log("Getting all posts. offset=", offset)
@@ -330,17 +331,43 @@ export async function displaySinglePost(post) {
     commentsHeading.textContent = "Comments:";
     commentsSection.appendChild(commentsHeading);
 
-    // Fetch comments for the post
-    try {
-        let comments = await fetchComments(post.PostId);
-        console.log("Comments fetch: ", comments)
-        comments.forEach(comment => {
-            renderComment(comment, commentsSection);
-        });
-    } catch (error) {
-        showMessage("Err: " + error.message, "error");
-        console.log("Err: ", error);
+    let commentsListDiv = document.createElement("div");
+    commentsListDiv.id = "comments-list";
+    commentsSection.appendChild(commentsListDiv);
+
+    let loadMoreButton = document.createElement("button");
+    loadMoreButton.type = "button";
+    loadMoreButton.className = "btns";
+    loadMoreButton.textContent = "Load more comments";
+    loadMoreButton.style.display = "none";
+
+    let commentOffset = 0;
+
+    async function loadMoreComments() {
+        setButtonLoading(loadMoreButton, true, "Loading...");
+        try {
+            const { comments, total } = await fetchComments(post.PostId, commentOffset, COMMENTS_PAGE_SIZE);
+            if (commentOffset === 0 && total === 0) {
+                const emptyMsg = document.createElement("p");
+                emptyMsg.className = "empty-state";
+                emptyMsg.textContent = "No comments yet — be the first to comment!";
+                commentsListDiv.appendChild(emptyMsg);
+            }
+            comments.forEach(comment => renderComment(comment, commentsListDiv));
+            commentOffset += comments.length;
+            loadMoreButton.style.display = commentOffset < total ? "inline" : "none";
+        } catch (error) {
+            showMessage("Err: " + error.message, "error");
+            console.log("Err: ", error);
+        } finally {
+            setButtonLoading(loadMoreButton, false);
+        }
     }
+
+    loadMoreButton.addEventListener("click", loadMoreComments);
+
+    // Fetch the first page of comments for the post
+    await loadMoreComments();
 
     // Create a form to submit a new comment
     let commentForm = document.createElement("form");
@@ -364,16 +391,14 @@ export async function displaySinglePost(post) {
         if (commentContent) {
             setButtonLoading(submitButton, true, 'Posting...');
             try {
-                await submitComment(post.PostId, commentContent);
+                const newComment = await submitComment(post.PostId, commentContent);
                 commentInput.value = "";
-                commentsSection.replaceChildren();
-                let refreshedHeading = document.createElement("h4");
-                refreshedHeading.textContent = "Comments:";
-                commentsSection.appendChild(refreshedHeading);
-                let updatedComments = await fetchComments(post.PostId);
-                updatedComments.forEach(comment => {
-                    renderComment(comment, commentsSection);
-                });
+                const existingEmpty = commentsListDiv.querySelector('.empty-state');
+                if (existingEmpty) {
+                    existingEmpty.remove();
+                }
+                renderComment(newComment, commentsListDiv);
+                commentOffset += 1;
             } catch (error) {
                 showMessage("Err: " + error.message, "error");
                 console.log("Err: ", error);
@@ -385,6 +410,10 @@ export async function displaySinglePost(post) {
 
     // Add comments section and form to the singlePostDiv
     singlePostDiv.appendChild(commentsSection);
+    // Kept outside the scrollable #comments-section (same reasoning as
+    // #posts-pagination for the post list): a fixed-height scroll box would
+    // bury this control below the fold once comments overflow it.
+    singlePostDiv.appendChild(loadMoreButton);
     singlePostDiv.appendChild(commentForm);
 }
 
@@ -397,15 +426,16 @@ export async function getPost(id) {
     return response.json();
 }
 
-async function fetchComments(postId) {
-    const response = await fetch(`/comments?postId=${postId}`);
+async function fetchComments(postId, offset = 0, limit = COMMENTS_PAGE_SIZE) {
+    const response = await fetch(`/comments?postId=${postId}&limit=${limit}&offset=${offset}`);
     if (!response.ok) {
         const message = await response.text();
         throw new Error(message || `Failed to load comments (${response.status})`);
     }
+    const total = parseInt(response.headers.get('X-Total-Count') || '0', 10);
     const comments = await response.json();
     console.log("Comments: ", comments)
-    return comments;
+    return { comments, total };
 }
 
 async function submitComment(postId, commentContent) {
