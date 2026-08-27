@@ -425,3 +425,9 @@ margin-right: 5px; /* Adjust the value as needed */
     overflow: auto;
     height: 200px;
 }
+
+.comment {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}

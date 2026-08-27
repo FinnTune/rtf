@@ -154,6 +154,91 @@ func TestGetCommentsHandler_ReturnsComments(t *testing.T) {
 	if comments[0].Username != "actual_user" {
 		t.Fatalf("expected author actual_user, got %q", comments[0].Username)
 	}
+	if got := rr.Header().Get("X-Total-Count"); got != "1" {
+		t.Fatalf("expected X-Total-Count 1, got %q", got)
+	}
+}
+
+func TestGetCommentsHandler_RespectsLimitAndOffset(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	// Seed data already has 1 comment on post 1; add more so pagination is
+	// actually exercised, with distinct, ordered created_at values so the
+	// ORDER BY is unambiguous.
+	for i := 0; i < 5; i++ {
+		_, err := db.Exec(
+			`INSERT INTO comment (user_id, post_id, content, created_at) VALUES (42, 1, ?, datetime('now', ?))`,
+			fmt.Sprintf("bulk comment %d", i), fmt.Sprintf("+%d seconds", i+1),
+		)
+		if err != nil {
+			t.Fatalf("failed to seed bulk comment: %v", err)
+		}
+	}
+	// 6 comments total on post 1 now.
+
+	req := httptest.NewRequest(http.MethodGet, "/comments?postId=1&limit=2&offset=0", nil)
+	rr := httptest.NewRecorder()
+	websocket.GetCommentsHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+	var page1 []websocket.Comment
+	if err := json.NewDecoder(rr.Body).Decode(&page1); err != nil {
+		t.Fatalf("failed to decode comments: %v", err)
+	}
+	if len(page1) != 2 {
+		t.Fatalf("expected 2 comments on first page, got %d", len(page1))
+	}
+	if got := rr.Header().Get("X-Total-Count"); got != "6" {
+		t.Fatalf("expected X-Total-Count 6, got %q", got)
+	}
+
+	req2 := httptest.NewRequest(http.MethodGet, "/comments?postId=1&limit=2&offset=2", nil)
+	rr2 := httptest.NewRecorder()
+	websocket.GetCommentsHandler(rr2, req2)
+
+	var page2 []websocket.Comment
+	if err := json.NewDecoder(rr2.Body).Decode(&page2); err != nil {
+		t.Fatalf("failed to decode comments: %v", err)
+	}
+	if len(page2) != 2 {
+		t.Fatalf("expected 2 comments on second page, got %d", len(page2))
+	}
+	if page1[0].ID == page2[0].ID {
+		t.Fatalf("pages overlap: comment %d returned on both pages", page1[0].ID)
+	}
+}
+
+func TestGetCommentsHandler_CapsLimitAtMax(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	for i := 0; i < 110; i++ {
+		_, err := db.Exec(
+			`INSERT INTO comment (user_id, post_id, content, created_at) VALUES (42, 1, ?, datetime('now'))`,
+			fmt.Sprintf("bulk comment %d", i),
+		)
+		if err != nil {
+			t.Fatalf("failed to seed bulk comment: %v", err)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/comments?postId=1&limit=9999", nil)
+	rr := httptest.NewRecorder()
+	websocket.GetCommentsHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+	var comments []websocket.Comment
+	if err := json.NewDecoder(rr.Body).Decode(&comments); err != nil {
+		t.Fatalf("failed to decode comments: %v", err)
+	}
+	if len(comments) != 100 {
+		t.Fatalf("expected limit to be capped at 100, got %d comments", len(comments))
+	}
 }
 
 func TestGetCommentsHandler_MissingPostId(t *testing.T) {
