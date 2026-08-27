@@ -716,9 +716,13 @@ func EditPostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var requestBody struct {
-		ID      int    `json:"id"`
-		Title   string `json:"title"`
-		Content string `json:"content"`
+		ID         int    `json:"id"`
+		Title      string `json:"title"`
+		Content    string `json:"content"`
+		Categories []struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"categories"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -728,6 +732,11 @@ func EditPostHandler(w http.ResponseWriter, r *http.Request) {
 	title, content, err := validatePost(requestBody.Title, requestBody.Content)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if len(requestBody.Categories) > maxCategoriesPerPost {
+		http.Error(w, fmt.Sprintf("a post may have at most %d categories", maxCategoriesPerPost), http.StatusBadRequest)
 		return
 	}
 
@@ -753,8 +762,37 @@ func EditPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := database.ForumDB.Exec("UPDATE post SET title = ?, content = ? WHERE id = ?", title, content, requestBody.ID); err != nil {
+	tx, err := database.ForumDB.Begin()
+	if err != nil {
+		log.Printf("failed to begin transaction: %s", err)
+		http.Error(w, "Failed to update post", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec("UPDATE post SET title = ?, content = ? WHERE id = ?", title, content, requestBody.ID); err != nil {
 		log.Printf("failed to update post: %s", err)
+		http.Error(w, "Failed to update post", http.StatusInternalServerError)
+		return
+	}
+
+	// Replace the post's category relations wholesale rather than diffing,
+	// mirroring how AddPost assigns them on creation.
+	if _, err := tx.Exec("DELETE FROM category_relation WHERE post_id = ?", requestBody.ID); err != nil {
+		log.Printf("failed to clear post category relations: %s", err)
+		http.Error(w, "Failed to update post", http.StatusInternalServerError)
+		return
+	}
+	for _, category := range requestBody.Categories {
+		if _, err := tx.Exec("INSERT INTO category_relation (category_id, post_id) VALUES (?, ?)", category.ID, requestBody.ID); err != nil {
+			log.Printf("failed to insert post category relation: %s", err)
+			http.Error(w, "Failed to update post", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Printf("failed to commit post update: %s", err)
 		http.Error(w, "Failed to update post", http.StatusInternalServerError)
 		return
 	}
@@ -762,6 +800,48 @@ func EditPostHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"title": title, "content": content})
+}
+
+// GetPostCategoriesHandler returns the categories currently assigned to a
+// post, for pre-checking the right boxes when opening the edit form.
+func GetPostCategoriesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	postId, err := strconv.Atoi(r.URL.Query().Get("postId"))
+	if err != nil || postId <= 0 {
+		http.Error(w, "a valid postId is required", http.StatusBadRequest)
+		return
+	}
+
+	rows, err := database.ForumDB.Query(`
+	SELECT category.id, category.category_name
+	FROM category
+	INNER JOIN category_relation ON category.id = category_relation.category_id
+	WHERE category_relation.post_id = ?
+	ORDER BY category.category_name ASC`, postId)
+	if err != nil {
+		log.Printf("Error querying post categories: %s", err)
+		http.Error(w, "Failed to load categories", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	categories := []Category{}
+	for rows.Next() {
+		var c Category
+		if err := rows.Scan(&c.ID, &c.Name); err != nil {
+			log.Printf("Error scanning category: %s", err)
+			http.Error(w, "Failed to load categories", http.StatusInternalServerError)
+			return
+		}
+		categories = append(categories, c)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(categories)
 }
 
 // DeletePostHandler removes a post along with its comments and category

@@ -421,6 +421,13 @@ margin-right: 5px; /* Adjust the value as needed */
     flex-wrap: wrap;
 }
 
+#edit-post-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 10px 0;
+}
+
 #comments-section {
     overflow: auto;
     height: 200px;
