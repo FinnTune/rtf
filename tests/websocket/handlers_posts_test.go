@@ -539,3 +539,49 @@ func TestGetPostHandler_RejectsNonGetMethod(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
 	}
 }
+
+func TestGetCategoriesHandler_ReturnsSeededCategories(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/getCategories", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.GetCategoriesHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var categories []websocket.Category
+	if err := json.NewDecoder(rr.Body).Decode(&categories); err != nil {
+		t.Fatalf("failed to decode categories: %v", err)
+	}
+	// Seed data (testutil.SetupForumDB) has 3 categories: Cuisine, Places, Code.
+	if len(categories) != 3 {
+		t.Fatalf("expected 3 categories, got %d: %+v", len(categories), categories)
+	}
+	names := map[string]bool{}
+	for _, c := range categories {
+		names[c.Name] = true
+		if c.ID == 0 {
+			t.Fatalf("expected a non-zero category id, got %+v", c)
+		}
+	}
+	if !names["Cuisine"] || !names["Places"] || !names["Code"] {
+		t.Fatalf("unexpected category set: %+v", categories)
+	}
+}
+
+func TestGetCategoriesHandler_RejectsNonGetMethod(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/getCategories", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.GetCategoriesHandler(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
+	}
+}
