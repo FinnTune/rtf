@@ -312,6 +312,49 @@ func TestPostsByCategoryHandler_FiltersByCategory(t *testing.T) {
 	if !titles["Asian Food"] || !titles["Best Sushi"] {
 		t.Fatalf("unexpected posts returned: %+v", posts)
 	}
+	if got := rr.Header().Get("X-Total-Count"); got != "2" {
+		t.Fatalf("expected X-Total-Count 2, got %q", got)
+	}
+}
+
+func TestPostsByCategoryHandler_RespectsLimitAndOffset(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	body := `{"categories":["Cuisine"]}`
+
+	req1 := httptest.NewRequest(http.MethodPost, "/getPostsByCategory?limit=1&offset=0", bytes.NewBufferString(body))
+	rr1 := httptest.NewRecorder()
+	websocket.PostsByCategoryHandler(rr1, req1)
+
+	if rr1.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr1.Code, rr1.Body.String())
+	}
+	var page1 []websocket.Post
+	if err := json.NewDecoder(rr1.Body).Decode(&page1); err != nil {
+		t.Fatalf("failed to decode posts: %v", err)
+	}
+	if len(page1) != 1 {
+		t.Fatalf("expected 1 post on first page, got %d", len(page1))
+	}
+	if got := rr1.Header().Get("X-Total-Count"); got != "2" {
+		t.Fatalf("expected X-Total-Count 2, got %q", got)
+	}
+
+	req2 := httptest.NewRequest(http.MethodPost, "/getPostsByCategory?limit=1&offset=1", bytes.NewBufferString(body))
+	rr2 := httptest.NewRecorder()
+	websocket.PostsByCategoryHandler(rr2, req2)
+
+	var page2 []websocket.Post
+	if err := json.NewDecoder(rr2.Body).Decode(&page2); err != nil {
+		t.Fatalf("failed to decode posts: %v", err)
+	}
+	if len(page2) != 1 {
+		t.Fatalf("expected 1 post on second page, got %d", len(page2))
+	}
+	if page1[0].PostId == page2[0].PostId {
+		t.Fatalf("pages overlap: post %d returned on both pages", page1[0].PostId)
+	}
 }
 
 func TestPostsByCategoryHandler_InvalidJSON(t *testing.T) {

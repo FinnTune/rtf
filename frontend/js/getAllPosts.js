@@ -1,6 +1,6 @@
 import { showMessage, setButtonLoading } from "./notify.js";
 
-const POSTS_PAGE_SIZE = 10;
+export const POSTS_PAGE_SIZE = 10;
 const COMMENTS_PAGE_SIZE = 20;
 
 export function getAllPosts(offset = 0) {
@@ -44,7 +44,7 @@ export function getAllPosts(offset = 0) {
         } else {
             renderPostRows(tbody, posts);
         }
-        renderPagination(offset, POSTS_PAGE_SIZE, total);
+        renderPagination(offset, POSTS_PAGE_SIZE, total, getAllPosts);
     }).catch((error) => {
         showMessage("Err: " + error.message, "error");
         console.log("Err: ", error);
@@ -53,7 +53,10 @@ export function getAllPosts(offset = 0) {
     return false;
 }
 
-function renderPagination(offset, limit, total) {
+// Renders Previous/Next controls into #posts-pagination. `onNavigate(newOffset)`
+// is called to load the requested page — shared by the all-posts and
+// category-filter views, each of which knows how to (re)fetch its own data.
+export function renderPagination(offset, limit, total, onNavigate) {
     const paginationDiv = document.getElementById('posts-pagination');
     if (!paginationDiv) {
         return;
@@ -69,7 +72,7 @@ function renderPagination(offset, limit, total) {
     prevButton.className = 'btns';
     prevButton.textContent = 'Previous';
     prevButton.disabled = offset === 0;
-    prevButton.addEventListener('click', () => getAllPosts(Math.max(0, offset - limit)));
+    prevButton.addEventListener('click', () => onNavigate(Math.max(0, offset - limit)));
 
     const hasMore = offset + limit < total;
     const nextButton = document.createElement('button');
@@ -77,7 +80,7 @@ function renderPagination(offset, limit, total) {
     nextButton.className = 'btns';
     nextButton.textContent = 'Next';
     nextButton.disabled = !hasMore;
-    nextButton.addEventListener('click', () => getAllPosts(offset + limit));
+    nextButton.addEventListener('click', () => onNavigate(offset + limit));
 
     const rangeLabel = document.createElement('span');
     rangeLabel.className = 'pagination-range';

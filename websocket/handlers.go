@@ -862,8 +862,22 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 		if len(categories.Categories) == 0 {
 			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("X-Total-Count", "0")
 			json.NewEncoder(w).Encode([]Post{})
 			return
+		}
+
+		limit := defaultPostsPageSize
+		if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 {
+			limit = v
+		}
+		if limit > maxPostsPageSize {
+			limit = maxPostsPageSize
+		}
+
+		offset := 0
+		if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v >= 0 {
+			offset = v
 		}
 
 		args := make([]interface{}, len(categories.Categories))
@@ -874,17 +888,28 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		placeholders := strings.Repeat("?,", len(categories.Categories))
 		placeholders = placeholders[:len(placeholders)-1]
 
-		query := `SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at
-		FROM post
-		INNER JOIN category_relation ON post.id = category_relation.post_id
+		whereClause := `INNER JOIN category_relation ON post.id = category_relation.post_id
 		WHERE category_relation.category_id IN (
-		SELECT id FROM category WHERE category_name IN (` + placeholders + `))
-		ORDER BY post.created_at DESC, post.id DESC`
+		SELECT id FROM category WHERE category_name IN (` + placeholders + `))`
+
+		var total int
+		countQuery := `SELECT COUNT(DISTINCT post.id) FROM post ` + whereClause
+		if err := database.ForumDB.QueryRow(countQuery, args...).Scan(&total); err != nil {
+			log.Printf("Error counting posts by category: %s", err)
+			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+			return
+		}
+
+		query := `SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at
+		FROM post ` + whereClause + `
+		ORDER BY post.created_at DESC, post.id DESC
+		LIMIT ? OFFSET ?`
+		queryArgs := append(append([]interface{}{}, args...), limit, offset)
 
 		log.Printf("Executing query: %s", query)
-		log.Printf("With arguments: %+v", args)
+		log.Printf("With arguments: %+v", queryArgs)
 
-		rows, err := database.ForumDB.Query(query, args...)
+		rows, err := database.ForumDB.Query(query, queryArgs...)
 		if err != nil {
 			log.Printf("Error executing query: %s", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
@@ -915,6 +940,7 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Total-Count", strconv.Itoa(total))
 		json.NewEncoder(w).Encode(posts)
 	}
 }
