@@ -395,12 +395,23 @@ function openChatWindow(user) {
     //Get more chat history on scroll
     let chatMessagesDiv = chatWindow.querySelector('#chat-messages-' + user);
 
+    // Loading older history shifts scroll position back to (or near) 0 once
+    // the new messages are prepended, and browsers keep firing 'scroll'
+    // events while pinned at the top. Without a guard, that resends
+    // get-more-chat-history — with an ever-incrementing offset — on every
+    // one of those events instead of once per deliberate scroll-to-top.
+    // There's no request/response id in this WS protocol to correlate a
+    // reply back to a specific request, so a short cooldown after sending is
+    // used instead of waiting for one.
+    let loadingHistory = false;
     chatMessagesDiv.addEventListener('scroll', () => {
-    if (chatMessagesDiv.scrollTop === 0) {
+    if (chatMessagesDiv.scrollTop === 0 && !loadingHistory) {
+        loadingHistory = true;
         // The user has scrolled to the top of the chat window, so load more chat history.
         offset += limit;
         const getMoreChatHistoryEvent = new Event('get-more-chat-history', new GetChatHistoryEvent(localUserId, user, offset, limit));
         conn.send(JSON.stringify(getMoreChatHistoryEvent));
+        setTimeout(() => { loadingHistory = false; }, 800);
     }
     });
 }

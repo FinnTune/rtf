@@ -154,6 +154,91 @@ func TestGetCommentsHandler_ReturnsComments(t *testing.T) {
 	if comments[0].Username != "actual_user" {
 		t.Fatalf("expected author actual_user, got %q", comments[0].Username)
 	}
+	if got := rr.Header().Get("X-Total-Count"); got != "1" {
+		t.Fatalf("expected X-Total-Count 1, got %q", got)
+	}
+}
+
+func TestGetCommentsHandler_RespectsLimitAndOffset(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	// Seed data already has 1 comment on post 1; add more so pagination is
+	// actually exercised, with distinct, ordered created_at values so the
+	// ORDER BY is unambiguous.
+	for i := 0; i < 5; i++ {
+		_, err := db.Exec(
+			`INSERT INTO comment (user_id, post_id, content, created_at) VALUES (42, 1, ?, datetime('now', ?))`,
+			fmt.Sprintf("bulk comment %d", i), fmt.Sprintf("+%d seconds", i+1),
+		)
+		if err != nil {
+			t.Fatalf("failed to seed bulk comment: %v", err)
+		}
+	}
+	// 6 comments total on post 1 now.
+
+	req := httptest.NewRequest(http.MethodGet, "/comments?postId=1&limit=2&offset=0", nil)
+	rr := httptest.NewRecorder()
+	websocket.GetCommentsHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+	var page1 []websocket.Comment
+	if err := json.NewDecoder(rr.Body).Decode(&page1); err != nil {
+		t.Fatalf("failed to decode comments: %v", err)
+	}
+	if len(page1) != 2 {
+		t.Fatalf("expected 2 comments on first page, got %d", len(page1))
+	}
+	if got := rr.Header().Get("X-Total-Count"); got != "6" {
+		t.Fatalf("expected X-Total-Count 6, got %q", got)
+	}
+
+	req2 := httptest.NewRequest(http.MethodGet, "/comments?postId=1&limit=2&offset=2", nil)
+	rr2 := httptest.NewRecorder()
+	websocket.GetCommentsHandler(rr2, req2)
+
+	var page2 []websocket.Comment
+	if err := json.NewDecoder(rr2.Body).Decode(&page2); err != nil {
+		t.Fatalf("failed to decode comments: %v", err)
+	}
+	if len(page2) != 2 {
+		t.Fatalf("expected 2 comments on second page, got %d", len(page2))
+	}
+	if page1[0].ID == page2[0].ID {
+		t.Fatalf("pages overlap: comment %d returned on both pages", page1[0].ID)
+	}
+}
+
+func TestGetCommentsHandler_CapsLimitAtMax(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	for i := 0; i < 110; i++ {
+		_, err := db.Exec(
+			`INSERT INTO comment (user_id, post_id, content, created_at) VALUES (42, 1, ?, datetime('now'))`,
+			fmt.Sprintf("bulk comment %d", i),
+		)
+		if err != nil {
+			t.Fatalf("failed to seed bulk comment: %v", err)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/comments?postId=1&limit=9999", nil)
+	rr := httptest.NewRecorder()
+	websocket.GetCommentsHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+	var comments []websocket.Comment
+	if err := json.NewDecoder(rr.Body).Decode(&comments); err != nil {
+		t.Fatalf("failed to decode comments: %v", err)
+	}
+	if len(comments) != 100 {
+		t.Fatalf("expected limit to be capped at 100, got %d comments", len(comments))
+	}
 }
 
 func TestGetCommentsHandler_MissingPostId(t *testing.T) {
@@ -226,6 +311,49 @@ func TestPostsByCategoryHandler_FiltersByCategory(t *testing.T) {
 	}
 	if !titles["Asian Food"] || !titles["Best Sushi"] {
 		t.Fatalf("unexpected posts returned: %+v", posts)
+	}
+	if got := rr.Header().Get("X-Total-Count"); got != "2" {
+		t.Fatalf("expected X-Total-Count 2, got %q", got)
+	}
+}
+
+func TestPostsByCategoryHandler_RespectsLimitAndOffset(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	body := `{"categories":["Cuisine"]}`
+
+	req1 := httptest.NewRequest(http.MethodPost, "/getPostsByCategory?limit=1&offset=0", bytes.NewBufferString(body))
+	rr1 := httptest.NewRecorder()
+	websocket.PostsByCategoryHandler(rr1, req1)
+
+	if rr1.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr1.Code, rr1.Body.String())
+	}
+	var page1 []websocket.Post
+	if err := json.NewDecoder(rr1.Body).Decode(&page1); err != nil {
+		t.Fatalf("failed to decode posts: %v", err)
+	}
+	if len(page1) != 1 {
+		t.Fatalf("expected 1 post on first page, got %d", len(page1))
+	}
+	if got := rr1.Header().Get("X-Total-Count"); got != "2" {
+		t.Fatalf("expected X-Total-Count 2, got %q", got)
+	}
+
+	req2 := httptest.NewRequest(http.MethodPost, "/getPostsByCategory?limit=1&offset=1", bytes.NewBufferString(body))
+	rr2 := httptest.NewRecorder()
+	websocket.PostsByCategoryHandler(rr2, req2)
+
+	var page2 []websocket.Post
+	if err := json.NewDecoder(rr2.Body).Decode(&page2); err != nil {
+		t.Fatalf("failed to decode posts: %v", err)
+	}
+	if len(page2) != 1 {
+		t.Fatalf("expected 1 post on second page, got %d", len(page2))
+	}
+	if page1[0].PostId == page2[0].PostId {
+		t.Fatalf("pages overlap: post %d returned on both pages", page1[0].PostId)
 	}
 }
 
@@ -449,6 +577,52 @@ func TestGetPostHandler_RejectsNonGetMethod(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	websocket.GetPostHandler(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
+	}
+}
+
+func TestGetCategoriesHandler_ReturnsSeededCategories(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/getCategories", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.GetCategoriesHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var categories []websocket.Category
+	if err := json.NewDecoder(rr.Body).Decode(&categories); err != nil {
+		t.Fatalf("failed to decode categories: %v", err)
+	}
+	// Seed data (testutil.SetupForumDB) has 3 categories: Cuisine, Places, Code.
+	if len(categories) != 3 {
+		t.Fatalf("expected 3 categories, got %d: %+v", len(categories), categories)
+	}
+	names := map[string]bool{}
+	for _, c := range categories {
+		names[c.Name] = true
+		if c.ID == 0 {
+			t.Fatalf("expected a non-zero category id, got %+v", c)
+		}
+	}
+	if !names["Cuisine"] || !names["Places"] || !names["Code"] {
+		t.Fatalf("unexpected category set: %+v", categories)
+	}
+}
+
+func TestGetCategoriesHandler_RejectsNonGetMethod(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/getCategories", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.GetCategoriesHandler(rr, req)
 
 	if rr.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
