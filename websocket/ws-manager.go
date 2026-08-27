@@ -43,7 +43,10 @@ func sendMessage(event Event, c *Client) error {
 	var chatMessage SendMessageEvent
 	chatMessage.Sent = time.Now()
 	chatMessage.Message = chatEvent.Message
-	chatMessage.From = chatEvent.From
+	// From is always the authenticated sender, never the client-supplied
+	// value — otherwise any connection could send messages that appear (and
+	// are permanently stored) as coming from an arbitrary other user.
+	chatMessage.From = c.username
 	chatMessage.To = chatEvent.To
 
 	// Store message in sqlite3 database
@@ -71,16 +74,14 @@ func sendMessage(event Event, c *Client) error {
 	return nil
 }
 
+// addUserInfo handles the user-connect event, marking an already-identified
+// client as online. It deliberately ignores any identity fields in
+// event.Payload — c.username/c.userID/c.email/c.joined were already bound
+// to the verified login at newAuthenticatedClient time, and trusting
+// client-supplied values here would let any authenticated connection
+// declare itself to be any other user.
 func addUserInfo(event Event, c *Client) error {
 	log.Printf("Adding user info: %s", event)
-	var userInfo UserSession
-	if err := json.Unmarshal(event.Payload, &userInfo); err != nil {
-		return fmt.Errorf("event unmarshalling error: %s", err)
-	}
-	c.username = userInfo.Username
-	c.userID = userInfo.UserID
-	c.email = userInfo.Email
-	c.joined = userInfo.Joined
 
 	if _, ok := LoggedInList[c.username]; ok {
 		log.Println("User in LoggedInList: ", LoggedInList)
@@ -113,6 +114,11 @@ func getChatHistory(event Event, c *Client) error {
 	if err := json.Unmarshal(event.Payload, &chtMsg); err != nil {
 		return fmt.Errorf("event unmarshalling error: %s", err)
 	}
+	// FromUser is always the authenticated requester, never whatever the
+	// client claims — otherwise any connection could request (and, via the
+	// old by-username delivery below, potentially have delivered) any two
+	// arbitrary users' private conversation.
+	chtMsg.FromUser = c.username
 	log.Println("History Request: ", chtMsg)
 
 	// First get the total number of rows for the specific chat conversation
@@ -161,12 +167,10 @@ func getChatHistory(event Event, c *Client) error {
 		Type:    SendChatHistory,
 	}
 
-	for c := range c.manager.clients {
-		if c.username == chtMsg.FromUser {
-			c.egress <- outgoingEvent
-			log.Println("History sent to: ", c.username)
-		}
-	}
+	// Deliver directly to the requesting connection — it's already known
+	// and authenticated, no need to search for it by (spoofable) username.
+	c.egress <- outgoingEvent
+	log.Println("History sent to: ", c.username)
 	return nil
 }
 
@@ -176,6 +180,9 @@ func typing(event Event, c *Client) error {
 	if err := json.Unmarshal(event.Payload, &chtMsg); err != nil {
 		return fmt.Errorf("event unmarshalling error: %s", err)
 	}
+	// Never trust who the client claims is typing — otherwise any
+	// connection could impersonate another user's typing indicator.
+	chtMsg.FromUser = c.username
 
 	data, err := json.Marshal(chtMsg)
 	if err != nil {
@@ -201,6 +208,8 @@ func stopTyping(event Event, c *Client) error {
 	if err := json.Unmarshal(event.Payload, &chtMsg); err != nil {
 		return fmt.Errorf("event unmarshalling error: %s", err)
 	}
+	// Same rationale as typing() above.
+	chtMsg.FromUser = c.username
 
 	data, err := json.Marshal(chtMsg)
 	if err != nil {

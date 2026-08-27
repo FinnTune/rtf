@@ -58,6 +58,27 @@ func newClient(conn *websocket.Conn, manager *Manager, session_id string) *Clien
 	}
 }
 
+// newAuthenticatedClient creates a Client at the moment a password login
+// succeeds, binding sessionID to the identity the server just verified
+// against the database. This is the only place a Client's identity fields
+// should ever be set from a trusted source — the websocket connection
+// itself (see addUserInfo/user-connect) must never be allowed to set or
+// change them from client-supplied data, or any authenticated session could
+// declare itself to be any other user.
+func newAuthenticatedClient(manager *Manager, sessionID string, userID int, username, email, joined string) *Client {
+	return &Client{
+		manager:   manager,
+		sessionID: sessionID,
+		egress:    make(chan Event),
+		loggedIn:  true,
+		userID:    userID,
+		username:  username,
+		email:     email,
+		joined:    joined,
+		lastSeen:  time.Now(),
+	}
+}
+
 // touch refreshes the session's sliding expiry.
 func (c *Client) touch() {
 	c.lastSeen = time.Now()
@@ -115,8 +136,6 @@ func (c *Client) readMessages() {
 					c.connection.Close()
 					c.connection = nil
 				}
-				//Print address of client connection
-				log.Println("Client Inside Error: ", c.connection.RemoteAddr())
 			}
 			//Break scope and html for submission note.
 			//Problem with page refresh upon form submission in html which causes the the connection to close and websocket to resart.

@@ -194,7 +194,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			// Rotate the session cookie on every successful login so a
 			// session_id observed/fixed before authentication can never be
 			// reused to hijack the now-authenticated session.
-			utility.CreateCookie(w, r)
+			sessionID := utility.CreateCookie(w, r)
 
 			//Check to see if client is already logged in
 			m.Lock()
@@ -203,7 +203,9 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 				if userInfo.Username == client.username {
 					if client.loggedIn {
 						log.Println("Client already logged in.")
-						client.connection.Close()
+						if client.connection != nil {
+							client.connection.Close()
+						}
 						//Delete client from manage client list
 						delete(m.clients, client)
 						//Delete client from LoggedInList map
@@ -211,6 +213,14 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 			}
+
+			// Bind the new session to the identity just verified against the
+			// database. This Client is the single source of truth every
+			// other handler (HTTP and websocket) trusts for "who is this
+			// request/connection from" — it must never be set from
+			// client-supplied data (see addUserInfo), only from a server-side
+			// credential check like the one above.
+			m.clients[newAuthenticatedClient(m, sessionID, userInfo.ID, userInfo.Username, userInfo.Email, userInfo.Joined)] = true
 
 			//Create new OTP and store in manager otps map
 			otp := m.otps.newOtp()
@@ -346,23 +356,37 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	//If client exists, set connection to new connection and start client routines
 	sessionID := cookie.Value
 	log.Println("Session Id in ServeWS: ", sessionID)
+
+	// m.clients is shared with every other handler (login, logout,
+	// checkLogin, ...), all of which access it under m.Lock() — this lookup
+	// must too, or it's an unsynchronized concurrent map access. The lock is
+	// released before starting the client's goroutines / falling through to
+	// m.addClient below, both of which acquire it themselves.
+	m.Lock()
+	var existing *Client
 	for c := range m.clients {
 		if c.sessionID == sessionID {
 			if c.expired() {
 				log.Println("Session expired; discarding stale client:", c.username)
 				delete(m.clients, c)
-				break
+			} else {
+				existing = c
 			}
-			log.Println("Client already exists.")
-			log.Println("ClientUName Debug: ", c.username)
-			delete(LoggedInList, c.username)
-			LoggedInList[c.username] = true
-			c.connection = conn
-			c.touch()
-			go c.readMessages()
-			go c.writeMesssage()
-			return
+			break
 		}
+	}
+	m.Unlock()
+
+	if existing != nil {
+		log.Println("Client already exists.")
+		log.Println("ClientUName Debug: ", existing.username)
+		delete(LoggedInList, existing.username)
+		LoggedInList[existing.username] = true
+		existing.connection = conn
+		existing.touch()
+		go existing.readMessages()
+		go existing.writeMesssage()
+		return
 	}
 
 	//If client does not exist, create new client,
