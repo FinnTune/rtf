@@ -37,19 +37,19 @@ export function createMainHTML() {
     <!-- Registration Form -->
     <form class="register-form" id="registration-form" method="post" style="display: none;">
       <label for="regfname">First Name: </label>
-      <input type="text" name="firstname" id="regfname" placeholder="First Name" required><br>
+      <input type="text" name="firstname" id="regfname" placeholder="First Name" maxlength="50" required><br>
 
       <label for="reglname">Last Name: </label>
-      <input type="text" name="lastname" id="reglname" placeholder="Last Name" required><br>
+      <input type="text" name="lastname" id="reglname" placeholder="Last Name" maxlength="50" required><br>
 
       <label for="reguname">Username: </label>
-      <input type="text" name="username" id="reguname" placeholder="Username" required><br>
+      <input type="text" name="username" id="reguname" placeholder="Username" minlength="3" maxlength="30" pattern="[a-zA-Z0-9_-]{3,30}" title="3-30 characters: letters, numbers, underscores, or hyphens" required><br>
 
       <label for="regemail">Email: </label>
-      <input type="email" name="email" id="regemail" placeholder="Email" required><br>
+      <input type="email" name="email" id="regemail" placeholder="Email" maxlength="254" required><br>
 
       <label for="regage">Age: </label>
-      <input type="number" name="age" id="regage" placeholder="Age" min="0" max="150" required><br>
+      <input type="number" name="age" id="regage" placeholder="Age" min="13" max="120" required><br>
 
       <label for="reggender">Gender: </label>
       <select name="gender" id="reggender">
@@ -59,10 +59,10 @@ export function createMainHTML() {
       </select><br>
 
       <label for="regpassword">Password: </label>
-      <input type="password" name="password" id="regpassword" placeholder="Password" required><br>
+      <input type="password" name="password" id="regpassword" placeholder="Password" minlength="8" maxlength="72" required><br>
 
       <label for="regconfpassword">Confirm Password: </label>
-      <input type="password" name="confpassword" id="regconfpassword" placeholder="Confirm Password" required><br>
+      <input type="password" name="confpassword" id="regconfpassword" placeholder="Confirm Password" minlength="8" maxlength="72" required><br>
   
       <button type="submit" id="register-submit-button">Register</button>
       <button type="submit" id="login-switch-button">Go to login</button>
