@@ -1,4 +1,5 @@
 import { showMessage, setButtonLoading } from "./notify.js";
+import { getCategories } from "./categories.js";
 
 export const POSTS_PAGE_SIZE = 10;
 const COMMENTS_PAGE_SIZE = 20;
@@ -239,7 +240,7 @@ export async function displaySinglePost(post) {
         deleteButton.className = "btns";
         deleteButton.textContent = "Delete";
 
-        editButton.addEventListener("click", () => {
+        editButton.addEventListener("click", async () => {
             let titleInput = document.createElement("input");
             titleInput.type = "text";
             titleInput.value = post.Title;
@@ -252,6 +253,38 @@ export async function displaySinglePost(post) {
             contentInput.required = true;
             contentInput.rows = 4;
             contentInput.cols = 50;
+
+            let categoriesDiv = document.createElement("div");
+            categoriesDiv.id = "edit-post-categories";
+            let checkboxes = [];
+            try {
+                const [allCategories, postCategories] = await Promise.all([
+                    getCategories(),
+                    getPostCategories(post.PostId),
+                ]);
+                const currentIds = new Set(postCategories.map((c) => c.id));
+                for (const category of allCategories) {
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.id = "edit-category-" + category.id;
+                    checkbox.dataset.categoryId = category.id;
+                    checkbox.dataset.categoryName = category.name;
+                    checkbox.checked = currentIds.has(category.id);
+
+                    const label = document.createElement("label");
+                    label.htmlFor = checkbox.id;
+                    label.appendChild(document.createTextNode(category.name));
+
+                    const wrapper = document.createElement("span");
+                    wrapper.appendChild(checkbox);
+                    wrapper.appendChild(label);
+                    categoriesDiv.appendChild(wrapper);
+                    checkboxes.push(checkbox);
+                }
+            } catch (error) {
+                showMessage("Err: " + error.message, "error");
+                console.log("Err: ", error);
+            }
 
             let saveButton = document.createElement("button");
             saveButton.type = "button";
@@ -267,6 +300,7 @@ export async function displaySinglePost(post) {
             editForm.id = "edit-post-form";
             editForm.appendChild(titleInput);
             editForm.appendChild(contentInput);
+            editForm.appendChild(categoriesDiv);
             editForm.appendChild(saveButton);
             editForm.appendChild(cancelButton);
 
@@ -288,9 +322,12 @@ export async function displaySinglePost(post) {
                 if (!newTitle || !newContent) {
                     return;
                 }
+                const selectedCategories = checkboxes
+                    .filter((cb) => cb.checked)
+                    .map((cb) => ({ id: parseInt(cb.dataset.categoryId, 10), name: cb.dataset.categoryName }));
                 setButtonLoading(saveButton, true, "Saving...");
                 try {
-                    const updated = await editPostRequest(post.PostId, newTitle, newContent);
+                    const updated = await editPostRequest(post.PostId, newTitle, newContent, selectedCategories);
                     showMessage("Post updated.", "success");
                     displaySinglePost({ ...post, Title: updated.title, Content: updated.content });
                 } catch (error) {
@@ -429,6 +466,15 @@ export async function getPost(id) {
     return response.json();
 }
 
+async function getPostCategories(postId) {
+    const response = await fetch(`/getPostCategories?postId=${postId}`);
+    if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Failed to load post categories (${response.status})`);
+    }
+    return response.json();
+}
+
 async function fetchComments(postId, offset = 0, limit = COMMENTS_PAGE_SIZE) {
     const response = await fetch(`/comments?postId=${postId}&limit=${limit}&offset=${offset}`);
     if (!response.ok) {
@@ -457,11 +503,11 @@ async function submitComment(postId, commentContent) {
     return result;
 }
 
-async function editPostRequest(id, title, content) {
+async function editPostRequest(id, title, content, categories = []) {
     const response = await fetch('/editPost', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, title, content })
+        body: JSON.stringify({ id, title, content, categories })
     });
     if (!response.ok) {
         const message = await response.text();
