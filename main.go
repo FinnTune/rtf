@@ -83,10 +83,16 @@ func buildServer() *http.Server {
 	// writeLimiter guards authenticated write endpoints against automated
 	// abuse while staying out of the way of normal posting/commenting.
 	writeLimiter := utility.NewIPRateLimiter(rate.Every(2*time.Second), 10)
+	// readLimiter guards unauthenticated, DB-backed read endpoints (post
+	// listing/search/comments) against scraping and query-flood abuse.
+	// Generous relative to writeLimiter since normal use (paging through
+	// posts, searching, opening a post's comments) can legitimately fire
+	// several of these per second.
+	readLimiter := utility.NewIPRateLimiter(rate.Every(200*time.Millisecond), 20)
 
 	http.HandleFunc("/checkLogin", websocket.CheckLoginHandler)
-	http.HandleFunc("/getAllPosts", websocket.AllPostsHandler)
-	http.HandleFunc("/getPost", websocket.GetPostHandler)
+	http.HandleFunc("/getAllPosts", readLimiter.Limit(websocket.AllPostsHandler))
+	http.HandleFunc("/getPost", readLimiter.Limit(websocket.GetPostHandler))
 	http.HandleFunc("/logout", websocket.CSRFProtect(websocket.LogoutHandler))
 	http.HandleFunc("/register", authLimiter.Limit(websocket.CSRFProtect(websocket.RegistrationHandler)))
 	http.HandleFunc("/login", authLimiter.Limit(websocket.CSRFProtect(websocket.LoginHandler)))
@@ -94,12 +100,12 @@ func buildServer() *http.Server {
 	http.HandleFunc("/addPost", writeLimiter.Limit(websocket.CSRFProtect(websocket.AddPost)))
 	http.HandleFunc("/editPost", writeLimiter.Limit(websocket.CSRFProtect(websocket.EditPostHandler)))
 	http.HandleFunc("/deletePost", writeLimiter.Limit(websocket.CSRFProtect(websocket.DeletePostHandler)))
-	http.HandleFunc("/getPostsByCategory", websocket.PostsByCategoryHandler)
-	http.HandleFunc("/searchPosts", websocket.SearchPostsHandler)
+	http.HandleFunc("/getPostsByCategory", readLimiter.Limit(websocket.PostsByCategoryHandler))
+	http.HandleFunc("/searchPosts", readLimiter.Limit(websocket.SearchPostsHandler))
 	http.HandleFunc("/addcomment", writeLimiter.Limit(websocket.CSRFProtect(websocket.AddCommentHandler)))
 	http.HandleFunc("/editComment", writeLimiter.Limit(websocket.CSRFProtect(websocket.EditCommentHandler)))
 	http.HandleFunc("/deleteComment", writeLimiter.Limit(websocket.CSRFProtect(websocket.DeleteCommentHandler)))
-	http.HandleFunc("/comments", websocket.GetCommentsHandler)
+	http.HandleFunc("/comments", readLimiter.Limit(websocket.GetCommentsHandler))
 
 	port := getEnv("PORT", "8443")
 	return &http.Server{
