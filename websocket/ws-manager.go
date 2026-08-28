@@ -15,7 +15,7 @@ type Manager struct {
 	clients ClientsMapList
 	sync.RWMutex
 	eventHandlers map[string]EventHandler
-	otps          otpsMap
+	otps          *otpsMap
 }
 
 // Factory function for manager

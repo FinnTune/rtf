@@ -107,7 +107,7 @@ func StopTypingForTest(payload json.RawMessage, client *TestClientHandle) error 
 
 // TestOtps wraps OTP map lifecycle for external tests.
 type TestOtps struct {
-	otps   otpsMap
+	otps   *otpsMap
 	cancel context.CancelFunc
 }
 
