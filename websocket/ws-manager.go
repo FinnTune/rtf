@@ -33,6 +33,22 @@ func newManager(ctx context.Context) *Manager {
 	return m
 }
 
+// clientsSnapshot returns a point-in-time copy of the connected clients,
+// safe to range over without holding the manager's lock. Delivery loops
+// need this rather than locking around the send itself: egress channels are
+// unbuffered, so sending while holding m's lock would block every other
+// manager operation (login, logout, ...) on however long one slow/stuck
+// client's writeMesssage goroutine takes to drain it.
+func (m *Manager) clientsSnapshot() []*Client {
+	m.RLock()
+	defer m.RUnlock()
+	snapshot := make([]*Client, 0, len(m.clients))
+	for c := range m.clients {
+		snapshot = append(snapshot, c)
+	}
+	return snapshot
+}
+
 // Send message handler function
 func sendMessage(event Event, c *Client) error {
 	log.Printf("Event/message sent: %s", event)
@@ -65,9 +81,9 @@ func sendMessage(event Event, c *Client) error {
 		Type:    EventSendMessage,
 	}
 
-	for c := range c.manager.clients {
-		if c.username == chatEvent.To {
-			c.egress <- outgoingEvent
+	for _, recipient := range c.manager.clientsSnapshot() {
+		if recipient.username == chatEvent.To {
+			recipient.egress <- outgoingEvent
 		}
 	}
 
@@ -83,16 +99,10 @@ func sendMessage(event Event, c *Client) error {
 func addUserInfo(event Event, c *Client) error {
 	log.Printf("Adding user info: %s", event)
 
-	if _, ok := LoggedInList[c.username]; ok {
-		log.Println("User in LoggedInList: ", LoggedInList)
-	} else if !ok {
-		log.Println("Adding user to LoggedInList: ", c.username)
-		LoggedInList[c.username] = true
-	}
+	LoggedInList.Add(c.username)
+	log.Println("User:", c.username, "added to LoggedInList")
 
-	log.Println("User:", c.username, "added to LoggedInList: ", LoggedInList)
-
-	data, err := json.Marshal(LoggedInList)
+	data, err := json.Marshal(LoggedInList.Snapshot())
 	if err != nil {
 		return fmt.Errorf("failed to marshal broadcast message error: %s", err)
 	}
@@ -101,8 +111,8 @@ func addUserInfo(event Event, c *Client) error {
 		Type:    UsersList,
 	}
 
-	for c := range c.manager.clients {
-		c.egress <- outgoingEvent
+	for _, recipient := range c.manager.clientsSnapshot() {
+		recipient.egress <- outgoingEvent
 	}
 
 	return nil
@@ -194,10 +204,10 @@ func typing(event Event, c *Client) error {
 		Payload: json.RawMessage(data),
 	}
 
-	for c := range c.manager.clients {
-		if c.username == chtMsg.ToUser {
-			c.egress <- outgoingEvent
-			log.Println("History sent to: ", c.username)
+	for _, recipient := range c.manager.clientsSnapshot() {
+		if recipient.username == chtMsg.ToUser {
+			recipient.egress <- outgoingEvent
+			log.Println("History sent to: ", recipient.username)
 		}
 	}
 	return nil
@@ -221,10 +231,10 @@ func stopTyping(event Event, c *Client) error {
 		Payload: json.RawMessage(data),
 	}
 
-	for c := range c.manager.clients {
-		if c.username == chtMsg.ToUser {
-			c.egress <- outgoingEvent
-			log.Println("History sent to: ", c.username)
+	for _, recipient := range c.manager.clientsSnapshot() {
+		if recipient.username == chtMsg.ToUser {
+			recipient.egress <- outgoingEvent
+			log.Println("History sent to: ", recipient.username)
 		}
 	}
 	return nil
