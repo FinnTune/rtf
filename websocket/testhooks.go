@@ -10,7 +10,7 @@ import (
 // ResetTestState clears websocket manager and session state between tests.
 func ResetTestState() {
 	manager = newManager(context.Background())
-	LoggedInList = make(map[string]bool)
+	LoggedInList.Reset()
 	LoggedInUsers = make(map[string]*Client)
 }
 
@@ -48,10 +48,10 @@ func (h *TestClientHandle) Username() string { return h.client.username }
 func (h *TestClientHandle) UserID() int       { return h.client.userID }
 
 // SetLoggedInList marks a username as logged in for test setup.
-func SetLoggedInList(username string) { LoggedInList[username] = true }
+func SetLoggedInList(username string) { LoggedInList.Add(username) }
 
 // IsInLoggedInList reports whether a username is in the online users list.
-func IsInLoggedInList(username string) bool { return LoggedInList[username] }
+func IsInLoggedInList(username string) bool { return LoggedInList.Has(username) }
 
 // IsRemovedFromManager reports whether the client was removed from the manager.
 func (h *TestClientHandle) IsRemovedFromManager() bool {

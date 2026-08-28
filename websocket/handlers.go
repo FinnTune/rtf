@@ -209,7 +209,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 						//Delete client from manage client list
 						delete(m.clients, client)
 						//Delete client from LoggedInList map
-						delete(LoggedInList, client.username)
+						LoggedInList.Remove(client.username)
 					}
 				}
 			}
@@ -275,41 +275,57 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-		// Find the client with the matching session ID
-		log.Println("Manager's clients: ", m.clients)
-		for client := range m.clients {
-			if client.sessionID == sessionCookie.Value {
-				log.Println("Client found.")
-				// If the client is found, the user is logged in
-				client.loggedIn = false
-				delete(LoggedInList, client.username)
-				m.removeClient(client)
-
-				data, err := json.Marshal(LoggedInList)
-				if err != nil {
-					fmt.Printf("failed to marshal broadcast message error: %s", err)
-					// return fmt.Errorf("failed to marshal broadcast message error: %s", err)
-				}
-				outgoingEvent := Event{
-					Payload: json.RawMessage(data),
-					Type:    UsersList,
-				}
-
-				log.Println("Logout and new users list sent")
-
-				for c := range m.clients {
-					c.egress <- outgoingEvent
-				}
-
-				// Send the login status to the client
-				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(UserLoginResponse{
-					LoggedIn: client.loggedIn,
-				})
-				return
-
+		// Find the client with the matching session ID. Looked up and
+		// released under lock rather than held for the whole function —
+		// m.removeClient below acquires the same lock itself, and holding it
+		// across that call (or across the egress sends further down, which
+		// can block on a slow/stuck client since egress is unbuffered) would
+		// either deadlock or stall every other manager operation.
+		m.Lock()
+		var client *Client
+		for c := range m.clients {
+			if c.sessionID == sessionCookie.Value {
+				client = c
+				break
 			}
 		}
+		m.Unlock()
+
+		if client == nil {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(UserLoginResponse{
+				LoggedIn: false,
+			})
+			return
+		}
+
+		log.Println("Client found.")
+		// If the client is found, the user is logged in
+		client.loggedIn = false
+		LoggedInList.Remove(client.username)
+		m.removeClient(client)
+
+		data, err := json.Marshal(LoggedInList.Snapshot())
+		if err != nil {
+			fmt.Printf("failed to marshal broadcast message error: %s", err)
+			// return fmt.Errorf("failed to marshal broadcast message error: %s", err)
+		}
+		outgoingEvent := Event{
+			Payload: json.RawMessage(data),
+			Type:    UsersList,
+		}
+
+		log.Println("Logout and new users list sent")
+
+		for _, recipient := range m.clientsSnapshot() {
+			recipient.egress <- outgoingEvent
+		}
+
+		// Send the login status to the client
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(UserLoginResponse{
+			LoggedIn: client.loggedIn,
+		})
 	}
 }
 
@@ -380,8 +396,8 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	if existing != nil {
 		log.Println("Client already exists.")
 		log.Println("ClientUName Debug: ", existing.username)
-		delete(LoggedInList, existing.username)
-		LoggedInList[existing.username] = true
+		LoggedInList.Remove(existing.username)
+		LoggedInList.Add(existing.username)
 		existing.connection = conn
 		existing.touch()
 		go existing.readMessages()

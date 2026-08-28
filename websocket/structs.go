@@ -2,6 +2,7 @@ package websocket
 
 import (
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -85,8 +86,60 @@ type Alert struct {
 // Global maps to store all users, posts, comments, categories, and sessions
 var LoggedInUsers = make(map[string]*Client)
 
-// LoggedInList is a list of all logged in users
-var LoggedInList = make(map[string]bool)
+// loggedInSet tracks which usernames are currently online. It's mutated
+// concurrently from many goroutines — login/logout/checkLogin HTTP
+// handlers, the user-connect event, and every connected client's own
+// independent read/write loops on disconnect — so all access goes through
+// these locked methods rather than a bare map.
+type loggedInSet struct {
+	mu    sync.Mutex
+	users map[string]bool
+}
+
+func newLoggedInSet() *loggedInSet {
+	return &loggedInSet{users: make(map[string]bool)}
+}
+
+func (s *loggedInSet) Add(username string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.users[username] = true
+}
+
+func (s *loggedInSet) Remove(username string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.users, username)
+}
+
+func (s *loggedInSet) Has(username string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.users[username]
+}
+
+// Snapshot returns a copy safe to marshal or range over without holding the
+// lock for the duration (important since callers marshal it into a
+// broadcast payload, and some also then range over the manager's clients to
+// send it — neither should be done while holding this set's lock).
+func (s *loggedInSet) Snapshot() map[string]bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	snapshot := make(map[string]bool, len(s.users))
+	for k, v := range s.users {
+		snapshot[k] = v
+	}
+	return snapshot
+}
+
+func (s *loggedInSet) Reset() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.users = make(map[string]bool)
+}
+
+// LoggedInList is a list of all logged in users.
+var LoggedInList = newLoggedInSet()
 
 // Struct to define a session
 type UserSession struct {
