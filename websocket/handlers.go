@@ -50,9 +50,7 @@ func authenticatedClientFromRequest(r *http.Request) (*Client, error) {
 		if client.sessionID == sessionCookie.Value && client.loggedIn {
 			if client.expired() {
 				log.Println("Session expired for client:", client.username)
-				if client.connection != nil {
-					client.connection.Close()
-				}
+				client.closeConnection()
 				delete(manager.clients, client)
 				break
 			}
@@ -85,9 +83,7 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 		if client.sessionID == sessionCookie.Value {
 			if client.expired() {
 				log.Println("Session expired for client:", client.username)
-				if client.connection != nil {
-					client.connection.Close()
-				}
+				client.closeConnection()
 				delete(m.clients, client)
 				utility.ClearCookie(w)
 				w.Header().Set("Content-Type", "application/json")
@@ -108,10 +104,7 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 				// If the client is found, the user is logged in
 				log.Println("Session cookie found. User logged in")
 				client.loggedIn = true
-				if client.connection != nil {
-					client.connection.Close()
-					client.connection = nil
-				}
+				client.closeConnection()
 
 				// Otp
 				//Create new OTP and store in manager otps map
@@ -203,9 +196,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 				if userInfo.Username == client.username {
 					if client.loggedIn {
 						log.Println("Client already logged in.")
-						if client.connection != nil {
-							client.connection.Close()
-						}
+						client.closeConnection()
 						//Delete client from manage client list
 						delete(m.clients, client)
 						//Delete client from LoggedInList map
@@ -398,7 +389,7 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 		log.Println("ClientUName Debug: ", existing.username)
 		LoggedInList.Remove(existing.username)
 		LoggedInList.Add(existing.username)
-		existing.connection = conn
+		existing.setConnection(conn)
 		existing.touch()
 		go existing.readMessages()
 		go existing.writeMesssage()
@@ -433,8 +424,6 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func registerUser(w http.ResponseWriter, r *http.Request) {
-	log.Printf("Registering user: %s", r.Body)
-
 	//Decode request body to struct
 	var user = RegUser{}
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {

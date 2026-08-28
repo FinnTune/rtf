@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"rtForum/utility"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -14,8 +15,16 @@ type ClientsMapList map[*Client]bool
 
 type Client struct {
 	connection *websocket.Conn
-	manager    *Manager
-	sessionID  string
+	// connMu guards connection. readMessages and writeMesssage are two
+	// independent goroutines per client, each with its own check-then-close
+	// cleanup path on this field — a connection drop naturally fails both
+	// sides' I/O around the same time, so without this they can race: one
+	// goroutine's nil check can pass right before the other goroutine nils
+	// the field, and the first goroutine then calls a method on nil.
+	// HTTP handlers (checkLogin, serveLogin, ServeWS, ...) touch it too.
+	connMu    sync.Mutex
+	manager   *Manager
+	sessionID string
 	//egress is used to avoid concurrent writes to websocket connection
 	egress   chan Event
 	loggedIn bool
@@ -90,52 +99,75 @@ func (c *Client) expired() bool {
 	return time.Since(c.lastSeen) > utility.SessionDuration
 }
 
+// getConnection safely reads the current connection (nil if none/closed).
+func (c *Client) getConnection() *websocket.Conn {
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	return c.connection
+}
+
+// setConnection safely assigns a (re)connected websocket.
+func (c *Client) setConnection(conn *websocket.Conn) {
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	c.connection = conn
+}
+
+// closeConnection closes and clears the connection if one is set. Safe to
+// call concurrently and repeatedly — see the connMu doc comment above.
+func (c *Client) closeConnection() {
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	if c.connection != nil {
+		c.connection.Close()
+		c.connection = nil
+	}
+}
+
 // Function to reset timer after pong is received.
 func (c *Client) pongHandler(string) error {
-	if c.connection == nil {
+	conn := c.getConnection()
+	if conn == nil {
 		log.Println("Client connection is nil. No pong received.")
-		return c.connection.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
 	}
 	// log.Println("Pong received, handler called, timer reset.")
-	return c.connection.SetReadDeadline(time.Now().Add(pongWait))
+	return conn.SetReadDeadline(time.Now().Add(pongWait))
 }
 
 func (c *Client) readMessages() {
-	log.Println("Client IP and client port num.: ", c.connection.RemoteAddr())
+	conn := c.getConnection()
+	if conn == nil {
+		return
+	}
+	log.Println("Client IP and client port num.: ", conn.RemoteAddr())
 	defer func() {
 		//connection clean up - close connection and remove client from manager
-		if c.connection != nil {
-			c.connection.Close()
-			LoggedInList.Remove(c.username)
-			c.connection = nil
-		}
+		c.closeConnection()
+		LoggedInList.Remove(c.username)
 	}()
 
 	//Set read deadline for pong wait.
-	if err := c.connection.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
+	if err := conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
 		log.Printf("Client SetReadDeadline() error: %s", err)
 		return
 	}
 
 	//Set limit for message size.
-	c.connection.SetReadLimit(512)
+	conn.SetReadLimit(512)
 
 	//Set pong handler function for connection
-	c.connection.SetPongHandler(c.pongHandler)
+	conn.SetPongHandler(c.pongHandler)
 
 	//Go routine for server to read incoming messages from client.
 	for {
-		_, msg, err := c.connection.ReadMessage()
-		log.Println("Client read message from: ", c.connection.RemoteAddr())
+		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			LoggedInList.Remove(c.username)
 			log.Println("Client Made an Error: ", err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("Client ReadMessage() error: %s", err)
-				if c.connection != nil {
-					c.connection.Close()
-					c.connection = nil
-				}
+				c.closeConnection()
 			}
 			//Break scope and html for submission note.
 			//Problem with page refresh upon form submission in html which causes the the connection to close and websocket to resart.
@@ -174,27 +206,26 @@ func (c *Client) readMessages() {
 
 func (c *Client) writeMesssage() {
 	defer func() {
-		if c.connection != nil {
-			c.connection.Close()
-			LoggedInList.Remove(c.username)
-			c.connection = nil
-		}
+		c.closeConnection()
+		LoggedInList.Remove(c.username)
 	}()
 
 	//Declare new ticker channel with pingInterval
 	ticker := time.NewTicker(pingInterval)
+	defer ticker.Stop()
 
 	//Go routine for server select case action for incoming channels (msg, ticker...???)
 	for {
 		select {
 		case msg, ok := <-c.egress:
 			//Check if channel is closed
-			if c.connection == nil {
+			conn := c.getConnection()
+			if conn == nil {
 				log.Println("Client connection is nil.")
 				return
 			}
 			if !ok {
-				if err := c.connection.WriteMessage(websocket.CloseMessage, nil); err != nil {
+				if err := conn.WriteMessage(websocket.CloseMessage, nil); err != nil {
 					log.Printf("Error when writing 'close' message to client: %s", err)
 					LoggedInList.Remove(c.username)
 				}
@@ -208,19 +239,19 @@ func (c *Client) writeMesssage() {
 				return
 			}
 
-			if err := c.connection.WriteMessage(websocket.TextMessage, data); err != nil {
+			if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
 				log.Printf("Error when writing msg payload to client: %s", err)
 			}
-			log.Println("Message sent to client:", c.connection.RemoteAddr(), "Message:", string(data))
+			log.Println("Message sent to client. Message:", string(data))
 
 		case <-ticker.C:
 			//Check if channel is closed
-			if c.connection == nil {
+			conn := c.getConnection()
+			if conn == nil {
 				log.Println("Client connection is nil.")
 				return
 			}
-			// log.Printf("Ping sent to client: %s", c.connection.RemoteAddr())
-			if err := c.connection.WriteMessage(websocket.PingMessage, nil); err != nil {
+			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				log.Printf("Error when writing 'ping' message to client: %s", err)
 				return
 			}

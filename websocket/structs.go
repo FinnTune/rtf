@@ -201,9 +201,7 @@ type Comment struct {
 
 type Chat struct {
 	ChatId int
-	
 }
-
 
 type Reaction struct {
 	ID        int
