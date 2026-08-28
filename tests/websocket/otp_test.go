@@ -1,6 +1,7 @@
 package websocket_test
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -53,4 +54,27 @@ func TestOtpExpiry(t *testing.T) {
 	if otps.Verify(key) {
 		t.Fatal("expected expired OTP to fail verification")
 	}
+}
+
+// TestOtp_ConcurrentAccess exercises minting, verifying, and (via the short
+// expiry) the background sweep all racing against each other on the same
+// map. It's only useful run with -race — the otp map used to be a bare
+// map[string]otpObj with no synchronization of its own, mutated from
+// serveLogin/checkLogin (under the Manager's lock) and from ServeWS plus the
+// background expiry sweep (both lock-free), which is a data race regardless
+// of whether this test happens to observe a corrupted value.
+func TestOtp_ConcurrentAccess(t *testing.T) {
+	otps := websocket.NewTestOtps(20 * time.Millisecond)
+	defer otps.Close()
+
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			key := otps.NewKey()
+			otps.Verify(key)
+		}()
+	}
+	wg.Wait()
 }
