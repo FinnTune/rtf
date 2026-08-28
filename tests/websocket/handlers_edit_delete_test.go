@@ -2,10 +2,13 @@ package websocket_test
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"rtForum/tests/testutil"
 	"rtForum/websocket"
+	"strings"
 	"testing"
 )
 
@@ -106,6 +109,110 @@ func TestEditPostHandler_NotFound(t *testing.T) {
 
 	if rr.Code != http.StatusNotFound {
 		t.Fatalf("expected status %d, got %d", http.StatusNotFound, rr.Code)
+	}
+}
+
+func TestEditPostHandler_ReplacesCategoryRelations(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-owner", "actual_user", 42)
+
+	// Seed data: post 1 is tagged with category 5 (Code) only.
+	var before int
+	db.QueryRow(`SELECT COUNT(*) FROM category_relation WHERE post_id = 1 AND category_id = 5`).Scan(&before)
+	if before != 1 {
+		t.Fatalf("expected seed post 1 to start tagged with category 5, got count %d", before)
+	}
+
+	body := `{"id":1,"title":"Updated Title","content":"Updated content","categories":[{"id":1,"name":"Cuisine"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/editPost", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-owner"})
+	rr := httptest.NewRecorder()
+
+	websocket.EditPostHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var codeCount, cuisineCount int
+	db.QueryRow(`SELECT COUNT(*) FROM category_relation WHERE post_id = 1 AND category_id = 5`).Scan(&codeCount)
+	db.QueryRow(`SELECT COUNT(*) FROM category_relation WHERE post_id = 1 AND category_id = 1`).Scan(&cuisineCount)
+	if codeCount != 0 {
+		t.Fatalf("expected old category relation (Code) to be removed, found %d", codeCount)
+	}
+	if cuisineCount != 1 {
+		t.Fatalf("expected new category relation (Cuisine) to be added, found %d", cuisineCount)
+	}
+}
+
+func TestEditPostHandler_RejectsTooManyCategories(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-owner", "actual_user", 42)
+
+	cats := make([]string, 21)
+	for i := range cats {
+		cats[i] = fmt.Sprintf(`{"id":%d,"name":"c%d"}`, i+1, i+1)
+	}
+	body := fmt.Sprintf(`{"id":1,"title":"Title","content":"Content","categories":[%s]}`, strings.Join(cats, ","))
+	req := httptest.NewRequest(http.MethodPost, "/editPost", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-owner"})
+	rr := httptest.NewRecorder()
+
+	websocket.EditPostHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+	}
+}
+
+func TestGetPostCategoriesHandler_ReturnsAssignedCategories(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/getPostCategories?postId=1", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.GetPostCategoriesHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var categories []websocket.Category
+	if err := json.NewDecoder(rr.Body).Decode(&categories); err != nil {
+		t.Fatalf("failed to decode categories: %v", err)
+	}
+	if len(categories) != 1 || categories[0].Name != "Code" {
+		t.Fatalf("expected post 1 to be tagged with only Code, got %+v", categories)
+	}
+}
+
+func TestGetPostCategoriesHandler_RejectsInvalidPostId(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/getPostCategories?postId=abc", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.GetPostCategoriesHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+	}
+}
+
+func TestGetPostCategoriesHandler_RejectsNonGetMethod(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/getPostCategories?postId=1", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.GetPostCategoriesHandler(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
 	}
 }
 

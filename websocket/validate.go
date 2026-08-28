@@ -34,6 +34,9 @@ const (
 
 	maxSearchQueryLength = 100
 	maxSearchResults     = 50
+
+	defaultCommentsPageSize = 20
+	maxCommentsPageSize     = 100
 )
 
 // validateRegistration trims string fields in place and rejects the request

@@ -1,6 +1,8 @@
 import { showMessage, setButtonLoading } from "./notify.js";
+import { getCategories } from "./categories.js";
 
-const POSTS_PAGE_SIZE = 10;
+export const POSTS_PAGE_SIZE = 10;
+const COMMENTS_PAGE_SIZE = 20;
 
 export function getAllPosts(offset = 0) {
     console.log("Getting all posts. offset=", offset)
@@ -43,7 +45,7 @@ export function getAllPosts(offset = 0) {
         } else {
             renderPostRows(tbody, posts);
         }
-        renderPagination(offset, POSTS_PAGE_SIZE, total);
+        renderPagination(offset, POSTS_PAGE_SIZE, total, getAllPosts);
     }).catch((error) => {
         showMessage("Err: " + error.message, "error");
         console.log("Err: ", error);
@@ -52,7 +54,10 @@ export function getAllPosts(offset = 0) {
     return false;
 }
 
-function renderPagination(offset, limit, total) {
+// Renders Previous/Next controls into #posts-pagination. `onNavigate(newOffset)`
+// is called to load the requested page — shared by the all-posts and
+// category-filter views, each of which knows how to (re)fetch its own data.
+export function renderPagination(offset, limit, total, onNavigate) {
     const paginationDiv = document.getElementById('posts-pagination');
     if (!paginationDiv) {
         return;
@@ -68,7 +73,7 @@ function renderPagination(offset, limit, total) {
     prevButton.className = 'btns';
     prevButton.textContent = 'Previous';
     prevButton.disabled = offset === 0;
-    prevButton.addEventListener('click', () => getAllPosts(Math.max(0, offset - limit)));
+    prevButton.addEventListener('click', () => onNavigate(Math.max(0, offset - limit)));
 
     const hasMore = offset + limit < total;
     const nextButton = document.createElement('button');
@@ -76,7 +81,7 @@ function renderPagination(offset, limit, total) {
     nextButton.className = 'btns';
     nextButton.textContent = 'Next';
     nextButton.disabled = !hasMore;
-    nextButton.addEventListener('click', () => getAllPosts(offset + limit));
+    nextButton.addEventListener('click', () => onNavigate(offset + limit));
 
     const rangeLabel = document.createElement('span');
     rangeLabel.className = 'pagination-range';
@@ -235,7 +240,7 @@ export async function displaySinglePost(post) {
         deleteButton.className = "btns";
         deleteButton.textContent = "Delete";
 
-        editButton.addEventListener("click", () => {
+        editButton.addEventListener("click", async () => {
             let titleInput = document.createElement("input");
             titleInput.type = "text";
             titleInput.value = post.Title;
@@ -248,6 +253,38 @@ export async function displaySinglePost(post) {
             contentInput.required = true;
             contentInput.rows = 4;
             contentInput.cols = 50;
+
+            let categoriesDiv = document.createElement("div");
+            categoriesDiv.id = "edit-post-categories";
+            let checkboxes = [];
+            try {
+                const [allCategories, postCategories] = await Promise.all([
+                    getCategories(),
+                    getPostCategories(post.PostId),
+                ]);
+                const currentIds = new Set(postCategories.map((c) => c.id));
+                for (const category of allCategories) {
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.id = "edit-category-" + category.id;
+                    checkbox.dataset.categoryId = category.id;
+                    checkbox.dataset.categoryName = category.name;
+                    checkbox.checked = currentIds.has(category.id);
+
+                    const label = document.createElement("label");
+                    label.htmlFor = checkbox.id;
+                    label.appendChild(document.createTextNode(category.name));
+
+                    const wrapper = document.createElement("span");
+                    wrapper.appendChild(checkbox);
+                    wrapper.appendChild(label);
+                    categoriesDiv.appendChild(wrapper);
+                    checkboxes.push(checkbox);
+                }
+            } catch (error) {
+                showMessage("Err: " + error.message, "error");
+                console.log("Err: ", error);
+            }
 
             let saveButton = document.createElement("button");
             saveButton.type = "button";
@@ -263,6 +300,7 @@ export async function displaySinglePost(post) {
             editForm.id = "edit-post-form";
             editForm.appendChild(titleInput);
             editForm.appendChild(contentInput);
+            editForm.appendChild(categoriesDiv);
             editForm.appendChild(saveButton);
             editForm.appendChild(cancelButton);
 
@@ -284,9 +322,12 @@ export async function displaySinglePost(post) {
                 if (!newTitle || !newContent) {
                     return;
                 }
+                const selectedCategories = checkboxes
+                    .filter((cb) => cb.checked)
+                    .map((cb) => ({ id: parseInt(cb.dataset.categoryId, 10), name: cb.dataset.categoryName }));
                 setButtonLoading(saveButton, true, "Saving...");
                 try {
-                    const updated = await editPostRequest(post.PostId, newTitle, newContent);
+                    const updated = await editPostRequest(post.PostId, newTitle, newContent, selectedCategories);
                     showMessage("Post updated.", "success");
                     displaySinglePost({ ...post, Title: updated.title, Content: updated.content });
                 } catch (error) {
@@ -330,17 +371,43 @@ export async function displaySinglePost(post) {
     commentsHeading.textContent = "Comments:";
     commentsSection.appendChild(commentsHeading);
 
-    // Fetch comments for the post
-    try {
-        let comments = await fetchComments(post.PostId);
-        console.log("Comments fetch: ", comments)
-        comments.forEach(comment => {
-            renderComment(comment, commentsSection);
-        });
-    } catch (error) {
-        showMessage("Err: " + error.message, "error");
-        console.log("Err: ", error);
+    let commentsListDiv = document.createElement("div");
+    commentsListDiv.id = "comments-list";
+    commentsSection.appendChild(commentsListDiv);
+
+    let loadMoreButton = document.createElement("button");
+    loadMoreButton.type = "button";
+    loadMoreButton.className = "btns";
+    loadMoreButton.textContent = "Load more comments";
+    loadMoreButton.style.display = "none";
+
+    let commentOffset = 0;
+
+    async function loadMoreComments() {
+        setButtonLoading(loadMoreButton, true, "Loading...");
+        try {
+            const { comments, total } = await fetchComments(post.PostId, commentOffset, COMMENTS_PAGE_SIZE);
+            if (commentOffset === 0 && total === 0) {
+                const emptyMsg = document.createElement("p");
+                emptyMsg.className = "empty-state";
+                emptyMsg.textContent = "No comments yet — be the first to comment!";
+                commentsListDiv.appendChild(emptyMsg);
+            }
+            comments.forEach(comment => renderComment(comment, commentsListDiv));
+            commentOffset += comments.length;
+            loadMoreButton.style.display = commentOffset < total ? "inline" : "none";
+        } catch (error) {
+            showMessage("Err: " + error.message, "error");
+            console.log("Err: ", error);
+        } finally {
+            setButtonLoading(loadMoreButton, false);
+        }
     }
+
+    loadMoreButton.addEventListener("click", loadMoreComments);
+
+    // Fetch the first page of comments for the post
+    await loadMoreComments();
 
     // Create a form to submit a new comment
     let commentForm = document.createElement("form");
@@ -364,16 +431,14 @@ export async function displaySinglePost(post) {
         if (commentContent) {
             setButtonLoading(submitButton, true, 'Posting...');
             try {
-                await submitComment(post.PostId, commentContent);
+                const newComment = await submitComment(post.PostId, commentContent);
                 commentInput.value = "";
-                commentsSection.replaceChildren();
-                let refreshedHeading = document.createElement("h4");
-                refreshedHeading.textContent = "Comments:";
-                commentsSection.appendChild(refreshedHeading);
-                let updatedComments = await fetchComments(post.PostId);
-                updatedComments.forEach(comment => {
-                    renderComment(comment, commentsSection);
-                });
+                const existingEmpty = commentsListDiv.querySelector('.empty-state');
+                if (existingEmpty) {
+                    existingEmpty.remove();
+                }
+                renderComment(newComment, commentsListDiv);
+                commentOffset += 1;
             } catch (error) {
                 showMessage("Err: " + error.message, "error");
                 console.log("Err: ", error);
@@ -385,6 +450,10 @@ export async function displaySinglePost(post) {
 
     // Add comments section and form to the singlePostDiv
     singlePostDiv.appendChild(commentsSection);
+    // Kept outside the scrollable #comments-section (same reasoning as
+    // #posts-pagination for the post list): a fixed-height scroll box would
+    // bury this control below the fold once comments overflow it.
+    singlePostDiv.appendChild(loadMoreButton);
     singlePostDiv.appendChild(commentForm);
 }
 
@@ -397,15 +466,25 @@ export async function getPost(id) {
     return response.json();
 }
 
-async function fetchComments(postId) {
-    const response = await fetch(`/comments?postId=${postId}`);
+async function getPostCategories(postId) {
+    const response = await fetch(`/getPostCategories?postId=${postId}`);
+    if (!response.ok) {
+        const message = await response.text();
+        throw new Error(message || `Failed to load post categories (${response.status})`);
+    }
+    return response.json();
+}
+
+async function fetchComments(postId, offset = 0, limit = COMMENTS_PAGE_SIZE) {
+    const response = await fetch(`/comments?postId=${postId}&limit=${limit}&offset=${offset}`);
     if (!response.ok) {
         const message = await response.text();
         throw new Error(message || `Failed to load comments (${response.status})`);
     }
+    const total = parseInt(response.headers.get('X-Total-Count') || '0', 10);
     const comments = await response.json();
     console.log("Comments: ", comments)
-    return comments;
+    return { comments, total };
 }
 
 async function submitComment(postId, commentContent) {
@@ -424,11 +503,11 @@ async function submitComment(postId, commentContent) {
     return result;
 }
 
-async function editPostRequest(id, title, content) {
+async function editPostRequest(id, title, content, categories = []) {
     const response = await fetch('/editPost', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, title, content })
+        body: JSON.stringify({ id, title, content, categories })
     });
     if (!response.ok) {
         const message = await response.text();
