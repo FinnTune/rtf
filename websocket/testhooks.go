@@ -45,7 +45,18 @@ func AddAuthenticatedClient(sessionID, username string, userID int) {
 }
 
 func (h *TestClientHandle) Username() string { return h.client.username }
-func (h *TestClientHandle) UserID() int       { return h.client.userID }
+func (h *TestClientHandle) UserID() int      { return h.client.userID }
+
+// CloseConnectionForTest exercises the connection-close path for tests.
+func (h *TestClientHandle) CloseConnectionForTest() { h.client.closeConnection() }
+
+// HasConnectionForTest reports whether the client currently has a
+// connection set.
+func (h *TestClientHandle) HasConnectionForTest() bool { return h.client.getConnection() != nil }
+
+// ClearConnectionForTest exercises the connection-write path for tests
+// without needing a real *websocket.Conn.
+func (h *TestClientHandle) ClearConnectionForTest() { h.client.setConnection(nil) }
 
 // SetLoggedInList marks a username as logged in for test setup.
 func SetLoggedInList(username string) { LoggedInList.Add(username) }
