@@ -336,7 +336,7 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !m.otps.verifyOtp(otp) {
-		// w.WriteHeader(http.StatusUnauthorized)
+		w.WriteHeader(http.StatusUnauthorized)
 		log.Println("OTP is invalid.")
 		return
 	}
@@ -356,6 +356,11 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie("session_id")
 	if err != nil {
 		log.Printf("Error getting cookie: %s", err)
+		// The upgrade already succeeded above, so without this the
+		// connection is left open with nothing ever reading/writing it or
+		// tracking it in m.clients — a leaked socket the client believes is
+		// live until it eventually times out on its own.
+		conn.Close()
 		return
 	}
 
