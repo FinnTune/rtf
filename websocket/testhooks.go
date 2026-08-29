@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"rtForum/utility"
 	"time"
 )
 
@@ -47,6 +48,13 @@ func AddAuthenticatedClient(sessionID, username string, userID int) {
 func (h *TestClientHandle) Username() string { return h.client.username }
 func (h *TestClientHandle) UserID() int      { return h.client.userID }
 
+// ExpireForTest backdates the client's lastSeen so client.expired() reports
+// true, for testing stale-session cleanup paths without waiting out the
+// real SessionDuration.
+func (h *TestClientHandle) ExpireForTest() {
+	h.client.lastSeen = time.Now().Add(-utility.SessionDuration - time.Minute)
+}
+
 // CloseConnectionForTest exercises the connection-close path for tests.
 func (h *TestClientHandle) CloseConnectionForTest() { h.client.closeConnection() }
 
@@ -70,6 +78,37 @@ func (h *TestClientHandle) IsRemovedFromManager() bool {
 	defer manager.RUnlock()
 	_, ok := manager.clients[h.client]
 	return !ok
+}
+
+// NewOtpForTest mints a one-time password against the package's live
+// manager — the same instance WebsocketHandler/ServeWS use — for tests that
+// exercise the real /ws upgrade path end-to-end rather than calling an
+// event handler directly.
+func NewOtpForTest() string {
+	return manager.otps.newOtp().Key
+}
+
+// FindClientBySessionForTest looks up a connected client by session id
+// against the package's live manager. Needed for asserting on clients
+// ServeWS itself creates or reconnects, which AddTestClient's handle
+// doesn't observe.
+func FindClientBySessionForTest(sessionID string) *TestClientHandle {
+	manager.RLock()
+	defer manager.RUnlock()
+	for c := range manager.clients {
+		if c.sessionID == sessionID {
+			return &TestClientHandle{client: c}
+		}
+	}
+	return nil
+}
+
+// ClientCountForTest reports how many clients are currently registered with
+// the package's live manager.
+func ClientCountForTest() int {
+	manager.RLock()
+	defer manager.RUnlock()
+	return len(manager.clients)
 }
 
 // WaitEvent waits for an outbound websocket event up to the given timeout.
