@@ -15,6 +15,146 @@ padding: 0;
 background-color: #3d0f8c;
 }
 
+/* ===== Logged-in app shell =====
+   .header/.header-btns/#title/.intro above are shared with the logged-out
+   landing page (mainHTML.js) and stay as they are. Everything below is
+   exclusive to the logged-in shell (loggedInHTML.js). */
+
+.topbar {
+display: flex;
+align-items: center;
+gap: 20px;
+padding: 10px 20px;
+background-color: var(--primary-color);
+color: #fff;
+}
+
+.topbar #title {
+margin: 0;
+flex-grow: 0;
+white-space: nowrap;
+}
+
+.topbar-search {
+display: flex;
+align-items: center;
+flex-grow: 1;
+}
+
+.topbar-user {
+display: flex;
+align-items: center;
+gap: 10px;
+white-space: nowrap;
+}
+
+.topbar-user #logout-button {
+margin: 0;
+}
+
+#topbar-username {
+font-weight: bold;
+}
+
+.app-shell {
+display: grid;
+grid-template-columns: 220px minmax(0, 1fr) 240px;
+gap: 15px;
+margin: 15px;
+align-items: start;
+}
+
+.sidebar-left,
+.sidebar-right {
+display: flex;
+flex-direction: column;
+gap: 8px;
+}
+
+.sidebar-heading {
+text-decoration: underline;
+margin: 15px 0 5px;
+padding: 0 10px;
+color: #fff;
+}
+
+.nav-item {
+display: block;
+width: 100%;
+text-align: left;
+margin: 0;
+padding: 8px 10px;
+border: var(--quinary-color);
+border-style: solid;
+border-width: 2px;
+border-radius: 10px;
+background-color: var(--primary-color);
+color: #fff;
+font-size: 15px;
+cursor: pointer;
+box-sizing: border-box;
+}
+
+.nav-item.active {
+background-color: var(--quaternary-color);
+border-color: #fff;
+}
+
+.category-nav {
+display: flex;
+flex-direction: column;
+gap: 6px;
+}
+
+.content-pane {
+min-width: 0;
+color: #fff;
+}
+
+.content-pane h3 {
+border-bottom: 1px solid #fff;
+margin: 10px;
+padding: 5px;
+}
+
+.post-list {
+list-style: none;
+margin: 0;
+padding: 0;
+display: flex;
+flex-direction: column;
+gap: 12px;
+}
+
+.post-card {
+border: var(--quinary-color);
+border-style: solid;
+border-width: 2px;
+border-radius: 10px;
+background-color: var(--primary-color);
+padding: 12px 15px;
+transition: border-color 0.15s ease;
+}
+
+.post-card:hover {
+border-color: #fff;
+}
+
+.post-card-title {
+font-size: 18px;
+font-weight: bold;
+}
+
+.post-card-preview {
+margin: 6px 0;
+opacity: 0.9;
+}
+
+.post-card-meta {
+font-size: 13px;
+opacity: 0.8;
+}
+
 /* Header styles */
 .header {
 display: flex;
@@ -194,33 +334,17 @@ background-color: var(--quaternary-color);
 margin-top: 10px;
 }
 
-#main-content {
-display: flex;
-flex-direction: column;
-margin: 10px;
-padding: 5px;
-border: var(--quinary-color);
-border-style: solid;
-border-width: 2px;
-border-radius: 10px;
-background-color: var(--primary-color);
+/* #main-content's box styling is now handled by .content-pane above — the
+   element carries both the id (used by JS) and the class (used for style). */
+
+.post-link,
+.post-card-title a {
 color: #fff;
+text-decoration: none;
 }
 
-#main-content h3 {
-/* Underline */
-border-bottom: 1px solid #fff;
-margin: 10px;
-padding: 5px;
-}
-
-.post-link {
-color: #fff;
-}
-
-#posts {
-overflow: auto;
-height: 200px; /* set a fixed height to limit the maximum size of the chat area */
+.post-card-title a:hover {
+text-decoration: underline;
 }
 
 #posts-pagination {
@@ -238,16 +362,15 @@ margin: 0 10px;
 #search-form {
 display: flex;
 align-items: center;
-margin: 10px 20px;
+gap: 8px;
 }
 
 #search-input {
-padding: 8px;
+padding: 6px 8px;
 border-radius: 5px;
 border: 1px solid #ccc;
-margin-right: 10px;
 flex-grow: 1;
-max-width: 300px;
+max-width: 260px;
 }
 
 #add-post{
@@ -357,12 +480,7 @@ padding: 5px;
 }
 
 #users {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    margin: 10px;
     padding: 5px;
-    float: right;
     border: var(--quinary-color);
     border-style: solid;
     border-width: 2px;
@@ -398,28 +516,8 @@ margin-bottom: 5px;
 }
 
 
-#category-selection {
-    color: #fff;
-}
-
-#category-selection h4 {
-    text-decoration: underline;
-    margin: 0;
-    margin-right: 5px;
-    padding: 0;
-}
-
-.category-filter label {
-margin-right: 5px; /* Adjust the value as needed */
-}
-
-.category-filter {
-    margin: auto;
-    margin-right: 20px;
-    margin-left: 20px;
-    display: flex;
-    flex-wrap: wrap;
-}
+/* #category-selection is now a .category-nav list of .nav-item buttons
+   (styled above, in the app-shell block) rather than a checkbox strip. */
 
 #edit-post-categories {
     display: flex;
@@ -437,4 +535,21 @@ margin-right: 5px; /* Adjust the value as needed */
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+/* Stack the app shell into a single column once there's no room for three
+   side by side. */
+@media (max-width: 900px) {
+    .app-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .topbar {
+        flex-wrap: wrap;
+    }
+
+    .topbar-search {
+        order: 3;
+        flex-basis: 100%;
+    }
 }

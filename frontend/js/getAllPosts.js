@@ -1,5 +1,6 @@
 import { showMessage, setButtonLoading } from "./notify.js";
 import { getCategories } from "./categories.js";
+import { setActiveNav } from "./navigation.js";
 
 export const POSTS_PAGE_SIZE = 10;
 const COMMENTS_PAGE_SIZE = 20;
@@ -38,12 +39,11 @@ export function getAllPosts(offset = 0) {
             getAllPosts(Math.max(0, offset - POSTS_PAGE_SIZE));
             return;
         }
-        let table = document.getElementById('posts-table');
-        let tbody = table.querySelector('tbody');
+        let postList = document.getElementById('posts-table');
         if (posts.length === 0) {
-            showEmptyState(tbody, "No posts yet — be the first to post!");
+            showEmptyState(postList, "No posts yet — be the first to post!");
         } else {
-            renderPostRows(tbody, posts);
+            renderPostRows(postList, posts);
         }
         renderPagination(offset, POSTS_PAGE_SIZE, total, getAllPosts);
     }).catch((error) => {
@@ -94,103 +94,83 @@ export function renderPagination(offset, limit, total, onNavigate) {
     paginationDiv.appendChild(nextButton);
 }
 
-export function showEmptyState(tbody, message) {
-    const row = tbody.insertRow();
-    const cell = row.insertCell(0);
-    cell.colSpan = 4;
-    cell.className = 'empty-state';
-    cell.textContent = message;
+export function showEmptyState(container, message) {
+    const item = document.createElement('li');
+    item.className = 'empty-state';
+    item.textContent = message;
+    container.appendChild(item);
 }
 
-// Renders post rows into an existing #posts-table tbody. Shared by the all
-// posts, category filter, and search views so the row markup and the
+// Renders post cards into the existing #posts-table list. Shared by the all
+// posts, category filter, and search views so the card markup and the
 // single-post click handler only live in one place.
-export function renderPostRows(tbody, posts) {
+export function renderPostRows(container, posts) {
     for (let i = 0; i < posts.length; i++) {
-        let row = tbody.insertRow();
-        let title = row.insertCell(0);
-        let content = row.insertCell(1);
-        let author = row.insertCell(2);
-        let dateCreated = row.insertCell(3);
+        let card = document.createElement("li");
+        card.className = "post-card";
+
+        let title = document.createElement("div");
+        title.className = "post-card-title";
         let link = document.createElement("a");
         link.href = "/posts/" + posts[i].PostId;
-        link.className = "post-link";
         link.textContent = posts[i].Title;
         link.addEventListener("click", function(event){
             event.preventDefault();
             displaySinglePost(posts[i]);
         });
         title.appendChild(link);
-        content.textContent = posts[i].Content;
-        author.textContent = posts[i].Author;
-        dateCreated.textContent = posts[i].Created;
+
+        let preview = document.createElement("div");
+        preview.className = "post-card-preview";
+        preview.textContent = posts[i].Content;
+
+        let meta = document.createElement("div");
+        meta.className = "post-card-meta";
+        meta.textContent = posts[i].Author + " · " + posts[i].Created;
+
+        card.appendChild(title);
+        card.appendChild(preview);
+        card.appendChild(meta);
+        container.appendChild(card);
     }
 }
 
 export function createPostsTable() {
     // Get the main content element
     const mainContent = document.getElementById('main-content');
-  
+
     // Create the posts div element
     const postsDiv = document.createElement('div');
     postsDiv.setAttribute('id', 'posts');
-  
+
     // Create the heading element
     const heading = document.createElement('h3');
     heading.textContent = 'Latest Posts';
-  
-    // Create the table element
-    const table = document.createElement('table');
-    table.setAttribute('id', 'posts-table');
-  
-    // Create the table header row and cells
-    const thead = document.createElement('thead'); // Create thead element
-    const headerRow = document.createElement('tr');
-    const titleHeader = document.createElement('th');
-    titleHeader.textContent = 'Title';
-    const contentHeader = document.createElement('th');
-    contentHeader.textContent = 'Content';
-    const authorHeader = document.createElement('th');
-    authorHeader.textContent = 'Author';
-    const createdHeader = document.createElement('th');
-    createdHeader.textContent = 'Created';
-  
-    // Append the cells to the header row
-    headerRow.appendChild(titleHeader);
-    headerRow.appendChild(contentHeader);
-    headerRow.appendChild(authorHeader);
-    headerRow.appendChild(createdHeader);
-  
-    // Append the header row to the thead element
-    thead.appendChild(headerRow);
-  
-    // Create the table body element
-    const tbody = document.createElement('tbody');
-  
-    // Append the thead and tbody to the table
-    table.appendChild(thead);
-    table.appendChild(tbody);
 
-    // Append the heading and table to the posts div
+    // Create the post list element
+    const list = document.createElement('ul');
+    list.className = 'post-list';
+    list.setAttribute('id', 'posts-table');
+
+    // Append the heading and list to the posts div
     postsDiv.appendChild(heading);
-    postsDiv.appendChild(table);
+    postsDiv.appendChild(list);
 
     // Append the posts div to the main content element
     mainContent.appendChild(postsDiv);
 
     // Pagination controls, populated/updated by renderPagination(). Kept as
-    // a sibling of #posts rather than nested inside it, since #posts is a
-    // fixed-height scroll box — nesting Prev/Next in there would bury them
-    // below the fold whenever the post rows overflow it.
+    // a sibling of #posts so Prev/Next stay visible regardless of how many
+    // cards the list holds.
     const paginationDiv = document.createElement('div');
     paginationDiv.id = 'posts-pagination';
     mainContent.appendChild(paginationDiv);
   }
-  
-  
+
+
 export function clearTable() {
-    const tableBody = document.querySelector('#posts-table tbody');
-    tableBody.innerHTML = '';
+    const list = document.getElementById('posts-table');
+    list.innerHTML = '';
 }
 
 export async function displaySinglePost(post) {
@@ -201,6 +181,7 @@ export async function displaySinglePost(post) {
     if (window.location.pathname !== targetPath) {
         history.pushState({}, '', targetPath);
     }
+    setActiveNav(null);
     let mainContent = document.getElementById("main-content");
     let singlePostDiv = document.createElement("div");
     singlePostDiv.id = "single-post";
@@ -219,6 +200,7 @@ export async function displaySinglePost(post) {
         event.preventDefault();
         history.pushState({}, '', '/');
         mainContent.innerHTML = "";
+        setActiveNav('all-posts-button');
         getAllPosts();
     });
     singlePostDiv.appendChild(title);
@@ -348,6 +330,7 @@ export async function displaySinglePost(post) {
                 showMessage("Post deleted.", "success");
                 history.pushState({}, '', '/');
                 mainContent.innerHTML = "";
+                setActiveNav('all-posts-button');
                 getAllPosts();
             } catch (error) {
                 showMessage("Err: " + error.message, "error");
