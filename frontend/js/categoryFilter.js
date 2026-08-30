@@ -55,7 +55,7 @@ export function getPostsByCategory(offset = 0) {
         return getAllPosts();
     }
 
-     fetch(`getPostsByCategory?limit=${POSTS_PAGE_SIZE}&offset=${offset}`, {
+     fetch(`/getPostsByCategory?limit=${POSTS_PAGE_SIZE}&offset=${offset}`, {
          method: 'POST',
          mode: 'cors',
          headers: {

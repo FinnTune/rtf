@@ -26,7 +26,7 @@ export function register() {
     const submitButton = document.getElementById('register-submit-button');
     setButtonLoading(submitButton, true, 'Registering...');
 
-    fetch('register', {
+    fetch('/register', {
         method: 'POST',
         body: JSON.stringify(formData),
         mode: 'cors', // not needed

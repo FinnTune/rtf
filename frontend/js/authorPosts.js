@@ -15,7 +15,7 @@ export function showAuthorPosts(author, offset = 0) {
     clearActiveCategory();
     setActiveNav(null);
 
-    fetch(`getPostsByAuthor?author=${encodeURIComponent(author)}&limit=${POSTS_PAGE_SIZE}&offset=${offset}`, {
+    fetch(`/getPostsByAuthor?author=${encodeURIComponent(author)}&limit=${POSTS_PAGE_SIZE}&offset=${offset}`, {
         method: 'GET',
         mode: 'cors',
         headers: {
