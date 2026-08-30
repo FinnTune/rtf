@@ -304,31 +304,67 @@ function openChatWindow(user) {
         return;
     }
 
-    // Create a new chat window
+    // Create a new chat window. Built via createElement/textContent rather
+    // than an innerHTML template string, since `user` is untrusted input as
+    // far as this file is concerned — it happens to be constrained
+    // server-side today (registration usernames are alphanumeric/_/- only),
+    // but a DOM-injection sink shouldn't rely on a distant, unrelated
+    // validation rule elsewhere in the codebase to stay safe.
     let chatWindow = document.createElement('div');
     chatWindow.id = 'chat:' + user;
     chatWindow.classList.add('chat-window');
 
-    // Add the inner HTML content to the chat window
-    chatWindow.innerHTML = `
-      <h3>Chat with ${user}</h3>
-      <button id="close-chat" class="close-chat">x</button>
-      <div name="chat-messages" id="chat-messages-${user}" class="chat-messages" style="overflow-y: scroll;">
-      <div class="spacer" style="height: 20px;"></div>
-      </div>
-      <div class="typing">
-      <img id="typing-indicator-${user}" src="/img/typing.gif" style="display: none; width: 30px; height: 30px;">
-      </div><br>
-      <div class="chat-footer">
-        <form>
-          <textarea type="text" id="new-message-${user}" name="new-message" placeholder="Type your message"></textarea>
-          <button id="message-submit-${user}" class="btns" type="submit">Send</button>
-        </form>
-      </div>
-    `;
+    let heading = document.createElement('h3');
+    heading.textContent = 'Chat with ' + user;
 
-    let messageSubmitButton = chatWindow.querySelector('#message-submit-' + user);
-    let newMessageInput = chatWindow.querySelector('#new-message-'+ user);
+    let closeButton = document.createElement('button');
+    closeButton.id = 'close-chat';
+    closeButton.className = 'close-chat';
+    closeButton.textContent = 'x';
+
+    let chatMessagesDiv = document.createElement('div');
+    chatMessagesDiv.setAttribute('name', 'chat-messages');
+    chatMessagesDiv.id = 'chat-messages-' + user;
+    chatMessagesDiv.className = 'chat-messages';
+    chatMessagesDiv.style.overflowY = 'scroll';
+    let spacer = document.createElement('div');
+    spacer.className = 'spacer';
+    spacer.style.height = '20px';
+    chatMessagesDiv.appendChild(spacer);
+
+    let typingDiv = document.createElement('div');
+    typingDiv.className = 'typing';
+    let typingIndicator = document.createElement('img');
+    typingIndicator.id = 'typing-indicator-' + user;
+    typingIndicator.src = '/img/typing.gif';
+    typingIndicator.style.display = 'none';
+    typingIndicator.style.width = '30px';
+    typingIndicator.style.height = '30px';
+    typingDiv.appendChild(typingIndicator);
+
+    let chatFooter = document.createElement('div');
+    chatFooter.className = 'chat-footer';
+    let messageForm = document.createElement('form');
+    let newMessageInput = document.createElement('textarea');
+    newMessageInput.type = 'text';
+    newMessageInput.id = 'new-message-' + user;
+    newMessageInput.name = 'new-message';
+    newMessageInput.placeholder = 'Type your message';
+    let messageSubmitButton = document.createElement('button');
+    messageSubmitButton.id = 'message-submit-' + user;
+    messageSubmitButton.className = 'btns';
+    messageSubmitButton.type = 'submit';
+    messageSubmitButton.textContent = 'Send';
+    messageForm.appendChild(newMessageInput);
+    messageForm.appendChild(messageSubmitButton);
+    chatFooter.appendChild(messageForm);
+
+    chatWindow.appendChild(heading);
+    chatWindow.appendChild(closeButton);
+    chatWindow.appendChild(chatMessagesDiv);
+    chatWindow.appendChild(typingDiv);
+    chatWindow.appendChild(document.createElement('br'));
+    chatWindow.appendChild(chatFooter);
 
     // Add event listener to the send button
     messageSubmitButton.addEventListener('click', (e) => {
@@ -376,24 +412,21 @@ function openChatWindow(user) {
     const limit = 10;
 
     // Add the event listener to the close button
-    chatWindow.querySelector('#close-chat').addEventListener('click', () => {
+    closeButton.addEventListener('click', () => {
      mainDiv.removeChild(chatWindow);
     });
-  
+
     // Append the chat window to the document body
     mainDiv.appendChild(chatWindow);
     // Now that the chat window is open, we can load the chat history.
     console.log("Getting chat history")
     const localUserId = localStorage.getItem("username");  // Assuming you save user ID in localStorage
     console.log("History from: ", localUserId)
-    console.log("History to: ", user) 
-    
+    console.log("History to: ", user)
+
     const getChatHistoryEvent = new Event("get-chat-history", new GetChatHistoryEvent(localUserId, user, offset, limit));
     conn.send(JSON.stringify(getChatHistoryEvent));
 
-
-    //Get more chat history on scroll
-    let chatMessagesDiv = chatWindow.querySelector('#chat-messages-' + user);
 
     // Loading older history shifts scroll position back to (or near) 0 once
     // the new messages are prepended, and browsers keep firing 'scroll'
