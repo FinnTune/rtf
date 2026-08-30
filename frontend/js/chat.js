@@ -69,13 +69,11 @@ export function routeEvent(event) {
     switch (event.type) {
         case "sent-message": {
             const messageEvent = Object.assign(new ReceiveMessageEvent, event.payload)
-            console.log("New message: ", event.payload);
             appendChatMsg(messageEvent);
             break;
         }
         case "users-online": {
             //Functionality to display online users
-            console.log("Users online updated")
             const usersOnline = event;
             appendUsers(usersOnline);
             break;
@@ -83,15 +81,11 @@ export function routeEvent(event) {
         case "chat_history": {
             //Functionality to display chat history
             if (event.payload == null) {
-                console.log("No more chat history");
                 return;
             } else {
-            console.log("Appending Chat History: ", event.payload)
             // Reverse the array
             let events = event.payload.reverse();
-            // document.getElementById('chat-messages-' + event.payload.to).innerHTML = "";
             events.forEach(event => {
-                console.log(event)
                 prependChatMsg(event);
             });
             }
@@ -108,7 +102,7 @@ export function routeEvent(event) {
             }
             break;
         case "error":
-            console.log("Error: ", event.payload);
+            console.error(event.payload);
             break;
         default:
             console.error("Unsupported event type: ", event.type);
@@ -136,7 +130,6 @@ function appendChatMsg(event) {
         }
         msgArea2.scrollTop = msgArea2.scrollHeight;
     } else {
-        console.log("Chat window not open");
         let usersList = document.getElementById('users-list');
         const msgAlert = document.createElement("span");
         msgAlert.className = "msg-alert";
@@ -166,21 +159,17 @@ function appendChatMsg(event) {
 
 function prependChatMsg(event) {
     var date = new Date(event.created_at);
-    console.log("Date: ", date)
     let msgArea;
     if (document.getElementById('chat-messages-' + event.from)) {
         msgArea = document.getElementById('chat-messages-' + event.from);
     } else if (document.getElementById('chat-messages-' + event.to)) {
         msgArea = document.getElementById('chat-messages-' + event.to);
     } else {
-        console.log("Chat window not open");
         let usersList = document.getElementById('users-list');
         const msgAlert = document.createElement("span");
         msgAlert.className = "msg-alert";
         msgAlert.textContent = "!";
         let localUser = localStorage.getItem("username")
-        console.log("Local User: ", localUser)
-        console.log("Event.from: ", event.from)
         //Add msgAlert to the user's name in the users list
         if (localUser != event.from) {
             for (let i = 0; i < usersList.children.length; i++) {
@@ -214,13 +203,11 @@ export function sendMessage (message, user) {
         //Hard-coded value of the username needs to be changed???
         let outGoingMsg = new SendMessageEvent(message, username, user);
         sendEvent("new-message", outGoingMsg);
-        console.log("New Message Print: ", message);
     }
     return false
 }
 
 export function appendUsers(event) {
-    console.log("Users: ", event.payload)
     let currUser = localStorage.getItem("username")
     let usersList = document.getElementById('users-list');
     usersList.innerHTML = "";
@@ -278,9 +265,6 @@ export function appendUsers(event) {
 
         if (user != currUser) {
             openChatWindow(user);
-            console.log("Clicked on user: " + user);
-        } else {
-            console.log("This is you foo!")
         }
     });
     
@@ -419,10 +403,7 @@ function openChatWindow(user) {
     // Append the chat window to the document body
     mainDiv.appendChild(chatWindow);
     // Now that the chat window is open, we can load the chat history.
-    console.log("Getting chat history")
     const localUserId = localStorage.getItem("username");  // Assuming you save user ID in localStorage
-    console.log("History from: ", localUserId)
-    console.log("History to: ", user)
 
     const getChatHistoryEvent = new Event("get-chat-history", new GetChatHistoryEvent(localUserId, user, offset, limit));
     conn.send(JSON.stringify(getChatHistoryEvent));

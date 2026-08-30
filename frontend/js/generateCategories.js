@@ -10,7 +10,7 @@ export async function generateCategoryDropdown() {
   try {
     categories = await getCategories();
   } catch (error) {
-    console.log("Err: ", error);
+    console.error(error);
     return;
   }
 

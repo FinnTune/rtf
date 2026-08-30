@@ -20,11 +20,8 @@ export function login() {
 
     checkLoginStatus().then(loggedIn => {
         if (loggedIn) {
-            console.log("User is already logged in.")
             return;
         } else {
-            console.log(formData);
-
             const submitButton = document.getElementById('login-submit-button');
             setButtonLoading(submitButton, true, 'Logging in...');
 
@@ -37,7 +34,6 @@ export function login() {
                 }}
             ).then((response) => {
                 if(response.ok){
-                console.log("User logged in.")
                 // User is logged in
                 createLoggedInHTML();
                     return response.json();
@@ -46,7 +42,6 @@ export function login() {
                     throw new Error(message || `Login failed (${response.status})`);
                 });
             }).then((data) => {
-                console.log("Data from login:", data)
                 //Save data in local storage
                 localStorage.setItem('id', data.id);
                 localStorage.setItem('username', data.username);
@@ -58,7 +53,7 @@ export function login() {
                 getAllPosts();
             }).catch((error) => {
                 showMessage("Err: " + error.message, "error");
-                console.log("Err: ", error);
+                console.error(error);
             }).finally(() => {
                 setButtonLoading(submitButton, false);
             });
