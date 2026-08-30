@@ -7,7 +7,7 @@ export const POSTS_PAGE_SIZE = 10;
 const COMMENTS_PAGE_SIZE = 20;
 
 export function getAllPosts(offset = 0) {
-    fetch(`getAllPosts?limit=${POSTS_PAGE_SIZE}&offset=${offset}`, {
+    fetch(`/getAllPosts?limit=${POSTS_PAGE_SIZE}&offset=${offset}`, {
         method: 'GET',
         mode: 'cors',
         headers: {
@@ -234,7 +234,7 @@ export async function displaySinglePost(post) {
 
         let deleteButton = document.createElement("button");
         deleteButton.type = "button";
-        deleteButton.className = "btns";
+        deleteButton.className = "btns btn-danger";
         deleteButton.textContent = "Delete";
 
         editButton.addEventListener("click", async () => {
@@ -285,7 +285,7 @@ export async function displaySinglePost(post) {
 
             let saveButton = document.createElement("button");
             saveButton.type = "button";
-            saveButton.className = "btns";
+            saveButton.className = "btns btn-primary";
             saveButton.textContent = "Save";
 
             let cancelButton = document.createElement("button");
@@ -417,6 +417,7 @@ export async function displaySinglePost(post) {
     commentInput.required = true;
     let submitButton = document.createElement("button");
     submitButton.type = "submit";
+    submitButton.className = "btns btn-primary";
     submitButton.textContent = "Submit Comment";
     commentForm.appendChild(commentInput);
     commentForm.appendChild(submitButton);
@@ -566,7 +567,7 @@ function renderComment(comment, container) {
 
         let deleteButton = document.createElement("button");
         deleteButton.type = "button";
-        deleteButton.className = "btns";
+        deleteButton.className = "btns btn-danger";
         deleteButton.textContent = "Delete";
 
         editButton.addEventListener("click", () => {
@@ -578,7 +579,7 @@ function renderComment(comment, container) {
 
             let saveButton = document.createElement("button");
             saveButton.type = "button";
-            saveButton.className = "btns";
+            saveButton.className = "btns btn-primary";
             saveButton.textContent = "Save";
 
             let cancelButton = document.createElement("button");

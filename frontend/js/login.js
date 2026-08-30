@@ -25,7 +25,7 @@ export function login() {
             const submitButton = document.getElementById('login-submit-button');
             setButtonLoading(submitButton, true, 'Logging in...');
 
-            fetch('login', {
+            fetch('/login', {
                 method: 'POST',
                 body: JSON.stringify(formData),
                 mode: 'cors',
