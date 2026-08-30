@@ -1,5 +1,6 @@
 import { createPostsTable, showEmptyState, renderPostRows } from "./getAllPosts.js";
 import { showMessage, setButtonLoading } from "./notify.js";
+import { setActiveNav } from "./navigation.js";
 
 export function searchPosts(query) {
     const trimmed = query.trim();
@@ -11,6 +12,7 @@ export function searchPosts(query) {
     setButtonLoading(submitButton, true, 'Searching...');
 
     document.getElementById('main-content').innerHTML = "";
+    setActiveNav(null);
 
     fetch(`/searchPosts?q=${encodeURIComponent(trimmed)}`, {
         method: 'GET',
@@ -27,12 +29,11 @@ export function searchPosts(query) {
             throw new Error(message || `Search failed (${response.status})`);
         });
     }).then((posts) => {
-        let table = document.getElementById('posts-table');
-        let tbody = table.querySelector('tbody');
+        let postList = document.getElementById('posts-table');
         if (posts.length === 0) {
-            showEmptyState(tbody, `No posts found for "${trimmed}".`);
+            showEmptyState(postList, `No posts found for "${trimmed}".`);
         } else {
-            renderPostRows(tbody, posts);
+            renderPostRows(postList, posts);
         }
         document.getElementById('clear-search-button').style.display = 'inline';
     }).catch((error) => {

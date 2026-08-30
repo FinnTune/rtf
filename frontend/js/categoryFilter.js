@@ -3,13 +3,18 @@ import { clearTable } from "./getAllPosts.js";
 import { showMessage } from "./notify.js";
 import { getCategories } from "./categories.js";
 
+// The single category currently selected in the sidebar nav, or null when
+// browsing all posts. Clicking a category is a nav destination (like "All
+// Posts"), not a multi-select filter, so there's exactly one active value.
+let activeCategory = null;
+
+export function clearActiveCategory() {
+    activeCategory = null;
+}
+
 export async function createCategoryFilter() {
-    const categoryFilterDiv = document.getElementById('category-selection');
-    categoryFilterDiv.className = "category-filter";
-    categoryFilterDiv.replaceChildren();
-    const heading = document.createElement('h4');
-    heading.textContent = 'Filter by Category:';
-    categoryFilterDiv.appendChild(heading);
+    const categoryNavDiv = document.getElementById('category-selection');
+    categoryNavDiv.replaceChildren();
 
     let categories;
     try {
@@ -17,48 +22,39 @@ export async function createCategoryFilter() {
     } catch (error) {
         showMessage("Err: " + error.message, "error");
         console.log("Err: ", error);
-        return categoryFilterDiv;
+        return categoryNavDiv;
     }
 
     for (let category of categories) {
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.name = 'category';
-        checkbox.value = category.name;
-        checkbox.id = 'filter-category-' + category.id;
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'nav-item category-nav-item';
+        item.textContent = category.name;
+        item.dataset.categoryName = category.name;
+        if (category.name === activeCategory) {
+            item.classList.add('active');
+        }
 
-        const label = document.createElement('label')
-        label.htmlFor = checkbox.id;
-        label.appendChild(document.createTextNode(category.name));
+        item.addEventListener('click', () => {
+            activeCategory = category.name;
+            document.querySelectorAll('#all-posts-button, #create-post-button, .category-nav-item')
+                .forEach((el) => el.classList.remove('active'));
+            item.classList.add('active');
+            getPostsByCategory();
+        });
 
-         // Create a new div
-         const div = document.createElement('div');
-
-         // Append checkbox and label to the div
-         div.appendChild(checkbox);
-         div.appendChild(label);
-
-        categoryFilterDiv.appendChild(div);
-
-        // Add event listener. Wrapped so the change Event object doesn't
-        // land in getPostsByCategory's offset parameter — a fresh filter
-        // selection always starts back at the first page.
-        checkbox.addEventListener('change', () => getPostsByCategory());
+        categoryNavDiv.appendChild(item);
     }
 
-    return categoryFilterDiv;  // Line break for readability
+    return categoryNavDiv;
 }
 
 export function getPostsByCategory(offset = 0) {
     document.getElementById('main-content').innerHTML = "";
     console.log("Getting posts by category. offset=", offset)
-     // Collect all the selected categories
-     let selectedCategories = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(checkbox => checkbox.value);
-    console.log("Selected categories: ", selectedCategories);
-     // If no categories are selected, get all posts instead
-     if (selectedCategories.length == 0) {
-         return getAllPosts();
-     }
+    if (!activeCategory) {
+        return getAllPosts();
+    }
 
      fetch(`getPostsByCategory?limit=${POSTS_PAGE_SIZE}&offset=${offset}`, {
          method: 'POST',
@@ -66,7 +62,7 @@ export function getPostsByCategory(offset = 0) {
          headers: {
              'Content-Type': 'application/json'
          },
-         body: JSON.stringify({ categories: selectedCategories }) // Send the selected categories to the server
+         body: JSON.stringify({ categories: [activeCategory] }) // Send the selected category to the server
      }).then((response) => {
         if(response.ok){
             console.log("Received posts by category.")
@@ -90,12 +86,11 @@ export function getPostsByCategory(offset = 0) {
             getPostsByCategory(Math.max(0, offset - POSTS_PAGE_SIZE));
             return;
         }
-        let table = document.getElementById('posts-table');
-        let tbody = table.querySelector('tbody');
+        let postList = document.getElementById('posts-table');
         if (posts.length == 0) {
-            showEmptyState(tbody, "No posts for this category.");
+            showEmptyState(postList, "No posts for this category.");
         } else {
-            renderPostRows(tbody, posts);
+            renderPostRows(postList, posts);
         }
         renderPagination(offset, POSTS_PAGE_SIZE, total, getPostsByCategory);
     }).catch((error) => {

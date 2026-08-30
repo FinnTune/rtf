@@ -1,63 +1,52 @@
 import { addEventListeners } from "./addEventListeners.js";
 import { createCategoryFilter, getPostsByCategory } from "./categoryFilter.js";
-import { generateCategoryDropdown } from "./generateCategories.js";
 export function createLoggedInHTML() {
     const mainDiv = document.getElementById("main");
     mainDiv.innerHTML = `
-    <!-- Navgation header -->
-    <header class="header">
+    <!-- Top bar: brand, search, current user -->
+    <header class="topbar">
       <h1 id="title"><a>theDialectic</a></h1>
-      <button type="submit" class="header-btns" id="all-posts-button">Posts</button>
-      <button type="submit" class="header-btns" id="create-post-button">New Post</button>
-      <button type="submit" class="header-btns" id="logout-button">Logout</button>
+      <form id="search-form" class="topbar-search">
+        <input type="text" id="search-input" name="q" placeholder="Search posts..." maxlength="100">
+        <button type="submit" class="btns" id="search-submit-button">Search</button>
+        <button type="button" class="btns" id="clear-search-button" style="display: none;">Clear</button>
+      </form>
+      <div class="topbar-user">
+        <span id="topbar-username"></span>
+        <button type="submit" class="header-btns" id="logout-button">Logout</button>
+      </div>
     </header>
 
     <div id="msg"></div>
 
-    <!--Introductory remarks-->
-    <div class="intro" id="intro">
-      <h2>Welcome to yourDialectic</h2>
-      <p>
-        Please feel free to bombard us with your conversation.<br><br>
-        Create posts, comment, and chat your heart out.<br><br>
-      </p>
+    <div class="app-shell">
+      <!-- Primary navigation: feed, post creation, category browsing -->
+      <nav class="sidebar-left">
+        <button type="button" class="nav-item" id="all-posts-button">All Posts</button>
+        <button type="button" class="nav-item" id="create-post-button">New Post</button>
+        <h4 class="sidebar-heading">Categories</h4>
+        <div id="category-selection" class="category-nav"></div>
+      </nav>
+
+      <!-- Content pane: feed / single post / new-post form / search results
+           all render in here (see navigation.js, getAllPosts.js, search.js) -->
+      <main class="content-pane" id="main-content"></main>
+
+      <aside class="sidebar-right">
+        <div id="users">
+          <h3>Users</h3>
+          <ul id="users-list"></ul>
+        </div>
+      </aside>
     </div>
+      `;
 
-    <!-- Add Post -->
-    <div class="add-post" id="add-post">
-        <h3>Add Post</h3>
-        <form id="add-post-form">
-            <label for="post-title">Title:</label><br>
-            <input type="text" id="post-title" name="title" maxlength="100" required><br>
-            <label for="post-content">Content:</label><br>
-            <textarea type="text" id="post-content" cols="50" rows="4" name="content" maxlength="2000" required></textarea><br><br>
-            <div id="categories"></div><br>
-            <button type="submit" id="add-post-submit">Submit Post</button>
-        </form>
-    </div>
+    const usernameLabel = document.getElementById('topbar-username');
+    if (usernameLabel) {
+        usernameLabel.textContent = localStorage.getItem('username') || '';
+    }
 
-
-    <!-- Search -->
-    <form id="search-form">
-      <input type="text" id="search-input" name="q" placeholder="Search posts..." maxlength="100">
-      <button type="submit" class="btns" id="search-submit-button">Search</button>
-      <button type="button" class="btns" id="clear-search-button" style="display: none;">Clear</button>
-    </form>
-
-    <!-- Category Selection-->
-    <div id="category-selection"></div>
-
-    <!-- Main Content -->
-    <div class="main-content" id="main-content">
-    </div>
-
-    <div id ="users">
-        <h3>Users</h3>
-        <ul id="users-list"></ul>
-      </div>
-      `;  
-  createCategoryFilter();
-  generateCategoryDropdown();
-  getPostsByCategory();
-  addEventListeners();
+    createCategoryFilter();
+    getPostsByCategory();
+    addEventListeners();
 }
