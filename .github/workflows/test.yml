@@ -25,8 +25,14 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          # Pinned to match the Node version the eventual webapp Docker build
+          # stage will use (Vite requires Node ^20.19 or >=22.12 — 22 keeps
+          # both environments on the same major version deliberately).
+          node-version: "22"
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            webapp/package-lock.json
 
       - name: Install build dependencies
         run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
@@ -36,6 +42,26 @@ jobs:
 
       - name: Lint frontend
         run: npm run lint
+
+      - name: Install webapp (React) dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Lint webapp
+        working-directory: webapp
+        run: npm run lint
+
+      - name: Typecheck webapp
+        working-directory: webapp
+        run: npm run typecheck
+
+      - name: Test webapp
+        working-directory: webapp
+        run: npm run test
+
+      - name: Build webapp
+        working-directory: webapp
+        run: npm run build
 
       - name: Run Go tests
         env:
