@@ -5,10 +5,8 @@ import { displaySinglePost, getPost } from './getAllPosts.js';
 import { showMessage } from './notify.js';
 
 window.onload = function () {
-  console.log("Window loading...")
     // Check login status
     checkLoginStatus().then(loggedIn => {
-      console.log("User is logged in:", loggedIn);
       if (loggedIn) {
         openPostFromURLIfPresent();
       }
@@ -26,14 +24,12 @@ function openPostFromURLIfPresent() {
   getPost(match[1]).then((post) => {
     displaySinglePost(post);
   }).catch((error) => {
-    console.log("Err: ", error);
     showMessage("Err: " + error.message, "error");
+    console.error(error);
   });
 }
 
 export function checkLoginStatus() {
-  console.log("Checking login status...")
-  
   return fetch('/checkLogin', {
     method: 'POST',
     headers: {
@@ -42,16 +38,11 @@ export function checkLoginStatus() {
   })
   .then(response => response.json())
   .then(data => {
-    console.log("Data from checkLoginStatus:", data);
     if (data.loggedIn) {
-      console.log("User is logged in.")
-      console.log(data.loggedIn)
       createLoggedInHTML();
       connectWebSocket(data);
       return data.loggedIn;
     } else {
-      console.log("User is not logged in.")
-      console.log(data.loggedIn)
       createMainHTML();
       return data.loggedIn;
     }

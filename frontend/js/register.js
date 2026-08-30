@@ -4,9 +4,7 @@ import { showMessage, setButtonLoading } from "./notify.js";
 export function register() {
      //Check if password and confirm password are the same
      let password = document.getElementById('regpassword').value;
-     console.log(password);
      let confirmPassword = document.getElementById('regconfpassword').value;
-     console.log(confirmPassword);
      if(password != confirmPassword){
          showMessage("Passwords do not match", "error");
          return false;
@@ -25,9 +23,6 @@ export function register() {
     //     return
     // } For preventing null exceptions
 
-    // console.log(loginFormData);
-    console.log(formData);
-
     const submitButton = document.getElementById('register-submit-button');
     setButtonLoading(submitButton, true, 'Registering...');
 
@@ -40,7 +35,6 @@ export function register() {
         }}
     ).then((response) => {
         if(response.ok){
-        console.log("User registered.")
             createMainHTML();
             showMessage('You are now registered. Please login.', 'success');
             return;
@@ -50,7 +44,7 @@ export function register() {
         });
     }).catch((error) => {
         showMessage("Err: " + error.message, "error");
-        console.log("Err: ", error);
+        console.error(error);
     }).finally(() => {
         setButtonLoading(submitButton, false);
     });

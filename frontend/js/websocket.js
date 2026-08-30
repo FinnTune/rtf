@@ -20,38 +20,29 @@ export function disconnectWebSocket() {
 
 export function connectWebSocket(data) {
     if(window["WebSocket"]) {
-        console.log("WebSocket is supported by client browser!");
-        console.log("OTP from connectWS: ", data.otp);
         expectedClose = false;
         // Request websocket connection with otp as query parameter
         conn = new WebSocket(`wss://${window.location.host}/ws?otp=${data.otp}`)
-        console.log("Connection print: ",conn);
 
         conn.onopen = function() {
-            console.log("Websocket connection established!");
             reconnectAttempts = 0;
-            // conn.send(JSON.stringify(data));
             //Create event to send to backend
             const eventObj = Object.assign(new Event("user-connect", data));
-            console.log("Conn OnOpen data: ", data);
             conn.send(JSON.stringify(eventObj));
         };
 
         conn.onclose = function() {
             if (expectedClose) {
-                console.log("Websocket connection closed (logout).");
                 expectedClose = false;
                 return;
             }
-            console.log("Websocket connection closed unexpectedly.");
             showMessage("Connection lost. Reconnecting...", "error");
             attemptReconnect();
         };
 
         conn.onmessage = doOnMessage;
     } else {
-        alert("WebSocket NOT supported by client browser!");
-        console.log("WebSocket NOT supported by client browser!");
+        showMessage("WebSocket is not supported by your browser.", "error");
     }
 }
 
@@ -73,8 +64,6 @@ function attemptReconnect() {
 }
 
 function doOnMessage(event) {
-    console.log("Event print: ", event);
-    console.log("Event data print: ", event.data);
     const eventData = JSON.parse(event.data);
     const eventObj = Object.assign(new Event, eventData);
     routeEvent(eventObj);

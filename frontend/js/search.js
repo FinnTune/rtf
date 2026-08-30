@@ -38,7 +38,7 @@ export function searchPosts(query) {
         document.getElementById('clear-search-button').style.display = 'inline';
     }).catch((error) => {
         showMessage("Err: " + error.message, "error");
-        console.log("Err: ", error);
+        console.error(error);
     }).finally(() => {
         setButtonLoading(submitButton, false);
     });

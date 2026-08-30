@@ -3,7 +3,6 @@ import { showMessage } from "./notify.js";
 import { disconnectWebSocket } from "./websocket.js";
 
 export async function logout () {
-    console.log("Logging out...")
     disconnectWebSocket();
     fetch('/logout', {
         method: 'POST',
@@ -16,15 +15,10 @@ export async function logout () {
       .then(response => response.json())
       .then(data => {
         if (data.loggedIn == false) {
-          console.log("User is logged out.")
-          console.log(data.loggedIn)
-          
           // User is logged in
           createMainHTML();
           showMessage("You've been logged out.", 'success');
         } else {
-          console.log("User logout failed.")
-          console.log(data.loggedIn)
           // User is not logged in
           createMainHTML();
         }

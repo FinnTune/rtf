@@ -46,6 +46,6 @@ export function showAuthorPosts(author, offset = 0) {
         renderPagination(offset, POSTS_PAGE_SIZE, total, (newOffset) => showAuthorPosts(author, newOffset));
     }).catch((error) => {
         showMessage("Err: " + error.message, "error");
-        console.log("Err: ", error);
+        console.error(error);
     });
 }

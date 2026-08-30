@@ -17,8 +17,6 @@ export function addPost() {
     categories: selCat
   };
 
-  console.log("PostData: ",postData)
-
   const submitButton = document.getElementById('add-post-submit');
   setButtonLoading(submitButton, true, 'Posting...');
 
@@ -31,8 +29,6 @@ export function addPost() {
   })
   .then(function(response) {
     if (response.ok) {
-      console.log('Post data sent successfully!');
-
         // Uncheck all checkboxes after adding a post
       document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => checkbox.checked = false);
 

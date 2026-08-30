@@ -21,7 +21,7 @@ export async function createCategoryFilter() {
         categories = await getCategories();
     } catch (error) {
         showMessage("Err: " + error.message, "error");
-        console.log("Err: ", error);
+        console.error(error);
         return categoryNavDiv;
     }
 
@@ -51,7 +51,6 @@ export async function createCategoryFilter() {
 
 export function getPostsByCategory(offset = 0) {
     document.getElementById('main-content').innerHTML = "";
-    console.log("Getting posts by category. offset=", offset)
     if (!activeCategory) {
         return getAllPosts();
     }
@@ -65,7 +64,6 @@ export function getPostsByCategory(offset = 0) {
          body: JSON.stringify({ categories: [activeCategory] }) // Send the selected category to the server
      }).then((response) => {
         if(response.ok){
-            console.log("Received posts by category.")
             if (document.getElementById('posts')) {
                 clearTable();
             } else {
@@ -78,7 +76,6 @@ export function getPostsByCategory(offset = 0) {
             throw new Error(message || `Failed to load posts (${response.status})`);
         });
     }).then(({ posts, total }) => {
-        console.log("PostsAft: ", posts)
         // Posts already arrive newest-first from the server.
         if (offset > 0 && posts.length === 0) {
             // The page we asked for is now empty (e.g. the last post on it
@@ -95,7 +92,7 @@ export function getPostsByCategory(offset = 0) {
         renderPagination(offset, POSTS_PAGE_SIZE, total, getPostsByCategory);
     }).catch((error) => {
         showMessage("Err: " + error.message, "error");
-        console.log("Err: ", error);
+        console.error(error);
     });
     return
 }

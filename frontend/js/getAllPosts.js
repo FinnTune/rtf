@@ -7,7 +7,6 @@ export const POSTS_PAGE_SIZE = 10;
 const COMMENTS_PAGE_SIZE = 20;
 
 export function getAllPosts(offset = 0) {
-    console.log("Getting all posts. offset=", offset)
     fetch(`getAllPosts?limit=${POSTS_PAGE_SIZE}&offset=${offset}`, {
         method: 'GET',
         mode: 'cors',
@@ -16,7 +15,6 @@ export function getAllPosts(offset = 0) {
         }}
     ).then((response) => {
         if(response.ok){
-        console.log("Received all posts.")
         if (document.getElementById('posts')) {
             clearTable();
         } else {
@@ -29,7 +27,6 @@ export function getAllPosts(offset = 0) {
             throw new Error(message || `Failed to load posts (${response.status})`);
         });
     }).then(({ posts, total }) => {
-        console.log("PostsAft: ", posts)
         // Posts already arrive newest-first from the server; no client-side
         // sort needed (and none is possible — the API doesn't return a
         // CreatedAt field, only Created).
@@ -49,7 +46,7 @@ export function getAllPosts(offset = 0) {
         renderPagination(offset, POSTS_PAGE_SIZE, total, getAllPosts);
     }).catch((error) => {
         showMessage("Err: " + error.message, "error");
-        console.log("Err: ", error);
+        console.error(error);
     });
 
     return false;
@@ -184,7 +181,6 @@ export function clearTable() {
 }
 
 export async function displaySinglePost(post) {
-    console.log("Displaying single post.", post);
     // Reflect the open post in the URL so it can be bookmarked/shared and
     // survives a page refresh (see getPost() + main.js's deep-link bootstrap).
     const targetPath = "/posts/" + post.PostId;
@@ -284,7 +280,7 @@ export async function displaySinglePost(post) {
                 }
             } catch (error) {
                 showMessage("Err: " + error.message, "error");
-                console.log("Err: ", error);
+                console.error(error);
             }
 
             let saveButton = document.createElement("button");
@@ -333,7 +329,7 @@ export async function displaySinglePost(post) {
                     displaySinglePost({ ...post, Title: updated.title, Content: updated.content });
                 } catch (error) {
                     showMessage("Err: " + error.message, "error");
-                    console.log("Err: ", error);
+                    console.error(error);
                     setButtonLoading(saveButton, false);
                 }
             });
@@ -353,7 +349,7 @@ export async function displaySinglePost(post) {
                 getAllPosts();
             } catch (error) {
                 showMessage("Err: " + error.message, "error");
-                console.log("Err: ", error);
+                console.error(error);
                 setButtonLoading(deleteButton, false);
             }
         });
@@ -400,7 +396,7 @@ export async function displaySinglePost(post) {
             loadMoreButton.style.display = commentOffset < total ? "inline" : "none";
         } catch (error) {
             showMessage("Err: " + error.message, "error");
-            console.log("Err: ", error);
+            console.error(error);
         } finally {
             setButtonLoading(loadMoreButton, false);
         }
@@ -427,7 +423,6 @@ export async function displaySinglePost(post) {
 
     // Add an event listener to handle form submission
     commentForm.addEventListener("submit", async function (event) {
-        console.log("Submitting comment.", commentInput.value);
         event.preventDefault();
         let commentContent = commentInput.value.trim();
         if (commentContent) {
@@ -443,7 +438,7 @@ export async function displaySinglePost(post) {
                 commentOffset += 1;
             } catch (error) {
                 showMessage("Err: " + error.message, "error");
-                console.log("Err: ", error);
+                console.error(error);
             } finally {
                 setButtonLoading(submitButton, false);
             }
@@ -485,7 +480,6 @@ async function fetchComments(postId, offset = 0, limit = COMMENTS_PAGE_SIZE) {
     }
     const total = parseInt(response.headers.get('X-Total-Count') || '0', 10);
     const comments = await response.json();
-    console.log("Comments: ", comments)
     return { comments, total };
 }
 
@@ -613,7 +607,7 @@ function renderComment(comment, container) {
                     showMessage("Comment updated.", "success");
                 } catch (error) {
                     showMessage("Err: " + error.message, "error");
-                    console.log("Err: ", error);
+                    console.error(error);
                     setButtonLoading(saveButton, false);
                 }
             });
@@ -630,7 +624,7 @@ function renderComment(comment, container) {
                 showMessage("Comment deleted.", "success");
             } catch (error) {
                 showMessage("Err: " + error.message, "error");
-                console.log("Err: ", error);
+                console.error(error);
                 setButtonLoading(deleteButton, false);
             }
         });
