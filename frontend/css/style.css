@@ -155,6 +155,16 @@ font-size: 13px;
 opacity: 0.8;
 }
 
+.author-link {
+color: inherit;
+font-weight: bold;
+text-decoration: none;
+}
+
+.author-link:hover {
+text-decoration: underline;
+}
+
 /* Header styles */
 .header {
 display: flex;

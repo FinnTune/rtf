@@ -1,6 +1,7 @@
 import { showMessage, setButtonLoading } from "./notify.js";
 import { getCategories } from "./categories.js";
 import { setActiveNav } from "./navigation.js";
+import { showAuthorPosts } from "./authorPosts.js";
 
 export const POSTS_PAGE_SIZE = 10;
 const COMMENTS_PAGE_SIZE = 20;
@@ -126,7 +127,16 @@ export function renderPostRows(container, posts) {
 
         let meta = document.createElement("div");
         meta.className = "post-card-meta";
-        meta.textContent = posts[i].Author + " · " + posts[i].Created;
+        let authorLink = document.createElement("a");
+        authorLink.href = "#";
+        authorLink.className = "author-link";
+        authorLink.textContent = posts[i].Author;
+        authorLink.addEventListener("click", function(event){
+            event.preventDefault();
+            showAuthorPosts(posts[i].Author);
+        });
+        meta.appendChild(authorLink);
+        meta.appendChild(document.createTextNode(" · " + posts[i].Created));
 
         card.appendChild(title);
         card.appendChild(preview);
@@ -135,7 +145,7 @@ export function renderPostRows(container, posts) {
     }
 }
 
-export function createPostsTable() {
+export function createPostsTable(headingText = 'Latest Posts') {
     // Get the main content element
     const mainContent = document.getElementById('main-content');
 
@@ -145,7 +155,7 @@ export function createPostsTable() {
 
     // Create the heading element
     const heading = document.createElement('h3');
-    heading.textContent = 'Latest Posts';
+    heading.textContent = headingText;
 
     // Create the post list element
     const list = document.createElement('ul');
@@ -190,7 +200,16 @@ export async function displaySinglePost(post) {
     let content = document.createElement("p");
     content.textContent = post.Content;
     let author = document.createElement("p");
-    author.textContent = "Author: " + post.Author;
+    author.appendChild(document.createTextNode("Author: "));
+    let authorLink = document.createElement("a");
+    authorLink.href = "#";
+    authorLink.className = "author-link";
+    authorLink.textContent = post.Author;
+    authorLink.addEventListener("click", function(event){
+        event.preventDefault();
+        showAuthorPosts(post.Author);
+    });
+    author.appendChild(authorLink);
     let dateCreated = document.createElement("p");
     dateCreated.textContent = "Created: " + post.Created;
     let backButton = document.createElement("button");

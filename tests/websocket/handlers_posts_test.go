@@ -128,6 +128,146 @@ func TestAllPostsHandler_CapsLimitAtMax(t *testing.T) {
 	}
 }
 
+func TestGetPostsByAuthorHandler_ReturnsPosts(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/getPostsByAuthor?author=admin", nil)
+	rr := httptest.NewRecorder()
+	websocket.GetPostsByAuthorHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+	var posts []websocket.Post
+	if err := json.NewDecoder(rr.Body).Decode(&posts); err != nil {
+		t.Fatalf("failed to decode posts: %v", err)
+	}
+	if len(posts) != 2 {
+		t.Fatalf("expected 2 posts by admin, got %d", len(posts))
+	}
+	for _, p := range posts {
+		if p.Author != "admin" {
+			t.Fatalf("expected only admin's posts, got one by %q", p.Author)
+		}
+	}
+	if got := rr.Header().Get("X-Total-Count"); got != "2" {
+		t.Fatalf("expected X-Total-Count 2, got %q", got)
+	}
+}
+
+func TestGetPostsByAuthorHandler_UnknownAuthorReturnsEmpty(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/getPostsByAuthor?author=nobody", nil)
+	rr := httptest.NewRecorder()
+	websocket.GetPostsByAuthorHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+	var posts []websocket.Post
+	if err := json.NewDecoder(rr.Body).Decode(&posts); err != nil {
+		t.Fatalf("failed to decode posts: %v", err)
+	}
+	if len(posts) != 0 {
+		t.Fatalf("expected 0 posts for an author with none, got %d", len(posts))
+	}
+	if got := rr.Header().Get("X-Total-Count"); got != "0" {
+		t.Fatalf("expected X-Total-Count 0, got %q", got)
+	}
+}
+
+func TestGetPostsByAuthorHandler_RespectsLimitAndOffset(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/getPostsByAuthor?author=admin&limit=1&offset=0", nil)
+	rr := httptest.NewRecorder()
+	websocket.GetPostsByAuthorHandler(rr, req)
+
+	var page1 []websocket.Post
+	if err := json.NewDecoder(rr.Body).Decode(&page1); err != nil {
+		t.Fatalf("failed to decode posts: %v", err)
+	}
+	if len(page1) != 1 {
+		t.Fatalf("expected 1 post on first page, got %d", len(page1))
+	}
+
+	req2 := httptest.NewRequest(http.MethodGet, "/getPostsByAuthor?author=admin&limit=1&offset=1", nil)
+	rr2 := httptest.NewRecorder()
+	websocket.GetPostsByAuthorHandler(rr2, req2)
+
+	var page2 []websocket.Post
+	if err := json.NewDecoder(rr2.Body).Decode(&page2); err != nil {
+		t.Fatalf("failed to decode posts: %v", err)
+	}
+	if len(page2) != 1 {
+		t.Fatalf("expected 1 post on second page, got %d", len(page2))
+	}
+	if page1[0].PostId == page2[0].PostId {
+		t.Fatalf("pages overlap: post %d returned on both pages", page1[0].PostId)
+	}
+}
+
+func TestGetPostsByAuthorHandler_CapsLimitAtMax(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	for i := 0; i < 60; i++ {
+		_, err := db.Exec(
+			`INSERT INTO post (user_id, title, content, author, created_at) VALUES (1, ?, 'bulk content', 'admin', datetime('now'))`,
+			fmt.Sprintf("Bulk Post %d", i),
+		)
+		if err != nil {
+			t.Fatalf("failed to seed bulk post: %v", err)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/getPostsByAuthor?author=admin&limit=9999", nil)
+	rr := httptest.NewRecorder()
+	websocket.GetPostsByAuthorHandler(rr, req)
+
+	var posts []websocket.Post
+	if err := json.NewDecoder(rr.Body).Decode(&posts); err != nil {
+		t.Fatalf("failed to decode posts: %v", err)
+	}
+	if len(posts) != 50 {
+		t.Fatalf("expected limit to be capped at 50, got %d posts", len(posts))
+	}
+	// admin had 2 seed posts + 60 bulk posts = 62.
+	if got := rr.Header().Get("X-Total-Count"); got != "62" {
+		t.Fatalf("expected X-Total-Count 62, got %q", got)
+	}
+}
+
+func TestGetPostsByAuthorHandler_RejectsMissingAuthor(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/getPostsByAuthor", nil)
+	rr := httptest.NewRecorder()
+	websocket.GetPostsByAuthorHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+	}
+}
+
+func TestGetPostsByAuthorHandler_RejectsNonGetMethod(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodPost, "/getPostsByAuthor?author=admin", nil)
+	rr := httptest.NewRecorder()
+	websocket.GetPostsByAuthorHandler(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
+	}
+}
+
 func TestGetCommentsHandler_ReturnsComments(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
