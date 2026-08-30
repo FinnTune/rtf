@@ -540,6 +540,67 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// GetPostsByAuthorHandler returns a page of one author's posts, newest
+// first — the backend for the "click an author's name" profile view.
+// Mirrors AllPostsHandler's pagination/X-Total-Count contract exactly.
+func GetPostsByAuthorHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	author, err := validateAuthorQuery(r.URL.Query().Get("author"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	limit := defaultPostsPageSize
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 {
+		limit = v
+	}
+	if limit > maxPostsPageSize {
+		limit = maxPostsPageSize
+	}
+
+	offset := 0
+	if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v >= 0 {
+		offset = v
+	}
+
+	var total int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM post WHERE author = ?", author).Scan(&total); err != nil {
+		log.Printf("Error counting posts by author: %s", err)
+		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+		return
+	}
+
+	query := `SELECT * FROM post WHERE author = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?;`
+	rows, err := database.ForumDB.Query(query, author, limit, offset)
+	if err != nil {
+		log.Printf("Error executing query: %s", err)
+		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	posts := []Post{}
+	for rows.Next() {
+		var post Post
+		err = rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created)
+		if err != nil {
+			log.Printf("Error scanning rows: %s", err)
+			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+			return
+		}
+		posts = append(posts, post)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Total-Count", strconv.Itoa(total))
+	json.NewEncoder(w).Encode(posts)
+}
+
 // GetPostHandler returns a single post by id, for deep-linking to a post
 // via /posts/:id.
 func GetPostHandler(w http.ResponseWriter, r *http.Request) {

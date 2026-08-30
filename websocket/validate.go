@@ -113,6 +113,17 @@ func validateSearchQuery(q string) (string, error) {
 	return q, nil
 }
 
+// validateAuthorQuery checks an ?author= param against the same shape
+// required at registration (usernameRegex), since post.author is always a
+// real, previously-registered username.
+func validateAuthorQuery(author string) (string, error) {
+	author = strings.TrimSpace(author)
+	if !usernameRegex.MatchString(author) {
+		return "", fmt.Errorf("author must be 3-30 characters and contain only letters, numbers, underscores, or hyphens")
+	}
+	return author, nil
+}
+
 // escapeLikePattern escapes SQLite LIKE wildcard characters in user input so
 // a search for a literal "%" or "_" doesn't get interpreted as a wildcard.
 func escapeLikePattern(s string) string {
