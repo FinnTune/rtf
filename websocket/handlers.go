@@ -706,9 +706,22 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 			Content:  requestBody.Content,
 		}
 
+		// Insert the post and its category relations atomically — without a
+		// transaction, a failure partway through the category loop below
+		// left the post permanently committed with only a partial set of
+		// categories while the client saw a 500 with no way to know the
+		// post existed at all.
+		tx, err := database.ForumDB.Begin()
+		if err != nil {
+			log.Printf("failed to begin transaction: %s", err)
+			http.Error(w, "Failed to create post", http.StatusInternalServerError)
+			return
+		}
+		defer tx.Rollback()
+
 		// Insert the post into the post table
 		insertPostQuery := "INSERT INTO post (user_id, title, content, author, created_at) VALUES (?, ?, ?, ?, ?)"
-		result, err := database.ForumDB.Exec(insertPostQuery, post.UserID, post.Title, post.Content, post.UserName, createdAt)
+		result, err := tx.Exec(insertPostQuery, post.UserID, post.Title, post.Content, post.UserName, createdAt)
 		if err != nil {
 			log.Printf("failed to insert post: %s", err)
 			http.Error(w, "Failed to create post", http.StatusInternalServerError)
@@ -726,12 +739,18 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 		// Store the category relations in the category_relation table
 		insertCategoryQuery := "INSERT INTO category_relation (category_id, post_id) VALUES (?, ?)"
 		for _, category := range requestBody.Categories {
-			_, err := database.ForumDB.Exec(insertCategoryQuery, category.ID, postID)
+			_, err := tx.Exec(insertCategoryQuery, category.ID, postID)
 			if err != nil {
 				log.Printf("failed to insert post category relation: %s", err)
 				http.Error(w, "Failed to assign category", http.StatusInternalServerError)
 				return
 			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			log.Printf("failed to commit post creation: %s", err)
+			http.Error(w, "Failed to create post", http.StatusInternalServerError)
+			return
 		}
 		log.Println("Post added successfully: ", post)
 

@@ -412,6 +412,56 @@ func TestAddPost_StoresCategoryRelations(t *testing.T) {
 	}
 }
 
+func TestAddPost_RollsBackOnInvalidCategory(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	websocket.AddAuthenticatedClient("session-cat-rollback", "actual_user", 42)
+
+	// A mix of one real category and one that doesn't exist. The test DB
+	// enforces foreign keys (see testutil.SetupForumDB), so the second
+	// insert fails partway through the category loop — without a
+	// transaction, the post row and the first category relation would be
+	// left permanently committed despite the request failing.
+	payload := map[string]any{
+		"title":   "Should Not Exist",
+		"content": "Rolled back",
+		"categories": []map[string]any{
+			{"id": 1, "name": "Cuisine"},
+			{"id": 9999, "name": "Nonexistent"},
+		},
+	}
+	data, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/addPost", bytes.NewBuffer(data))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-cat-rollback"})
+	rr := httptest.NewRecorder()
+
+	websocket.AddPost(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusInternalServerError, rr.Code, rr.Body.String())
+	}
+
+	var postCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM post WHERE title = ?`, "Should Not Exist").Scan(&postCount); err != nil {
+		t.Fatalf("failed to query post: %v", err)
+	}
+	if postCount != 0 {
+		t.Fatalf("expected the post to be rolled back on category failure, but found %d row(s)", postCount)
+	}
+
+	var relationCount int
+	if err := db.QueryRow(`
+		SELECT COUNT(*) FROM category_relation cr
+		JOIN post p ON p.id = cr.post_id
+		WHERE p.title = ?`, "Should Not Exist").Scan(&relationCount); err != nil {
+		t.Fatalf("failed to query category relations: %v", err)
+	}
+	if relationCount != 0 {
+		t.Fatalf("expected no category relations to survive the rollback, got %d", relationCount)
+	}
+}
+
 func TestSearchPostsHandler_MatchesTitle(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
