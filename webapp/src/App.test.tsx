@@ -37,6 +37,15 @@ function mockBackend(loggedIn: boolean) {
       if (url.startsWith('/getCategories')) {
         return new Response(JSON.stringify([]), { status: 200 })
       }
+      if (url.startsWith('/getPost?')) {
+        return new Response(
+          JSON.stringify({ PostId: 42, UserId: 1, Title: 'Hello World', Content: 'Post body', Author: 'admin', Created: '2026-01-01' }),
+          { status: 200 },
+        )
+      }
+      if (url.startsWith('/comments')) {
+        return new Response(JSON.stringify([]), { status: 200, headers: { 'X-Total-Count': '0' } })
+      }
       throw new Error('Unexpected fetch in test: ' + url)
     }),
   )
@@ -80,10 +89,17 @@ describe('App', () => {
     expect(await screen.findByText('Welcome to theDialectic')).toBeInTheDocument()
   })
 
-  it('renders the single-post placeholder at /posts/:id once logged in', async () => {
+  it('renders the real single-post view at /posts/:id once logged in', async () => {
     mockBackend(true)
     renderAt('/posts/42')
-    expect(await screen.findByText(/Post — coming soon/)).toBeInTheDocument()
+    expect(await screen.findByText('Hello World')).toBeInTheDocument()
+    expect(screen.getByText('Post body')).toBeInTheDocument()
+  })
+
+  it('renders the add-post form at /new-post once logged in', async () => {
+    mockBackend(true)
+    renderAt('/new-post')
+    expect(await screen.findByText('Add Post')).toBeInTheDocument()
   })
 
   it('renders the author-posts page at /users/:username once logged in', async () => {

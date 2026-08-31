@@ -798,10 +798,11 @@ color: #fff;
 }
 
 .dropdown-content {
-display: none;
 position: absolute;
 background-color: var(--quinary-color);
 min-width: 220px;
+max-height: 240px;
+overflow-y: auto;
 border: 1px solid var(--border-subtle);
 border-radius: var(--radius-sm);
 box-shadow: var(--shadow-lift);
@@ -857,6 +858,18 @@ font-size: 13px;
     padding: 8px 0;
     border-bottom: 1px solid var(--border-subtle);
     font-size: 14px;
+}
+
+.comment span,
+.comment input {
+    flex-grow: 1;
+}
+
+/* .btns's flex-grow is meant for full-width button rows (header nav,
+   pagination) — inside a comment's inline flex row it stretches the
+   Edit/Delete/Save/Cancel buttons far wider than their text needs. */
+.comment .btns {
+    flex-grow: 0;
 }
 
 /* Stack the app shell into a single column once there's no room for three
