@@ -22,6 +22,17 @@ export default defineConfig([
     },
   },
   {
+    // Context files conventionally export both a Provider component and its
+    // paired `useX()` hook (AuthContext, and later WebSocketContext/
+    // ChatContext) — react-refresh's "only export components" rule exists
+    // for hot-reload ergonomics, not correctness, and doesn't fit this
+    // established pattern.
+    files: ['src/contexts/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
     files: ['**/*.test.{ts,tsx}'],
     plugins: { vitest },
     extends: [vitest.configs.recommended],
