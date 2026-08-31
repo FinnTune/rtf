@@ -23,11 +23,11 @@ export async function getPostsByAuthor(author: string, offset: number, limit: nu
   return { posts: data, total }
 }
 
-export async function getPostsByCategory(category: string, offset: number, limit: number): Promise<PostPage> {
+export async function getPostsByCategory(categories: string[], offset: number, limit: number): Promise<PostPage> {
   const { data, total } = await requestJson<Post[]>(`/getPostsByCategory?limit=${limit}&offset=${offset}`, {
     method: 'POST',
     headers: jsonHeaders,
-    body: JSON.stringify({ categories: [category] }),
+    body: JSON.stringify({ categories }),
   })
   return { posts: data, total }
 }

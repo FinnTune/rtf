@@ -11,13 +11,21 @@ interface LoginResponse {
   email?: string
   joined?: string
   otp?: string
+  role?: string
 }
 
 function toAuthUser(data: LoginResponse): AuthUser | null {
   if (data.id === undefined || !data.username || !data.email || !data.joined || !data.otp) {
     return null
   }
-  return { id: data.id, username: data.username, email: data.email, joined: data.joined, otp: data.otp }
+  return {
+    id: data.id,
+    username: data.username,
+    email: data.email,
+    joined: data.joined,
+    otp: data.otp,
+    role: data.role ?? 'user',
+  }
 }
 
 export async function checkLogin(): Promise<AuthUser | null> {

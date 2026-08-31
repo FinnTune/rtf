@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { getCategories } from '../../api/categories'
+import { useCallback, useEffect, useState } from 'react'
+import { getCategories, subscribeToCategoryChanges } from '../../api/categories'
 import type { PostCategoryRef } from '../../api/posts'
 import { useStatusMessage } from '../../contexts/StatusMessageContext'
 import type { Category } from '../../types'
@@ -19,13 +19,18 @@ export function CategoryPicker({ selected, onChange }: CategoryPickerProps) {
   const [isOpen, setIsOpen] = useState(false)
   const { showMessage } = useStatusMessage()
 
-  useEffect(() => {
+  const load = useCallback(() => {
     getCategories()
       .then(setCategories)
       .catch((error: unknown) => {
         showMessage('Err: ' + (error instanceof Error ? error.message : String(error)), 'error')
       })
   }, [showMessage])
+
+  useEffect(() => {
+    load()
+    return subscribeToCategoryChanges(load)
+  }, [load])
 
   const selectedIds = new Set(selected.map((category) => category.id))
 

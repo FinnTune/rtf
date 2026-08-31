@@ -9,7 +9,15 @@ function mockFetchOnce(response: Response) {
 const loggedOutResponse = () => new Response(JSON.stringify({ loggedIn: false }), { status: 200 })
 const loggedInResponse = () =>
   new Response(
-    JSON.stringify({ loggedIn: true, id: 1, username: 'alice', email: 'alice@example.com', joined: '2026-01-01', otp: 'otp-1' }),
+    JSON.stringify({
+      loggedIn: true,
+      id: 1,
+      username: 'alice',
+      email: 'alice@example.com',
+      joined: '2026-01-01',
+      otp: 'otp-1',
+      role: 'admin',
+    }),
     { status: 200 },
   )
 
@@ -38,6 +46,7 @@ describe('AuthProvider', () => {
       email: 'alice@example.com',
       joined: '2026-01-01',
       otp: 'otp-1',
+      role: 'admin',
     })
   })
 
