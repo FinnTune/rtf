@@ -3,22 +3,57 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
+import { FeedViewProvider } from './contexts/FeedViewContext'
 import { StatusMessageProvider } from './contexts/StatusMessageContext'
+
+const loggedInCheckLoginBody = {
+  loggedIn: true,
+  id: 1,
+  username: 'alice',
+  email: 'alice@example.com',
+  joined: '2026-01-01',
+  otp: 'otp-1',
+}
+
+function requestUrl(input: string | URL | Request): string {
+  if (typeof input === 'string') return input
+  if (input instanceof URL) return input.toString()
+  return input.url
+}
+
+// Routes each fetch by URL prefix, since App now renders real data-fetching
+// components (Feed, CategoryNav), not just static placeholders.
+function mockBackend(loggedIn: boolean) {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (input: string | URL | Request) => {
+      const url = requestUrl(input)
+      if (url.startsWith('/checkLogin')) {
+        return new Response(JSON.stringify(loggedIn ? loggedInCheckLoginBody : { loggedIn: false }), { status: 200 })
+      }
+      if (url.startsWith('/getAllPosts') || url.startsWith('/getPostsByAuthor')) {
+        return new Response(JSON.stringify([]), { status: 200, headers: { 'X-Total-Count': '0' } })
+      }
+      if (url.startsWith('/getCategories')) {
+        return new Response(JSON.stringify([]), { status: 200 })
+      }
+      throw new Error('Unexpected fetch in test: ' + url)
+    }),
+  )
+}
 
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <StatusMessageProvider>
         <AuthProvider>
-          <App />
+          <FeedViewProvider>
+            <App />
+          </FeedViewProvider>
         </AuthProvider>
       </StatusMessageProvider>
     </MemoryRouter>,
   )
-}
-
-function mockCheckLogin(response: unknown) {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(response), { status: 200 })))
 }
 
 afterEach(() => {
@@ -27,41 +62,34 @@ afterEach(() => {
 
 describe('App', () => {
   it('shows the logged-out landing page when there is no session', async () => {
-    mockCheckLogin({ loggedIn: false })
+    mockBackend(false)
     renderAt('/')
     expect(await screen.findByText('Welcome to theDialectic')).toBeInTheDocument()
   })
 
-  it('shows the logged-in shell and feed placeholder once /checkLogin confirms a session', async () => {
-    mockCheckLogin({
-      loggedIn: true,
-      id: 1,
-      username: 'alice',
-      email: 'alice@example.com',
-      joined: '2026-01-01',
-      otp: 'otp-1',
-    })
+  it('shows the logged-in shell and the real feed once /checkLogin confirms a session', async () => {
+    mockBackend(true)
     renderAt('/')
-    expect(await screen.findByText(/Feed — coming soon/)).toBeInTheDocument()
+    expect(await screen.findByText('No posts yet — be the first to post!')).toBeInTheDocument()
     expect(screen.getByText('alice')).toBeInTheDocument()
   })
 
   it('renders the logged-out landing page even at a deep-linked post URL when there is no session', async () => {
-    mockCheckLogin({ loggedIn: false })
+    mockBackend(false)
     renderAt('/posts/42')
     expect(await screen.findByText('Welcome to theDialectic')).toBeInTheDocument()
   })
 
   it('renders the single-post placeholder at /posts/:id once logged in', async () => {
-    mockCheckLogin({
-      loggedIn: true,
-      id: 1,
-      username: 'alice',
-      email: 'alice@example.com',
-      joined: '2026-01-01',
-      otp: 'otp-1',
-    })
+    mockBackend(true)
     renderAt('/posts/42')
     expect(await screen.findByText(/Post — coming soon/)).toBeInTheDocument()
+  })
+
+  it('renders the author-posts page at /users/:username once logged in', async () => {
+    mockBackend(true)
+    renderAt('/users/bob')
+    expect(await screen.findByText('Posts by bob')).toBeInTheDocument()
+    expect(await screen.findByText("bob hasn't posted yet.")).toBeInTheDocument()
   })
 })
