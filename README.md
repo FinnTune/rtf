@@ -93,6 +93,17 @@ cd database && ./createDB.sh && cd ..
 - Schema/seed SQL lives in `database/createTables.sql`.
 - The seeded categories and example posts support immediate local testing.
 - `createDB.sh` only creates the file — rerunning it against an existing `forum.db` will fail because the tables already exist. Delete `database/forum.db` first if you want to reset to a clean seeded state.
+- On every start, `database.OpenDB` also applies small idempotent schema migrations for columns added after `createTables.sql` was last touched (see `database/sqlFuncs.go`) — this is what lets an already-deployed database pick up a change like the `user.role` column without needing `forum.db` to be recreated.
+
+## Admin Access
+
+Category management (create/rename/delete) is gated to users whose `user.role` is `'admin'` (see `websocket.RequireAdmin`). There is no signup-time way to become an admin, and the seed data in `createTables.sql` does not insert a real `admin` user account (categories/posts reference `"admin"` only as a plain author string) — so on a fresh database, nobody starts as admin. Grant it manually once you have a real account to promote:
+
+```bash
+sqlite3 database/forum.db "UPDATE user SET role = 'admin' WHERE uname = '<your-username>';"
+```
+
+(The one built-in convenience: if a database happens to already have a real user literally named `admin`, the startup migration promotes that specific account automatically — harmless on databases that don't.)
 
 ## Docker
 

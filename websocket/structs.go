@@ -36,6 +36,7 @@ type User struct {
 	Email          string
 	Joined         string
 	Password       string
+	Role           string
 	Session        string
 	NumberComments int
 	NumberPosts    int
@@ -282,6 +283,11 @@ type UserLoginResponse struct {
 	Email    string `json:"email"`
 	Joined   string `json:"joined"`
 	LoggedIn bool   `json:"loggedIn"`
+	// Role is UX-only — it tells the frontend whether to show admin-only
+	// nav/views. It is never trusted as an authorization boundary: every
+	// admin-gated endpoint (see RequireAdmin) re-verifies the role from the
+	// database on each request regardless of what a client claims.
+	Role string `json:"role"`
 }
 
 type ChatMessage struct {

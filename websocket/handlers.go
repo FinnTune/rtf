@@ -110,6 +110,14 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 				//Create new OTP and store in manager otps map
 				otp := m.otps.newOtp()
 
+				// Looked up fresh rather than cached on Client so a role
+				// change (promote/demote) takes effect on the user's very
+				// next checkLogin poll instead of only their next login.
+				var role string
+				if err := database.ForumDB.QueryRow("SELECT role FROM user WHERE id = ?", client.userID).Scan(&role); err != nil {
+					log.Printf("Error looking up role for checkLogin: %s", err)
+				}
+
 				// Send the login status to the client
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(UserLoginResponse{
@@ -118,6 +126,7 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 					Joined:   client.joined,
 					LoggedIn: client.loggedIn,
 					OTP:      otp.Key,
+					Role:     role,
 				})
 				log.Println("OTP: ", otp.Key)
 				return
@@ -172,7 +181,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 		userInfo := User{}
 
 		//Query database for user info, scan into struct, and check if password matches
-		err := database.ForumDB.QueryRow("SELECT id, uname, email, pass, created_at FROM user WHERE uname = $1 OR email = $1", req.Username).Scan(&userInfo.ID, &userInfo.Username, &userInfo.Email, &userInfo.Password, &userInfo.Joined)
+		err := database.ForumDB.QueryRow("SELECT id, uname, email, pass, created_at, role FROM user WHERE uname = $1 OR email = $1", req.Username).Scan(&userInfo.ID, &userInfo.Username, &userInfo.Email, &userInfo.Password, &userInfo.Joined, &userInfo.Role)
 		if err != nil {
 			log.Printf("Error querying database: %s", err)
 			if err == sql.ErrNoRows {
@@ -223,6 +232,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 				Email:    userInfo.Email,
 				Joined:   userInfo.Joined,
 				LoggedIn: false,
+				Role:     userInfo.Role,
 			}
 
 			//Marhsal response otp struct into JSON and write to 'w'.
@@ -664,6 +674,199 @@ func GetCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(categories)
 }
 
+// RequireAdmin wraps a handler, rejecting the request unless it comes from
+// an authenticated user whose role is currently "admin" — looked up fresh
+// from the database on every call (never cached/trusted from a client-sent
+// value or a session-cached field) so a demotion takes effect immediately,
+// not just on the user's next login.
+func RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		client, err := authenticatedClientFromRequest(r)
+		if err != nil {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		var role string
+		if err := database.ForumDB.QueryRow("SELECT role FROM user WHERE id = ?", client.userID).Scan(&role); err != nil {
+			log.Printf("failed to look up role for admin check: %s", err)
+			http.Error(w, "Failed to verify permissions", http.StatusInternalServerError)
+			return
+		}
+		if role != "admin" {
+			http.Error(w, "Admin access required", http.StatusForbidden)
+			return
+		}
+		next(w, r)
+	}
+}
+
+// CreateCategoryHandler adds a new category. Admin-only (see RequireAdmin).
+func CreateCategoryHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var requestBody struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	name, err := validateCategoryName(requestBody.Name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var existing int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM category WHERE category_name = ?", name).Scan(&existing); err != nil {
+		log.Printf("failed to check existing category: %s", err)
+		http.Error(w, "Failed to create category", http.StatusInternalServerError)
+		return
+	}
+	if existing > 0 {
+		http.Error(w, "A category with that name already exists", http.StatusConflict)
+		return
+	}
+
+	result, err := database.ForumDB.Exec("INSERT INTO category (category_name) VALUES (?)", name)
+	if err != nil {
+		log.Printf("failed to insert category: %s", err)
+		http.Error(w, "Failed to create category", http.StatusInternalServerError)
+		return
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		log.Printf("failed to fetch inserted category id: %s", err)
+		http.Error(w, "Failed to create category", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(Category{ID: int(id), Name: name})
+}
+
+// EditCategoryHandler renames a category. Admin-only (see RequireAdmin).
+func EditCategoryHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var requestBody struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if requestBody.ID <= 0 {
+		http.Error(w, "a valid id is required", http.StatusBadRequest)
+		return
+	}
+
+	name, err := validateCategoryName(requestBody.Name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var existing int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM category WHERE category_name = ? AND id != ?", name, requestBody.ID).Scan(&existing); err != nil {
+		log.Printf("failed to check existing category: %s", err)
+		http.Error(w, "Failed to update category", http.StatusInternalServerError)
+		return
+	}
+	if existing > 0 {
+		http.Error(w, "A category with that name already exists", http.StatusConflict)
+		return
+	}
+
+	result, err := database.ForumDB.Exec("UPDATE category SET category_name = ? WHERE id = ?", name, requestBody.ID)
+	if err != nil {
+		log.Printf("failed to update category: %s", err)
+		http.Error(w, "Failed to update category", http.StatusInternalServerError)
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.Printf("failed to check rows affected: %s", err)
+		http.Error(w, "Failed to update category", http.StatusInternalServerError)
+		return
+	}
+	if rowsAffected == 0 {
+		http.Error(w, "Category not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(Category{ID: requestBody.ID, Name: name})
+}
+
+// DeleteCategoryHandler removes a category along with its post relations.
+// Admin-only (see RequireAdmin).
+func DeleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var requestBody struct {
+		ID int `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if requestBody.ID <= 0 {
+		http.Error(w, "a valid id is required", http.StatusBadRequest)
+		return
+	}
+
+	tx, err := database.ForumDB.Begin()
+	if err != nil {
+		log.Printf("failed to begin transaction: %s", err)
+		http.Error(w, "Failed to delete category", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec("DELETE FROM category_relation WHERE category_id = ?", requestBody.ID); err != nil {
+		log.Printf("failed to delete category relations: %s", err)
+		http.Error(w, "Failed to delete category", http.StatusInternalServerError)
+		return
+	}
+	result, err := tx.Exec("DELETE FROM category WHERE id = ?", requestBody.ID)
+	if err != nil {
+		log.Printf("failed to delete category: %s", err)
+		http.Error(w, "Failed to delete category", http.StatusInternalServerError)
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		log.Printf("failed to check rows affected: %s", err)
+		http.Error(w, "Failed to delete category", http.StatusInternalServerError)
+		return
+	}
+	if rowsAffected == 0 {
+		http.Error(w, "Category not found", http.StatusNotFound)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		log.Printf("failed to commit category deletion: %s", err)
+		http.Error(w, "Failed to delete category", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Category deleted"))
+}
+
 // SearchPostsHandler returns posts whose title or content contains the
 // query string (case-insensitive), newest first, capped at
 // maxSearchResults.
@@ -707,6 +910,37 @@ func SearchPostsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(posts)
 }
 
+// allCategoryIDsExist reports whether every id in ids exists in the
+// category table — AddPost/EditPost previously inserted category_relation
+// rows for arbitrary client-supplied category IDs with no existence check
+// at all (harmless, since SQLite foreign keys aren't enforced here, but it
+// let a post reference garbage category IDs).
+func allCategoryIDsExist(ids []int) (bool, error) {
+	if len(ids) == 0 {
+		return true, nil
+	}
+	seen := make(map[int]bool, len(ids))
+	unique := make([]int, 0, len(ids))
+	for _, id := range ids {
+		if !seen[id] {
+			seen[id] = true
+			unique = append(unique, id)
+		}
+	}
+	placeholders := strings.Repeat("?,", len(unique))
+	placeholders = placeholders[:len(placeholders)-1]
+	args := make([]interface{}, len(unique))
+	for i, id := range unique {
+		args[i] = id
+	}
+	var count int
+	query := "SELECT COUNT(*) FROM category WHERE id IN (" + placeholders + ")"
+	if err := database.ForumDB.QueryRow(query, args...).Scan(&count); err != nil {
+		return false, err
+	}
+	return count == len(unique), nil
+}
+
 func AddPost(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 
@@ -737,6 +971,19 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 
 		if len(requestBody.Categories) > maxCategoriesPerPost {
 			http.Error(w, fmt.Sprintf("a post may have at most %d categories", maxCategoriesPerPost), http.StatusBadRequest)
+			return
+		}
+
+		categoryIDs := make([]int, len(requestBody.Categories))
+		for i, c := range requestBody.Categories {
+			categoryIDs[i] = c.ID
+		}
+		if ok, err := allCategoryIDsExist(categoryIDs); err != nil {
+			log.Printf("failed to validate category ids: %s", err)
+			http.Error(w, "Failed to create post", http.StatusInternalServerError)
+			return
+		} else if !ok {
+			http.Error(w, "one or more categories do not exist", http.StatusBadRequest)
 			return
 		}
 
@@ -851,6 +1098,19 @@ func EditPostHandler(w http.ResponseWriter, r *http.Request) {
 
 	if len(requestBody.Categories) > maxCategoriesPerPost {
 		http.Error(w, fmt.Sprintf("a post may have at most %d categories", maxCategoriesPerPost), http.StatusBadRequest)
+		return
+	}
+
+	editCategoryIDs := make([]int, len(requestBody.Categories))
+	for i, c := range requestBody.Categories {
+		editCategoryIDs[i] = c.ID
+	}
+	if ok, err := allCategoryIDsExist(editCategoryIDs); err != nil {
+		log.Printf("failed to validate category ids: %s", err)
+		http.Error(w, "Failed to update post", http.StatusInternalServerError)
+		return
+	} else if !ok {
+		http.Error(w, "one or more categories do not exist", http.StatusBadRequest)
 		return
 	}
 
