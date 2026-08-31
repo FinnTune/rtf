@@ -3,6 +3,7 @@ import { AddPostForm } from './components/posts/AddPostForm'
 import { AuthorPostsPage } from './components/posts/AuthorPostsPage'
 import { Feed } from './components/posts/Feed'
 import { SinglePostView } from './components/posts/SinglePostView'
+import { ManageCategoriesPage } from './components/admin/ManageCategoriesPage'
 import { useAuth } from './contexts/AuthContext'
 import { LoggedInShell } from './components/layout/LoggedInShell'
 import { LoggedOutShell } from './components/layout/LoggedOutShell'
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/posts/:id" element={<SinglePostView />} />
         <Route path="/users/:username" element={<AuthorPostsPage />} />
         <Route path="/new-post" element={<AddPostForm />} />
+        <Route path="/admin/categories" element={<ManageCategoriesPage />} />
       </Routes>
     </LoggedInShell>
   )

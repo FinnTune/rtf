@@ -29,6 +29,10 @@ export interface AuthUser {
   email: string
   joined: string
   otp: string
+  // UX-only (shows/hides admin views) — the backend re-verifies this from
+  // the database on every admin-gated request regardless of what the
+  // client sends, so there's no security concern in trusting it here.
+  role: string
 }
 
 // Matches websocket/structs.go's RegUser JSON tags exactly.

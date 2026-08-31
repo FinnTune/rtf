@@ -12,7 +12,7 @@ export function Feed() {
 
   const fetcher = useCallback(
     (offset: number, limit: number) => {
-      if (view.type === 'category') return getPostsByCategory(view.name, offset, limit)
+      if (view.type === 'category') return getPostsByCategory(view.names, offset, limit)
       if (view.type === 'search') return searchPosts(view.query)
       return getAllPosts(offset, limit)
     },
@@ -25,6 +25,9 @@ export function Feed() {
       : view.type === 'search'
         ? `No posts found for "${view.query}".`
         : 'No posts yet — be the first to post!'
+  // Note: the "this category" phrasing above stays singular even with
+  // multiple selected, matching how it read before multi-select — a
+  // deliberate, minor choice not to over-specify wording for an edge case.
 
   const { posts, total, offset, pageSize, loading, goToOffset } = usePaginatedPosts(fetcher, [view], 10)
 

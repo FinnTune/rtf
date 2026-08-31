@@ -881,6 +881,45 @@ font-size: 13px;
     flex-grow: 0;
 }
 
+#manage-categories form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+#manage-categories form input {
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.manage-category-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.manage-category-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 14px;
+}
+
+.manage-category-row span,
+.manage-category-row input {
+    flex-grow: 1;
+}
+
+.manage-category-row .btns {
+    flex-grow: 0;
+}
+
 /* Stack the app shell into a single column once there's no room for three
    side by side. */
 @media (max-width: 900px) {
