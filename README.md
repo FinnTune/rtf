@@ -4,7 +4,7 @@ Created by André J. Teetor as a learning project to explore:
 
 - HTTP + session-based auth
 - WebSocket real-time messaging
-- Single-page app style frontend (vanilla JavaScript)
+- Single-page app frontend (React + TypeScript)
 - SQLite persistence
 - basic security and state management patterns
 
@@ -16,7 +16,7 @@ This repository runs a forum with posts/comments plus private chat and online-us
 
 - Backend: Go (`net/http`, `gorilla/websocket`)
 - Database: SQLite (`github.com/mattn/go-sqlite3`)
-- Frontend: HTML/CSS + vanilla JS modules
+- Frontend: React + TypeScript, built with Vite to static assets served by the Go binary
 - Transport: HTTPS + WSS
 
 ## Repository Layout
@@ -24,7 +24,7 @@ This repository runs a forum with posts/comments plus private chat and online-us
 - `main.go`: application entrypoint, HTTP routes, TLS server startup
 - `websocket/`: HTTP handlers, WS manager/client/event logic
 - `database/`: DB open/init helpers and SQL schema files
-- `frontend/`: static SPA assets (`index.html`, CSS, JS)
+- `webapp/`: React + TypeScript frontend (source in `webapp/src`; `npm run build` produces `webapp/dist`, which the Go binary serves)
 - `utility/`: password hashing, cookie helpers
 - `tests/`: automated test suites and shared test helpers
 - `logfiles/`: runtime logs
@@ -32,7 +32,7 @@ This repository runs a forum with posts/comments plus private chat and online-us
 ## Prerequisites
 
 - Go (1.20+ recommended)
-- Node.js + npm (for linting frontend code)
+- Node.js + npm (for building/testing the React frontend in `webapp/`)
 - OpenSSL (if generating local TLS certificates)
 - Docker + Docker Compose (optional, for the containerized run path - see [Docker](#docker))
 
@@ -42,8 +42,14 @@ From repository root:
 
 ```bash
 cd database && ./createDB.sh && cd ..
+cd webapp && npm install && npm run build && cd ..
 PORT=8443 go run .
 ```
+
+`go run .` serves whatever's already in `webapp/dist` — it doesn't build the
+frontend itself, so that step has to run first (and again after any
+`webapp/src` change). The [Docker](#docker) path builds it automatically
+instead.
 
 Then open:
 
@@ -168,16 +174,19 @@ Run all backend tests (requires CGO for SQLite):
 CGO_ENABLED=1 CGO_CFLAGS="-Wno-discarded-qualifiers" go test ./...
 ```
 
-Run frontend lint:
+Run frontend lint/typecheck/tests (from `webapp/`):
 
 ```bash
+cd webapp
 npm run lint
+npm run typecheck
+npm run test
 ```
 
 Run the full local check (same as CI):
 
 ```bash
-npm run lint
+cd webapp && npm run lint && npm run typecheck && npm run test && npm run build && cd ..
 CGO_ENABLED=1 CGO_CFLAGS="-Wno-discarded-qualifiers" go test ./...
 ```
 
@@ -185,7 +194,7 @@ CGO_ENABLED=1 CGO_CFLAGS="-Wno-discarded-qualifiers" go test ./...
 
 GitHub Actions runs on every push and pull request to `master` (see `.github/workflows/test.yml`):
 
-- `npm ci` + `npm run lint`
+- `webapp/`: `npm ci`, then lint, typecheck, test, and build the React frontend
 - `go test ./...` with CGO enabled for SQLite
 - `govulncheck ./...` to catch known-vulnerable Go dependencies
 
@@ -290,15 +299,14 @@ PORT=9443 go run .
 ## Known Limitations
 
 - Docker Compose (see [Docker](#docker)) gives a containerized single-instance run, but there's still no reverse proxy/TLS termination, log aggregation, or multi-instance orchestration for actual production deployment
-- frontend uses direct DOM manipulation and can benefit from modular refactoring
-- WebSocket connection lifecycle and server startup code are not yet covered by tests
+- WebSocket connection lifecycle and server startup code are not yet covered by tests (backend or frontend — the frontend's reconnect logic is deliberately not deep-tested, see `webapp/src/contexts/WebSocketContext.tsx`)
 
 ## Contributing
 
 1. Create a feature branch.
 2. Keep changes small and focused.
 3. Run lint/tests before opening a PR:
-   - `npm run lint`
+   - `cd webapp && npm run lint && npm run typecheck && npm run test && npm run build`
    - `CGO_ENABLED=1 CGO_CFLAGS="-Wno-discarded-qualifiers" go test ./...`
 4. Include reproduction steps or test notes for bug fixes.
 
