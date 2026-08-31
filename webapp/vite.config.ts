@@ -1,10 +1,22 @@
 import react from '@vitejs/plugin-react'
+import type { ProxyOptions } from 'vite'
 import { defineConfig } from 'vitest/config'
 
-const backend = {
+const backend: ProxyOptions = {
   target: 'https://localhost:8443',
   changeOrigin: true,
   secure: false, // the backend's TLS cert is a locally-generated self-signed cert
+  configure: (proxy) => {
+    proxy.on('proxyReq', (proxyReq) => {
+      // The backend's CSRF check and WebSocket-upgrade check are both a
+      // strict Origin allowlist (websocket/handlers.go's checkOrigin,
+      // default "https://localhost:8443"). The browser's real Origin here
+      // is the Vite dev server (http://localhost:5173), which never
+      // matches — local dev only works if this proxy presents the Origin
+      // the backend actually expects, on every proxied request.
+      proxyReq.setHeader('Origin', 'https://localhost:8443')
+    })
+  },
 }
 
 // https://vite.dev/config/
