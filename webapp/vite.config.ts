@@ -7,13 +7,19 @@ const backend: ProxyOptions = {
   changeOrigin: true,
   secure: false, // the backend's TLS cert is a locally-generated self-signed cert
   configure: (proxy) => {
+    // The backend's CSRF check and WebSocket-upgrade check are both a
+    // strict Origin allowlist (websocket/handlers.go's checkOrigin, default
+    // "https://localhost:8443"). The browser's real Origin here is the Vite
+    // dev server (http://localhost:5173), which never matches — local dev
+    // only works if this proxy presents the Origin the backend actually
+    // expects. http-proxy fires these as two separate events: proxyReq for
+    // regular HTTP requests, proxyReqWs for the WebSocket upgrade request
+    // specifically — missing the second one leaves /ws rejected with 403
+    // even once regular API calls work.
     proxy.on('proxyReq', (proxyReq) => {
-      // The backend's CSRF check and WebSocket-upgrade check are both a
-      // strict Origin allowlist (websocket/handlers.go's checkOrigin,
-      // default "https://localhost:8443"). The browser's real Origin here
-      // is the Vite dev server (http://localhost:5173), which never
-      // matches — local dev only works if this proxy presents the Origin
-      // the backend actually expects, on every proxied request.
+      proxyReq.setHeader('Origin', 'https://localhost:8443')
+    })
+    proxy.on('proxyReqWs', (proxyReq) => {
       proxyReq.setHeader('Origin', 'https://localhost:8443')
     })
   },

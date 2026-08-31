@@ -776,6 +776,15 @@ transition: background-color var(--transition);
 background-color: rgba(255, 255, 255, 0.08);
 }
 
+.online-dot {
+background-color: #2fbf5f;
+width: 10px;
+height: 10px;
+border-radius: 50%;
+display: inline-block;
+margin-right: 10px;
+}
+
 .dropdown {
 position: relative;
 display: inline-block;

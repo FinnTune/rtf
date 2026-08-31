@@ -3,8 +3,26 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
+import { ChatProvider } from './contexts/ChatContext'
 import { FeedViewProvider } from './contexts/FeedViewContext'
 import { StatusMessageProvider } from './contexts/StatusMessageContext'
+import { WebSocketProvider } from './contexts/WebSocketContext'
+
+// A real `new WebSocket(...)` in this environment would attempt a genuine
+// network connection — stub it out entirely. WebSocket protocol/reconnect
+// behavior has its own scope (deliberately not deep-tested in this phase,
+// see the migration plan); these tests only need the providers to mount
+// without side effects.
+class FakeWebSocket {
+  static readonly OPEN = 1
+  readyState = 0
+  onopen: (() => void) | null = null
+  onclose: (() => void) | null = null
+  onmessage: ((event: MessageEvent<string>) => void) | null = null
+  onerror: (() => void) | null = null
+  close() {}
+  send() {}
+}
 
 const loggedInCheckLoginBody = {
   loggedIn: true,
@@ -24,6 +42,7 @@ function requestUrl(input: string | URL | Request): string {
 // Routes each fetch by URL prefix, since App now renders real data-fetching
 // components (Feed, CategoryNav), not just static placeholders.
 function mockBackend(loggedIn: boolean) {
+  vi.stubGlobal('WebSocket', FakeWebSocket)
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string | URL | Request) => {
@@ -56,9 +75,13 @@ function renderAt(path: string) {
     <MemoryRouter initialEntries={[path]}>
       <StatusMessageProvider>
         <AuthProvider>
-          <FeedViewProvider>
-            <App />
-          </FeedViewProvider>
+          <WebSocketProvider>
+            <ChatProvider>
+              <FeedViewProvider>
+                <App />
+              </FeedViewProvider>
+            </ChatProvider>
+          </WebSocketProvider>
         </AuthProvider>
       </StatusMessageProvider>
     </MemoryRouter>,
@@ -81,6 +104,7 @@ describe('App', () => {
     renderAt('/')
     expect(await screen.findByText('No posts yet — be the first to post!')).toBeInTheDocument()
     expect(screen.getByText('alice')).toBeInTheDocument()
+    expect(screen.getByText('Users')).toBeInTheDocument()
   })
 
   it('renders the logged-out landing page even at a deep-linked post URL when there is no session', async () => {
