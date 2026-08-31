@@ -23,8 +23,6 @@ CREATE TABLE post (
  content VARCHAR(150) NOT NULL,
  author VARCHAR(30) NOT NULL,
  created_at DATETIME NOT NULL,
---  liked_no INTEGER,
---  disliked_no INTEGER,
 --  img_url VARCHAR(100),
 --  approved TINYINT(1) NOT NULL,
 --  dummy TINYINT(1) NOT NULL,
@@ -45,15 +43,16 @@ CREATE TABLE comment (
  FOREIGN KEY(post_id) REFERENCES post(id)
 );
 
--- CREATE TABLE user_post_reaction (
---  id INTEGER NOT NULL PRIMARY KEY,
---  user_id INTEGER NOT NULL,
---  post_id INTEGER NOT NULL,
---  is_liked TINYINT(1) NOT NULL,
---  created_at DATETIME NOT NULL,
---  FOREIGN KEY(user_id) REFERENCES user(id),
---  FOREIGN KEY(post_id) REFERENCES post(id)
--- );
+CREATE TABLE user_post_reaction (
+ id INTEGER NOT NULL PRIMARY KEY,
+ user_id INTEGER NOT NULL,
+ post_id INTEGER NOT NULL,
+ is_liked TINYINT(1) NOT NULL,
+ created_at DATETIME NOT NULL,
+ UNIQUE(user_id, post_id),
+ FOREIGN KEY(user_id) REFERENCES user(id),
+ FOREIGN KEY(post_id) REFERENCES post(id)
+);
 
 -- CREATE TABLE user_comment_reaction (
 --  id INTEGER NOT NULL PRIMARY KEY,

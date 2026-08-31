@@ -61,6 +61,105 @@ func authenticatedClientFromRequest(r *http.Request) (*Client, error) {
 	return nil, fmt.Errorf("no authenticated client found")
 }
 
+// currentUserIDOrZero returns the authenticated request's user ID, or 0 if
+// the request is unauthenticated. Post-listing/detail endpoints are public
+// (no login required just to browse) but still want to enrich their
+// response with the viewer's own reaction when there is one — 0 means
+// "anonymous viewer, no personal reaction to attach."
+func currentUserIDOrZero(r *http.Request) int {
+	client, err := authenticatedClientFromRequest(r)
+	if err != nil {
+		return 0
+	}
+	return client.userID
+}
+
+// attachReactionData enriches posts in place with LikeCount, DislikeCount,
+// and (when viewerUserID is nonzero) MyReaction, via two batch queries
+// keyed on the given posts' IDs rather than joining user_post_reaction
+// directly into whatever query produced posts — reactions are a one-to-many
+// table, and every post-listing query already varies (search, category
+// filter, author filter, pagination); joining it in each one risks
+// duplicate-row/GROUP BY bugs for comparatively little benefit over two
+// simple batched follow-up queries.
+func attachReactionData(posts []Post, viewerUserID int) error {
+	if len(posts) == 0 {
+		return nil
+	}
+
+	ids := make([]int, len(posts))
+	indexByPostID := make(map[int]int, len(posts))
+	for i := range posts {
+		posts[i].MyReaction = "none"
+		ids[i] = posts[i].PostId
+		indexByPostID[posts[i].PostId] = i
+	}
+
+	placeholders := strings.Repeat("?,", len(ids))
+	placeholders = placeholders[:len(placeholders)-1]
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		args[i] = id
+	}
+
+	countRows, err := database.ForumDB.Query(
+		"SELECT post_id, is_liked, COUNT(*) FROM user_post_reaction WHERE post_id IN ("+placeholders+") GROUP BY post_id, is_liked",
+		args...,
+	)
+	if err != nil {
+		return fmt.Errorf("querying reaction counts: %w", err)
+	}
+	defer countRows.Close()
+	for countRows.Next() {
+		var postID, isLiked, count int
+		if err := countRows.Scan(&postID, &isLiked, &count); err != nil {
+			return fmt.Errorf("scanning reaction counts: %w", err)
+		}
+		idx, ok := indexByPostID[postID]
+		if !ok {
+			continue
+		}
+		if isLiked == 1 {
+			posts[idx].LikeCount = count
+		} else {
+			posts[idx].DislikeCount = count
+		}
+	}
+	if err := countRows.Err(); err != nil {
+		return fmt.Errorf("iterating reaction counts: %w", err)
+	}
+
+	if viewerUserID <= 0 {
+		return nil
+	}
+
+	viewerArgs := append([]interface{}{viewerUserID}, args...)
+	viewerRows, err := database.ForumDB.Query(
+		"SELECT post_id, is_liked FROM user_post_reaction WHERE user_id = ? AND post_id IN ("+placeholders+")",
+		viewerArgs...,
+	)
+	if err != nil {
+		return fmt.Errorf("querying viewer's reactions: %w", err)
+	}
+	defer viewerRows.Close()
+	for viewerRows.Next() {
+		var postID, isLiked int
+		if err := viewerRows.Scan(&postID, &isLiked); err != nil {
+			return fmt.Errorf("scanning viewer's reactions: %w", err)
+		}
+		idx, ok := indexByPostID[postID]
+		if !ok {
+			continue
+		}
+		if isLiked == 1 {
+			posts[idx].MyReaction = "liked"
+		} else {
+			posts[idx].MyReaction = "disliked"
+		}
+	}
+	return viewerRows.Err()
+}
+
 func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	// Get the session cookie from the request
 	log.Println("Checking login status.")
@@ -543,6 +642,13 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			posts = append(posts, post)
 		}
+
+		if err := attachReactionData(posts, currentUserIDOrZero(r)); err != nil {
+			log.Printf("Error attaching reaction data: %s", err)
+			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+			return
+		}
+
 		//Encode posts slice to json and send to w
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("X-Total-Count", strconv.Itoa(total))
@@ -606,6 +712,12 @@ func GetPostsByAuthorHandler(w http.ResponseWriter, r *http.Request) {
 		posts = append(posts, post)
 	}
 
+	if err := attachReactionData(posts, currentUserIDOrZero(r)); err != nil {
+		log.Printf("Error attaching reaction data: %s", err)
+		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Total-Count", strconv.Itoa(total))
 	json.NewEncoder(w).Encode(posts)
@@ -637,8 +749,109 @@ func GetPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	posts := []Post{post}
+	if err := attachReactionData(posts, currentUserIDOrZero(r)); err != nil {
+		log.Printf("Error attaching reaction data: %s", err)
+		http.Error(w, "Failed to load post", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(post)
+	json.NewEncoder(w).Encode(posts[0])
+}
+
+// ReactToPostHandler lets an authenticated user like or dislike a post.
+// Submitting the same reaction again removes it (a toggle); submitting the
+// opposite reaction switches it. One reaction per user per post is enforced
+// by the user_post_reaction table's UNIQUE(user_id, post_id) constraint.
+func ReactToPostHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	client, err := authenticatedClientFromRequest(r)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var requestBody struct {
+		PostID  int  `json:"post_id"`
+		IsLiked bool `json:"is_liked"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if requestBody.PostID <= 0 {
+		http.Error(w, "a valid post_id is required", http.StatusBadRequest)
+		return
+	}
+
+	var postExists int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM post WHERE id = ?", requestBody.PostID).Scan(&postExists); err != nil {
+		log.Printf("failed to check post existence: %s", err)
+		http.Error(w, "Failed to react to post", http.StatusInternalServerError)
+		return
+	}
+	if postExists == 0 {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+
+	newIsLiked := 0
+	if requestBody.IsLiked {
+		newIsLiked = 1
+	}
+
+	var existingID, existingIsLiked int
+	err = database.ForumDB.QueryRow(
+		"SELECT id, is_liked FROM user_post_reaction WHERE user_id = ? AND post_id = ?",
+		client.userID, requestBody.PostID,
+	).Scan(&existingID, &existingIsLiked)
+
+	switch {
+	case err == sql.ErrNoRows:
+		if _, err := database.ForumDB.Exec(
+			"INSERT INTO user_post_reaction (user_id, post_id, is_liked, created_at) VALUES (?, ?, ?, ?)",
+			client.userID, requestBody.PostID, newIsLiked, time.Now().Format("2006-01-02 15:04:05"),
+		); err != nil {
+			log.Printf("failed to insert reaction: %s", err)
+			http.Error(w, "Failed to react to post", http.StatusInternalServerError)
+			return
+		}
+	case err != nil:
+		log.Printf("failed to look up existing reaction: %s", err)
+		http.Error(w, "Failed to react to post", http.StatusInternalServerError)
+		return
+	case existingIsLiked == newIsLiked:
+		if _, err := database.ForumDB.Exec("DELETE FROM user_post_reaction WHERE id = ?", existingID); err != nil {
+			log.Printf("failed to delete reaction: %s", err)
+			http.Error(w, "Failed to react to post", http.StatusInternalServerError)
+			return
+		}
+	default:
+		if _, err := database.ForumDB.Exec("UPDATE user_post_reaction SET is_liked = ? WHERE id = ?", newIsLiked, existingID); err != nil {
+			log.Printf("failed to update reaction: %s", err)
+			http.Error(w, "Failed to react to post", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	posts := []Post{{PostId: requestBody.PostID}}
+	if err := attachReactionData(posts, client.userID); err != nil {
+		log.Printf("failed to load updated reaction data: %s", err)
+		http.Error(w, "Failed to react to post", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(struct {
+		LikeCount    int    `json:"like_count"`
+		DislikeCount int    `json:"dislike_count"`
+		MyReaction   string `json:"my_reaction"`
+	}{posts[0].LikeCount, posts[0].DislikeCount, posts[0].MyReaction})
 }
 
 // GetCategoriesHandler returns every category from the database, so the
@@ -904,6 +1117,12 @@ func SearchPostsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		posts = append(posts, post)
+	}
+
+	if err := attachReactionData(posts, currentUserIDOrZero(r)); err != nil {
+		log.Printf("Error attaching reaction data: %s", err)
+		http.Error(w, "Failed to search posts", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -1389,6 +1608,12 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 		if err = rows.Err(); err != nil {
 			log.Printf("Rows processing error: %s", err)
+			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+			return
+		}
+
+		if err := attachReactionData(posts, currentUserIDOrZero(r)); err != nil {
+			log.Printf("Error attaching reaction data: %s", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
