@@ -53,6 +53,23 @@ func migrate(db *sql.DB) error {
 		return fmt.Errorf("promoting seed admin user: %w", err)
 	}
 
+	// A brand-new table, unlike user.role above, so CREATE TABLE IF NOT
+	// EXISTS is all the idempotency an already-deployed database needs —
+	// no column-existence dance required.
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS user_post_reaction (
+			id INTEGER NOT NULL PRIMARY KEY,
+			user_id INTEGER NOT NULL,
+			post_id INTEGER NOT NULL,
+			is_liked TINYINT(1) NOT NULL,
+			created_at DATETIME NOT NULL,
+			UNIQUE(user_id, post_id),
+			FOREIGN KEY(user_id) REFERENCES user(id),
+			FOREIGN KEY(post_id) REFERENCES post(id)
+		)`); err != nil {
+		return fmt.Errorf("creating user_post_reaction table: %w", err)
+	}
+
 	return nil
 }
 

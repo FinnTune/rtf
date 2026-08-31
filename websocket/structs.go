@@ -54,6 +54,16 @@ type Post struct {
 	Content string
 	Author  string
 	Created string
+	// Populated by attachReactionData, not by the SELECT * that scans the
+	// rest of this struct — every post-listing/detail handler calls it
+	// separately (see that function's doc comment for why: reactions are a
+	// one-to-many table, and joining it directly into a paginated post
+	// query invites duplicate-row/GROUP BY bugs). MyReaction is "none" for
+	// an anonymous viewer or one who hasn't reacted, never zero-valued
+	// empty string — always explicitly set.
+	LikeCount    int
+	DislikeCount int
+	MyReaction   string
 }
 
 type DBPost struct {
