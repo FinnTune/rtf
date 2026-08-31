@@ -1,36 +1,31 @@
-import { useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { useFeedView } from '../../contexts/FeedViewContext'
+import { SearchBox } from './SearchBox'
 
 export function Topbar() {
   const { user, logout } = useAuth()
-  const [query, setQuery] = useState('')
+  const { view, showSearch, showAllPosts, searchResetToken } = useFeedView()
+  const navigate = useNavigate()
 
-  // Search itself lands with the rest of the post list in a later sub-PR —
-  // this just holds the input's place in the persistent shell for now.
-  function handleSearchSubmit(event: FormEvent) {
-    event.preventDefault()
+  function handleSearchSubmit(query: string) {
+    showSearch(query)
+    navigate('/')
+  }
+
+  function handleClear() {
+    showAllPosts()
+    navigate('/')
   }
 
   return (
     <header className="topbar">
       <h1 id="title">
-        <Link to="/">theDialectic</Link>
+        <Link to="/" onClick={showAllPosts}>
+          theDialectic
+        </Link>
       </h1>
-      <form id="search-form" className="topbar-search" onSubmit={handleSearchSubmit}>
-        <input
-          type="text"
-          id="search-input"
-          name="q"
-          placeholder="Search posts..."
-          maxLength={100}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <button type="submit" className="btns" id="search-submit-button">
-          Search
-        </button>
-      </form>
+      <SearchBox key={searchResetToken} showClear={view.type === 'search'} onSubmit={handleSearchSubmit} onClear={handleClear} />
       <div className="topbar-user">
         <span id="topbar-username">{user?.username}</span>
         <button type="button" className="header-btns" id="logout-button" onClick={() => void logout()}>

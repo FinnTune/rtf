@@ -1,11 +1,12 @@
 import { Route, Routes } from 'react-router-dom'
+import { AuthorPostsPage } from './components/posts/AuthorPostsPage'
+import { Feed } from './components/posts/Feed'
 import { useAuth } from './contexts/AuthContext'
 import { LoggedInShell } from './components/layout/LoggedInShell'
 import { LoggedOutShell } from './components/layout/LoggedOutShell'
 
-// Real routes/views land in later sub-PRs (see the migration plan) — this
-// placeholder just proves the shell/routing/auth-state pipeline works
-// end-to-end.
+// Real views for these two land in sub-PR 4b (single post + comments,
+// add/edit post).
 function Placeholder({ label }: { label: string }) {
   return <p>{label} — coming soon.</p>
 }
@@ -27,9 +28,9 @@ export default function App() {
   return (
     <LoggedInShell>
       <Routes>
-        <Route path="/" element={<Placeholder label="Feed" />} />
+        <Route path="/" element={<Feed />} />
         <Route path="/posts/:id" element={<Placeholder label="Post" />} />
-        <Route path="/users/:username" element={<Placeholder label="User posts" />} />
+        <Route path="/users/:username" element={<AuthorPostsPage />} />
         <Route path="/new-post" element={<Placeholder label="New post" />} />
       </Routes>
     </LoggedInShell>
