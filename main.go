@@ -8,15 +8,22 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path"
+	"path/filepath"
 	"rtForum/database"
 	"rtForum/logfiles"
 	"rtForum/utility"
 	"rtForum/websocket"
+	"strings"
 	"syscall"
 	"time"
 
 	"golang.org/x/time/rate"
 )
+
+// distDir holds the React frontend's production build (webapp/, built by
+// the Dockerfile's node stage — see buildServer's catch-all handler below).
+const distDir = "./webapp/dist"
 
 // ASCI esacpe codes for colors
 const (
@@ -50,21 +57,17 @@ func getEnv(key, fallback string) string {
 // buildServer registers all routes/handlers and returns the configured HTTP server.
 func buildServer() *http.Server {
 	log.Println("File Servers Started.")
-	cssFS := http.FileServer(http.Dir("./frontend/css"))
-	http.Handle("/css/", http.StripPrefix("/css/", cssFS))
-
-	jsFS := http.FileServer(http.Dir("./frontend/js"))
-	http.Handle("/js/", http.StripPrefix("/js/", jsFS))
-
-	imgFS := http.FileServer(http.Dir("./frontend/img"))
-	http.Handle("/img/", http.StripPrefix("/img/", imgFS))
+	fileServer := http.FileServer(http.Dir(distDir))
 
 	log.Printf("Handlers Started.")
-	//Serve index.html for all root requests to comply with Single Page Application (SPA) design
+	// Serves the React app's build output. A request for a real built file
+	// (e.g. /assets/index-abc123.js, /img/favglobe.ico) gets that file
+	// directly, with long-lived caching for content-hashed assets; anything
+	// else (e.g. /posts/5, /users/alice) falls back to index.html so
+	// react-router owns client-side routing.
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		//get request URL and store in variable to be used in log message
 		url := r.URL.Path
-		log.Printf("Handling request \"%s\" and serving index.html", url)
+		log.Printf("Handling request \"%s\"", url)
 
 		//Check if cookie exists and create if not
 		if utility.CheckCookieExist(w, r) {
@@ -73,7 +76,16 @@ func buildServer() *http.Server {
 			log.Println("Cookie does not exist. Creating cookie.")
 			utility.CreateCookie(w, r)
 		}
-		http.ServeFile(w, r, "./frontend/index.html")
+
+		cleanPath := path.Clean(url)
+		if isRegularFile(filepath.Join(distDir, cleanPath)) {
+			if strings.HasPrefix(cleanPath, "/assets/") {
+				w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			}
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+		http.ServeFile(w, r, filepath.Join(distDir, "index.html"))
 	})
 
 	// authLimiter guards login/registration against brute-force and signup
@@ -115,6 +127,14 @@ func buildServer() *http.Server {
 		Addr:    ":" + port,
 		Handler: securityHeaders(http.DefaultServeMux),
 	}
+}
+
+// isRegularFile reports whether path names an existing, non-directory file
+// under distDir — used by the catch-all handler to tell a real built asset
+// apart from a client-side route it should fall back to index.html for.
+func isRegularFile(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && !info.IsDir()
 }
 
 // securityHeaders sets a conservative set of security response headers on

@@ -1,5 +1,6 @@
 .git
 node_modules
+webapp/dist
 logfiles/*.log
 database/forum.db
 *.key
