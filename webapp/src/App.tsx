@@ -1,9 +1,11 @@
 import { Route, Routes } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
+import { LoggedInShell } from './components/layout/LoggedInShell'
+import { LoggedOutShell } from './components/layout/LoggedOutShell'
 
-// Scaffold placeholder only — real views land in later sub-PRs (see the
-// migration plan). This just proves the routing/auth-state pipeline works
-// end-to-end before any real feature code is written.
+// Real routes/views land in later sub-PRs (see the migration plan) — this
+// placeholder just proves the shell/routing/auth-state pipeline works
+// end-to-end.
 function Placeholder({ label }: { label: string }) {
   return <p>{label} — coming soon.</p>
 }
@@ -15,15 +17,21 @@ export default function App() {
     return <p>Loading…</p>
   }
 
+  if (!user) {
+    // Deliberately path-agnostic: a logged-out visitor sees the same
+    // landing page regardless of URL (e.g. a shared /posts/:id link),
+    // matching the original app's behavior.
+    return <LoggedOutShell />
+  }
+
   return (
-    <div>
-      <p>{user ? `Logged in as ${user.username}` : 'Not logged in'}</p>
+    <LoggedInShell>
       <Routes>
         <Route path="/" element={<Placeholder label="Feed" />} />
         <Route path="/posts/:id" element={<Placeholder label="Post" />} />
         <Route path="/users/:username" element={<Placeholder label="User posts" />} />
         <Route path="/new-post" element={<Placeholder label="New post" />} />
       </Routes>
-    </div>
+    </LoggedInShell>
   )
 }

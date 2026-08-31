@@ -379,7 +379,6 @@ line-height: 1.6;
 
 /* Login form */
 .login-form {
-display: none;
 max-width: 340px;
 margin: 60px auto 0;
 padding: 28px;
