@@ -41,3 +41,16 @@ export interface RegisterPayload {
   gender: string
   password: string
 }
+
+// Normalized client-side shape for a chat message, regardless of which of
+// the two different wire shapes it came from: a real-time `sent-message`
+// event (`{message, from, to, sent}`, `sent` an RFC3339 string) or a
+// `chat_history` entry (`{..., message, created_at}`, created_at a SQLite
+// datetime string) — `timestamp` holds whichever of those two the message
+// came with, always valid input to `new Date(...)`.
+export interface ChatMessageVM {
+  from: string
+  to: string
+  message: string
+  timestamp: string | number
+}

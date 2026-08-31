@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { ChatWindowsLayer } from '../chat/ChatWindowsLayer'
 import { StatusBanner } from '../common/StatusBanner'
 import { SidebarLeft } from './SidebarLeft'
 import { SidebarRight } from './SidebarRight'
@@ -16,6 +17,10 @@ export function LoggedInShell({ children }: { children: ReactNode }) {
         </main>
         <SidebarRight />
       </div>
+      {/* Siblings of .app-shell, same region the vanilla app appended
+          floating chat windows to (#main) — relies on .chat-window's
+          float:right for layout. */}
+      <ChatWindowsLayer />
     </>
   )
 }

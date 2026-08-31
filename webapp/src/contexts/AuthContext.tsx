@@ -9,6 +9,12 @@ interface AuthContextValue {
   login: (username: string, password: string) => Promise<void>
   register: (payload: RegisterPayload) => Promise<void>
   logout: () => Promise<void>
+  // Re-verifies the session and mints a fresh OTP (OTPs are single-use and
+  // short-lived — nothing should ever hold onto and reuse one). Updates
+  // `user` from the result (e.g. to null if the session expired) and
+  // returns it, so a caller like the WebSocket reconnect flow can branch on
+  // it directly.
+  refresh: () => Promise<AuthUser | null>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -49,7 +55,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
-  return <AuthContext.Provider value={{ user, loading, login, register, logout }}>{children}</AuthContext.Provider>
+  const refresh = useCallback(async () => {
+    const result = await authApi.checkLogin()
+    setUser(result)
+    return result
+  }, [])
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refresh }}>{children}</AuthContext.Provider>
+  )
 }
 
 export function useAuth(): AuthContextValue {
