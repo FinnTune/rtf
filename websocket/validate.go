@@ -28,6 +28,8 @@ const (
 	maxCommentLength     = 500
 	maxCategoriesPerPost = 20
 	maxCategoriesPerReq  = 50
+	// category_name is VARCHAR(30) in the schema.
+	maxCategoryNameLength = 30
 
 	defaultPostsPageSize = 10
 	maxPostsPageSize     = 50
@@ -95,6 +97,14 @@ func validatePost(title, content string) (string, string, error) {
 		return "", "", fmt.Errorf("content must be 1-%d characters", maxPostContentLength)
 	}
 	return title, content, nil
+}
+
+func validateCategoryName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > maxCategoryNameLength {
+		return "", fmt.Errorf("category name must be 1-%d characters", maxCategoryNameLength)
+	}
+	return name, nil
 }
 
 func validateComment(content string) (string, error) {

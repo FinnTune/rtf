@@ -7,7 +7,8 @@ CREATE TABLE user (
  age VARCHAR(3) NOT NULL,
  gender VARCHAR(10) NOT NULL,
  pass VARCHAR(20) NOT NULL,
- created_at VARCHAR(30) NOT NULL
+ created_at VARCHAR(30) NOT NULL,
+ role VARCHAR(10) NOT NULL DEFAULT 'user'
 );
 
 CREATE TABLE category (

@@ -21,7 +21,8 @@ CREATE TABLE user (
 	age VARCHAR(3) NOT NULL,
 	gender VARCHAR(10) NOT NULL,
 	pass TEXT NOT NULL,
-	created_at VARCHAR(30) NOT NULL
+	created_at VARCHAR(30) NOT NULL,
+	role VARCHAR(10) NOT NULL DEFAULT 'user'
 );
 
 CREATE TABLE category (
@@ -84,10 +85,10 @@ func SetupForumDB(t *testing.T) *sql.DB {
 
 	hashedPass := utility.HashPassword("secret123")
 	_, err = db.Exec(`
-		INSERT INTO user (id, fname, lname, uname, email, age, gender, pass, created_at) VALUES
-		(1, 'Admin', 'User', 'admin', 'admin@example.com', '30', 'other', ?, datetime('now')),
-		(2, 'Alice', 'Smith', 'alice', 'alice@example.com', '25', 'female', ?, datetime('now')),
-		(42, 'Actual', 'User', 'actual_user', 'actual@example.com', '28', 'other', ?, datetime('now'));
+		INSERT INTO user (id, fname, lname, uname, email, age, gender, pass, created_at, role) VALUES
+		(1, 'Admin', 'User', 'admin', 'admin@example.com', '30', 'other', ?, datetime('now'), 'admin'),
+		(2, 'Alice', 'Smith', 'alice', 'alice@example.com', '25', 'female', ?, datetime('now'), 'user'),
+		(42, 'Actual', 'User', 'actual_user', 'actual@example.com', '28', 'other', ?, datetime('now'), 'user');
 	`, hashedPass, hashedPass, hashedPass)
 	if err != nil {
 		t.Fatalf("failed to seed users: %v", err)

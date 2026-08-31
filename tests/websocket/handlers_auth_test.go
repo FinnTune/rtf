@@ -78,6 +78,32 @@ func TestLoginHandler_Success(t *testing.T) {
 	if resp.ID != 2 {
 		t.Fatalf("expected user id 2, got %d", resp.ID)
 	}
+	if resp.Role != "user" {
+		t.Fatalf("expected role 'user' for alice, got %q", resp.Role)
+	}
+}
+
+func TestLoginHandler_ReturnsAdminRoleForAdminUser(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	body := `{"username":"admin","password":"secret123"}`
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString(body))
+	rr := httptest.NewRecorder()
+
+	websocket.LoginHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var resp websocket.UserLoginResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.Role != "admin" {
+		t.Fatalf("expected role 'admin' for the seeded admin user, got %q", resp.Role)
+	}
 }
 
 func TestLoginHandler_BindsSessionToVerifiedIdentity(t *testing.T) {
@@ -198,6 +224,30 @@ func TestCheckLoginHandler_WithAuthenticatedClient(t *testing.T) {
 	}
 	if resp.OTP == "" {
 		t.Fatal("expected OTP for websocket connection")
+	}
+	if resp.Role != "user" {
+		t.Fatalf("expected role 'user' for alice, got %q", resp.Role)
+	}
+}
+
+func TestCheckLoginHandler_ReturnsAdminRoleForAdminUser(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	websocket.AddAuthenticatedClient("session-check-admin", "admin", 1)
+
+	req := httptest.NewRequest(http.MethodGet, "/checkLogin", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-check-admin"})
+	rr := httptest.NewRecorder()
+
+	websocket.CheckLoginHandler(rr, req)
+
+	var resp websocket.UserLoginResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.Role != "admin" {
+		t.Fatalf("expected role 'admin' for the seeded admin user, got %q", resp.Role)
 	}
 }
 
