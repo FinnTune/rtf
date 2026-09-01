@@ -11,20 +11,33 @@ interface PostPage {
   total: number | null
 }
 
-export async function getAllPosts(offset: number, limit: number): Promise<PostPage> {
-  const { data, total } = await requestJson<Post[]>(`/getAllPosts?limit=${limit}&offset=${offset}`)
+// Mirrors the backend's validSortValues in websocket/validate.go.
+export type PostSort = 'newest' | 'most_liked' | 'most_commented'
+
+export async function getAllPosts(offset: number, limit: number, sort: PostSort = 'newest'): Promise<PostPage> {
+  const { data, total } = await requestJson<Post[]>(`/getAllPosts?limit=${limit}&offset=${offset}&sort=${sort}`)
   return { posts: data, total }
 }
 
-export async function getPostsByAuthor(author: string, offset: number, limit: number): Promise<PostPage> {
+export async function getPostsByAuthor(
+  author: string,
+  offset: number,
+  limit: number,
+  sort: PostSort = 'newest',
+): Promise<PostPage> {
   const { data, total } = await requestJson<Post[]>(
-    `/getPostsByAuthor?author=${encodeURIComponent(author)}&limit=${limit}&offset=${offset}`,
+    `/getPostsByAuthor?author=${encodeURIComponent(author)}&limit=${limit}&offset=${offset}&sort=${sort}`,
   )
   return { posts: data, total }
 }
 
-export async function getPostsByCategory(categories: string[], offset: number, limit: number): Promise<PostPage> {
-  const { data, total } = await requestJson<Post[]>(`/getPostsByCategory?limit=${limit}&offset=${offset}`, {
+export async function getPostsByCategory(
+  categories: string[],
+  offset: number,
+  limit: number,
+  sort: PostSort = 'newest',
+): Promise<PostPage> {
+  const { data, total } = await requestJson<Post[]>(`/getPostsByCategory?limit=${limit}&offset=${offset}&sort=${sort}`, {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ categories }),
@@ -35,8 +48,8 @@ export async function getPostsByCategory(categories: string[], offset: number, l
 // The backend doesn't paginate search results (no limit/offset params, no
 // X-Total-Count) — total comes back null, same as the original app, which
 // never showed pagination controls for a search.
-export async function searchPosts(query: string): Promise<PostPage> {
-  const { data, total } = await requestJson<Post[]>(`/searchPosts?q=${encodeURIComponent(query)}`)
+export async function searchPosts(query: string, sort: PostSort = 'newest'): Promise<PostPage> {
+  const { data, total } = await requestJson<Post[]>(`/searchPosts?q=${encodeURIComponent(query)}&sort=${sort}`)
   return { posts: data, total }
 }
 

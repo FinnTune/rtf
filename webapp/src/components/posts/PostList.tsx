@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Post } from '../../types'
 import { Pagination } from './Pagination'
 import { PostCard } from './PostCard'
@@ -11,6 +12,7 @@ interface PostListProps {
   heading?: string
   emptyMessage: string
   onNavigate: (offset: number) => void
+  sortControl?: ReactNode
 }
 
 // Shared by the all-posts feed, category filter, search results, and
@@ -25,12 +27,16 @@ export function PostList({
   heading = 'Latest Posts',
   emptyMessage,
   onNavigate,
+  sortControl,
 }: PostListProps) {
   const showEmptyState = posts.length === 0 && !loading
 
   return (
     <div id="posts">
-      <h3>{heading}</h3>
+      <div className="post-list-header">
+        <h3>{heading}</h3>
+        {sortControl}
+      </div>
       <ul className="post-list" id="posts-table">
         {showEmptyState ? (
           <li className="empty-state">{emptyMessage}</li>

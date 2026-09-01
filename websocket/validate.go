@@ -41,6 +41,24 @@ const (
 	maxCommentsPageSize     = 100
 )
 
+var validSortValues = map[string]bool{
+	"newest":         true,
+	"most_liked":     true,
+	"most_commented": true,
+}
+
+// validateSortParam normalizes the sort query param, defaulting to "newest"
+// when absent and rejecting anything outside the known set.
+func validateSortParam(raw string) (string, error) {
+	if raw == "" {
+		return "newest", nil
+	}
+	if !validSortValues[raw] {
+		return "", fmt.Errorf("invalid sort value: %s", raw)
+	}
+	return raw, nil
+}
+
 // validateRegistration trims string fields in place and rejects the request
 // if any field is missing, malformed, or outside sane length bounds.
 func validateRegistration(user *RegUser) error {
