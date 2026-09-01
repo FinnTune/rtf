@@ -37,6 +37,7 @@ CREATE TABLE post (
 	content VARCHAR(150) NOT NULL,
 	author VARCHAR(30) NOT NULL,
 	created_at DATETIME NOT NULL,
+	img_url VARCHAR(200),
 	FOREIGN KEY(user_id) REFERENCES user(id)
 );
 

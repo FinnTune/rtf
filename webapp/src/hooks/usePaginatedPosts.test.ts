@@ -12,6 +12,7 @@ function makePost(id: number): Post {
     Content: 'x',
     Author: 'alice',
     Created: '2026-01-01',
+    ImgURL: '',
     LikeCount: 0,
     DislikeCount: 0,
     MyReaction: 'none',

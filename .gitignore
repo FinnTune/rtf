@@ -7,4 +7,5 @@
 node_modules/
 database/forum.db
 logfiles/*.log
+uploads/
 .VSCodeCounter/

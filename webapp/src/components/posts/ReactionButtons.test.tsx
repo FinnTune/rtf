@@ -14,6 +14,7 @@ function makePost(overrides: Partial<Post> = {}): Post {
     Content: 'Body',
     Author: 'alice',
     Created: '2026-01-01',
+    ImgURL: '',
     LikeCount: 2,
     DislikeCount: 1,
     MyReaction: 'none',

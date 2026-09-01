@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { addPost, type PostCategoryRef } from '../../api/posts'
+import { addPost, uploadPostImage, type PostCategoryRef } from '../../api/posts'
 import { useFeedView } from '../../contexts/FeedViewContext'
 import { useStatusMessage } from '../../contexts/StatusMessageContext'
 import { LoadingButton } from '../common/LoadingButton'
@@ -10,6 +10,7 @@ export function AddPostForm() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [categories, setCategories] = useState<PostCategoryRef[]>([])
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const { showMessage } = useStatusMessage()
   const { showAllPosts } = useFeedView()
@@ -24,7 +25,23 @@ export function AddPostForm() {
     }
     setSubmitting(true)
     try {
-      await addPost(trimmedTitle, trimmedContent, categories)
+      const postId = await addPost(trimmedTitle, trimmedContent, categories)
+      // Image upload is a separate request (multipart, needs an existing
+      // post id) — the post itself is already created at this point, so a
+      // failure here is reported distinctly rather than as a failed post.
+      if (imageFile) {
+        try {
+          await uploadPostImage(postId, imageFile)
+        } catch (error) {
+          showMessage(
+            'Your post was submitted, but the image failed to upload: ' + (error instanceof Error ? error.message : String(error)),
+            'error',
+          )
+          showAllPosts()
+          navigate('/')
+          return
+        }
+      }
       showAllPosts()
       navigate('/')
       showMessage('Your post was submitted.', 'success')
@@ -61,6 +78,13 @@ export function AddPostForm() {
         <div id="categories">
           <CategoryPicker selected={categories} onChange={setCategories} />
         </div>
+        <label htmlFor="post-image">Image (optional):</label>
+        <input
+          type="file"
+          id="post-image"
+          accept="image/png, image/jpeg, image/gif, image/webp"
+          onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
+        />
         <LoadingButton type="submit" id="add-post-submit" loading={submitting} loadingText="Posting...">
           Submit Post
         </LoadingButton>

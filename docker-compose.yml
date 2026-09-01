@@ -10,6 +10,7 @@ services:
       ALLOWED_ORIGIN: "https://localhost:8443"
     volumes:
       - ./database:/app/database
+      - ./uploads:/app/uploads
       - ./localhost.crt:/app/localhost.crt:ro
       - ./localhost.key:/app/localhost.key:ro
       - ./logfiles:/app/logfiles

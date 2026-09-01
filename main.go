@@ -25,6 +25,11 @@ import (
 // the Dockerfile's node stage — see buildServer's catch-all handler below).
 const distDir = "./webapp/dist"
 
+// uploadsDir holds user-uploaded post images — bind-mounted the same way
+// ./database is in docker-compose.yml, so uploads survive a container
+// recreate. Served back under /uploads/, matching websocket.postImageURLPrefix.
+const uploadsDir = "./uploads"
+
 // ASCI esacpe codes for colors
 const (
 	Reset   = "\033[0m"
@@ -88,6 +93,12 @@ func buildServer() *http.Server {
 		http.ServeFile(w, r, filepath.Join(distDir, "index.html"))
 	})
 
+	// Serves uploaded post images by their (random, unguessable) filename.
+	// noDirListing keeps a bare directory request from returning Go's
+	// default file listing — there's never a reason to enumerate this dir.
+	uploadsFileServer := http.FileServer(http.Dir(uploadsDir))
+	http.Handle("/uploads/", http.StripPrefix("/uploads/", noDirListing(uploadsFileServer, uploadsDir)))
+
 	// authLimiter guards login/registration against brute-force and signup
 	// spam: ~5 requests/minute per IP, with a small burst for legitimate
 	// typo-and-retry flows.
@@ -119,6 +130,7 @@ func buildServer() *http.Server {
 	http.HandleFunc("/editPost", writeLimiter.Limit(websocket.CSRFProtect(websocket.EditPostHandler)))
 	http.HandleFunc("/deletePost", writeLimiter.Limit(websocket.CSRFProtect(websocket.DeletePostHandler)))
 	http.HandleFunc("/reactToPost", writeLimiter.Limit(websocket.CSRFProtect(websocket.ReactToPostHandler)))
+	http.HandleFunc("/uploadPostImage", writeLimiter.Limit(websocket.CSRFProtect(websocket.UploadPostImageHandler)))
 	http.HandleFunc("/getPostsByCategory", readLimiter.Limit(websocket.PostsByCategoryHandler))
 	http.HandleFunc("/searchPosts", readLimiter.Limit(websocket.SearchPostsHandler))
 	http.HandleFunc("/addcomment", writeLimiter.Limit(websocket.CSRFProtect(websocket.AddCommentHandler)))
@@ -139,6 +151,28 @@ func buildServer() *http.Server {
 func isRegularFile(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && !info.IsDir()
+}
+
+// noDirListing wraps a file server so a request for a directory 404s
+// instead of returning Go's default directory listing. Used for /uploads/,
+// which only ever needs to serve individual files by their random filename.
+func noDirListing(next http.Handler, root string) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") {
+			http.NotFound(w, r)
+			return
+		}
+		if isDir(filepath.Join(root, path.Clean(r.URL.Path))) {
+			http.NotFound(w, r)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func isDir(path string) bool {
+	info, err := os.Stat(path)
+	return err == nil && info.IsDir()
 }
 
 // securityHeaders sets a conservative set of security response headers on
