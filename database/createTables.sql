@@ -72,15 +72,41 @@ CREATE TABLE category_relation (
  FOREIGN KEY(post_id) REFERENCES post(id)
 );
 
+-- A conversation is either a 1:1 direct chat (is_group = 0, exactly two
+-- conversation_member rows) or a named group chat (is_group = 1). Replaces
+-- the old message.from_user/to_user pairwise design, which stored usernames
+-- as text in nominally-INTEGER columns and had no way to represent a group.
+-- direct_pair_key is "loUserID-hiUserID" for a direct conversation, NULL for
+-- a group — the UNIQUE constraint lets "find or create the conversation
+-- between these two users" be a single race-safe INSERT OR IGNORE rather
+-- than a check-then-act that two concurrent first messages could duplicate.
+CREATE TABLE conversation (
+ id INTEGER NOT NULL PRIMARY KEY,
+ is_group TINYINT(1) NOT NULL DEFAULT 0,
+ name VARCHAR(50),
+ direct_pair_key VARCHAR(21),
+ created_at DATETIME NOT NULL,
+ UNIQUE(direct_pair_key)
+);
+
+CREATE TABLE conversation_member (
+ id INTEGER NOT NULL PRIMARY KEY,
+ conversation_id INTEGER NOT NULL,
+ user_id INTEGER NOT NULL,
+ joined_at DATETIME NOT NULL,
+ UNIQUE(conversation_id, user_id),
+ FOREIGN KEY(conversation_id) REFERENCES conversation(id),
+ FOREIGN KEY(user_id) REFERENCES user(id)
+);
+
 CREATE TABLE message (
  id INTEGER NOT NULL PRIMARY KEY,
- from_user INTEGER NOT NULL,
- to_user INTEGER NOT NULL,
- is_read TINYINT(1) NOT NULL,
+ conversation_id INTEGER NOT NULL,
+ sender_id INTEGER NOT NULL,
  txt TEXT NOT NULL,
  created_at DATETIME NOT NULL,
- FOREIGN KEY(from_user) REFERENCES user(id),
- FOREIGN KEY(to_user) REFERENCES user(id)
+ FOREIGN KEY(conversation_id) REFERENCES conversation(id),
+ FOREIGN KEY(sender_id) REFERENCES user(id)
 );
 
 -- Insert in user table for testing

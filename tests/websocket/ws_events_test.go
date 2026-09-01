@@ -13,17 +13,16 @@ func TestSendMessage_StoresInDatabase(t *testing.T) {
 	websocket.ResetTestState()
 	db := testutil.UseForumDB(t)
 
-	// Client identity is the string form of the real user id (1 = admin) —
-	// message.from_user/to_user are (loosely) foreign keys to user.id, and
-	// sendMessage now always stores the authenticated sender's identity, not
-	// whatever the payload's "from" field claims.
-	sender := websocket.AddTestClient("s1", "1", 1)
-	_ = websocket.AddTestClient("s2", "2", 2)
+	// sendMessage resolves the recipient username against the real `user`
+	// table now (to find/create their direct conversation), so these need
+	// to be real seeded users, not placeholder identities.
+	sender := websocket.AddTestClient("s1", "admin", 1)
+	_ = websocket.AddTestClient("s2", "alice", 2)
 
 	payload, _ := json.Marshal(map[string]string{
 		"message": "test chat message",
-		"from":    "1",
-		"to":      "2",
+		"from":    "admin",
+		"to":      "alice",
 	})
 
 	if err := websocket.SendMessageForTest(payload, sender); err != nil {
@@ -41,31 +40,123 @@ func TestSendMessage_UsesAuthenticatedSenderNotPayloadFrom(t *testing.T) {
 	websocket.ResetTestState()
 	db := testutil.UseForumDB(t)
 
-	// The message table's from_user/to_user columns are (loosely) foreign
-	// keys to user.id, so — matching the existing test convention in
-	// TestSendMessage_StoresInDatabase above — the client's username here is
-	// the string form of their real user id (1 = admin). What's under test
-	// is that the payload's claimed "from" (a spoof attempt) is discarded in
-	// favor of the authenticated sender, regardless of what value it holds.
-	sender := websocket.AddTestClient("s1", "1", 1)
+	// What's under test is that the payload's claimed "from" (a spoof
+	// attempt) is discarded in favor of the authenticated sender's real
+	// user id, regardless of what value it holds.
+	sender := websocket.AddTestClient("s1", "admin", 1)
 
 	payload, _ := json.Marshal(map[string]string{
 		"message": "spoof test message",
 		"from":    "root",
-		"to":      "2",
+		"to":      "alice",
 	})
 
 	if err := websocket.SendMessageForTest(payload, sender); err != nil {
 		t.Fatalf("sendMessage failed: %v", err)
 	}
 
-	var fromUser string
-	err := db.QueryRow(`SELECT from_user FROM message WHERE txt = ?`, "spoof test message").Scan(&fromUser)
+	var senderID int
+	err := db.QueryRow(`SELECT sender_id FROM message WHERE txt = ?`, "spoof test message").Scan(&senderID)
 	if err != nil {
 		t.Fatalf("message not stored in database: %v", err)
 	}
-	if fromUser != "1" {
-		t.Fatalf("message was spoofed: stored from_user %q, want the authenticated sender %q", fromUser, "1")
+	if senderID != 1 {
+		t.Fatalf("message was spoofed: stored sender_id %d, want the authenticated sender's id %d", senderID, 1)
+	}
+}
+
+func TestSendMessage_DropsMessageToNonexistentRecipient(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	sender := websocket.AddTestClient("s1", "admin", 1)
+
+	payload, _ := json.Marshal(map[string]string{
+		"message": "message to nobody",
+		"from":    "admin",
+		"to":      "does-not-exist",
+	})
+
+	// A recipient username that doesn't resolve to a real user is dropped,
+	// not an error — returning an error here would kill the sender's whole
+	// WebSocket connection (see routeEvent), a much harsher failure than
+	// silently not storing an unsendable message.
+	if err := websocket.SendMessageForTest(payload, sender); err != nil {
+		t.Fatalf("sendMessage should not error for an unresolvable recipient, got: %v", err)
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM message WHERE txt = ?`, "message to nobody").Scan(&count); err != nil {
+		t.Fatalf("failed to query message count: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no message stored for a nonexistent recipient, found %d", count)
+	}
+}
+
+func TestSendMessage_ReusesSameConversationAcrossMessages(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	sender := websocket.AddTestClient("s1", "admin", 1)
+
+	for _, text := range []string{"first message", "second message"} {
+		payload, _ := json.Marshal(map[string]string{"message": text, "from": "admin", "to": "actual_user"})
+		if err := websocket.SendMessageForTest(payload, sender); err != nil {
+			t.Fatalf("sendMessage failed: %v", err)
+		}
+	}
+
+	var conversationCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM conversation WHERE direct_pair_key = '1-42'`).Scan(&conversationCount); err != nil {
+		t.Fatalf("failed to count conversations: %v", err)
+	}
+	if conversationCount != 1 {
+		t.Fatalf("expected exactly one direct conversation to be created for the pair, got %d", conversationCount)
+	}
+
+	var messageCount int
+	if err := db.QueryRow(`
+		SELECT COUNT(*) FROM message
+		JOIN conversation ON conversation.id = message.conversation_id
+		WHERE conversation.direct_pair_key = '1-42'`).Scan(&messageCount); err != nil {
+		t.Fatalf("failed to count messages: %v", err)
+	}
+	if messageCount != 2 {
+		t.Fatalf("expected both messages to land in the same conversation, got %d", messageCount)
+	}
+}
+
+func TestGetChatHistory_ReturnsEmptyForNonexistentOtherUser(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	requester := websocket.AddTestClient("s1", "admin", 1)
+
+	payload, _ := json.Marshal(websocket.ChatMessage{
+		FromUser: "admin",
+		ToUser:   "does-not-exist",
+		Limit:    10,
+		Offset:   0,
+	})
+
+	if err := websocket.GetChatHistoryForTest(payload, requester); err != nil {
+		t.Fatalf("getChatHistory failed: %v", err)
+	}
+
+	eventType, eventPayload, ok := requester.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat history")
+	}
+	if eventType != websocket.SendChatHistory {
+		t.Fatalf("expected chat_history event, got %q", eventType)
+	}
+	var messages []websocket.ChatMessage
+	if err := json.Unmarshal(eventPayload, &messages); err != nil {
+		t.Fatalf("failed to decode chat history: %v", err)
+	}
+	if len(messages) != 0 {
+		t.Fatalf("expected no messages for a nonexistent other user, got %d", len(messages))
 	}
 }
 
@@ -75,20 +166,32 @@ func TestGetChatHistory_IgnoresSpoofedFromUser(t *testing.T) {
 
 	// Seed a private conversation between two users (admin=1, actual_user=42)
 	// the requester is not part of.
-	_, err := db.Exec(`INSERT INTO message (from_user, to_user, is_read, txt, created_at) VALUES
-		('1', '42', 0, 'private admin-actual_user message', datetime('now'))`)
+	convResult, err := db.Exec(`INSERT INTO conversation (is_group, direct_pair_key, created_at) VALUES (0, '1-42', datetime('now'))`)
 	if err != nil {
+		t.Fatalf("failed to seed conversation: %v", err)
+	}
+	convID, _ := convResult.LastInsertId()
+	if _, err := db.Exec(
+		`INSERT INTO conversation_member (conversation_id, user_id, joined_at) VALUES (?, 1, datetime('now')), (?, 42, datetime('now'))`,
+		convID, convID,
+	); err != nil {
+		t.Fatalf("failed to seed conversation members: %v", err)
+	}
+	if _, err := db.Exec(
+		`INSERT INTO message (conversation_id, sender_id, txt, created_at) VALUES (?, 1, 'private admin-actual_user message', datetime('now'))`,
+		convID,
+	); err != nil {
 		t.Fatalf("failed to seed message: %v", err)
 	}
 
-	// alice (real id 2) is really connected as "2", but the request claims
-	// FromUser is "1" (admin) to try to read admin's conversation with
+	// alice (real id 2) is really connected as "alice", but the request
+	// claims FromUser is "admin" to try to read admin's conversation with
 	// actual_user.
-	requester := websocket.AddTestClient("s1", "2", 2)
+	requester := websocket.AddTestClient("s1", "alice", 2)
 
 	payload, _ := json.Marshal(websocket.ChatMessage{
-		FromUser: "1",
-		ToUser:   "42",
+		FromUser: "admin",
+		ToUser:   "actual_user",
 		Limit:    10,
 		Offset:   0,
 	})
@@ -246,11 +349,13 @@ func TestGetChatHistory_ReturnsMessages(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
 
-	requester := websocket.AddTestClient("s1", "1", 1)
+	// Uses the base seed's direct conversation between admin (1) and alice
+	// (2), which already has two messages.
+	requester := websocket.AddTestClient("s1", "admin", 1)
 
 	payload, _ := json.Marshal(websocket.ChatMessage{
-		FromUser: "1",
-		ToUser:   "2",
+		FromUser: "admin",
+		ToUser:   "alice",
 		Limit:    10,
 		Offset:   0,
 	})

@@ -214,10 +214,6 @@ type Comment struct {
 // 	IsEdited       bool
 // }
 
-type Chat struct {
-	ChatId int
-}
-
 type Reaction struct {
 	ID        int
 	UserID    int

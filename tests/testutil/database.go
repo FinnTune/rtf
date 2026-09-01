@@ -70,15 +70,33 @@ CREATE TABLE user_post_reaction (
 	FOREIGN KEY(post_id) REFERENCES post(id)
 );
 
+CREATE TABLE conversation (
+	id INTEGER NOT NULL PRIMARY KEY,
+	is_group TINYINT(1) NOT NULL DEFAULT 0,
+	name VARCHAR(50),
+	direct_pair_key VARCHAR(21),
+	created_at DATETIME NOT NULL,
+	UNIQUE(direct_pair_key)
+);
+
+CREATE TABLE conversation_member (
+	id INTEGER NOT NULL PRIMARY KEY,
+	conversation_id INTEGER NOT NULL,
+	user_id INTEGER NOT NULL,
+	joined_at DATETIME NOT NULL,
+	UNIQUE(conversation_id, user_id),
+	FOREIGN KEY(conversation_id) REFERENCES conversation(id),
+	FOREIGN KEY(user_id) REFERENCES user(id)
+);
+
 CREATE TABLE message (
 	id INTEGER NOT NULL PRIMARY KEY,
-	from_user INTEGER NOT NULL,
-	to_user INTEGER NOT NULL,
-	is_read TINYINT(1) NOT NULL,
+	conversation_id INTEGER NOT NULL,
+	sender_id INTEGER NOT NULL,
 	txt TEXT NOT NULL,
 	created_at DATETIME NOT NULL,
-	FOREIGN KEY(from_user) REFERENCES user(id),
-	FOREIGN KEY(to_user) REFERENCES user(id)
+	FOREIGN KEY(conversation_id) REFERENCES conversation(id),
+	FOREIGN KEY(sender_id) REFERENCES user(id)
 );
 `
 
@@ -140,10 +158,19 @@ func SetupForumDB(t *testing.T) *sql.DB {
 		t.Fatalf("failed to seed comments: %v", err)
 	}
 
+	// A single seeded direct conversation between admin (1) and alice (2),
+	// with one message each way.
 	_, err = db.Exec(`
-		INSERT INTO message (id, from_user, to_user, is_read, txt, created_at) VALUES
-		(1, 1, 2, 0, 'hello alice', datetime('now')),
-		(2, 2, 1, 0, 'hi admin', datetime('now'));
+		INSERT INTO conversation (id, is_group, direct_pair_key, created_at) VALUES
+		(1, 0, '1-2', datetime('now'));
+
+		INSERT INTO conversation_member (id, conversation_id, user_id, joined_at) VALUES
+		(1, 1, 1, datetime('now')),
+		(2, 1, 2, datetime('now'));
+
+		INSERT INTO message (id, conversation_id, sender_id, txt, created_at) VALUES
+		(1, 1, 1, 'hello alice', datetime('now')),
+		(2, 1, 2, 'hi admin', datetime('now'));
 	`)
 	if err != nil {
 		t.Fatalf("failed to seed messages: %v", err)
