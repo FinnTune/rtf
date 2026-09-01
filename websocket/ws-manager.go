@@ -65,9 +65,24 @@ func sendMessage(event Event, c *Client) error {
 	chatMessage.From = c.username
 	chatMessage.To = chatEvent.To
 
+	// A nonexistent recipient username is dropped rather than treated as a
+	// hard error — an error here would kill the sender's whole WebSocket
+	// connection (see routeEvent), which is a much harsher failure than the
+	// old behavior (silently storing a message to a nonexistent user).
+	toUserID, err := lookupUserIDByUsername(chatEvent.To)
+	if err != nil {
+		log.Printf("sendMessage: recipient %q not found, dropping message: %s", chatEvent.To, err)
+		return nil
+	}
+
+	convID, err := resolveOrCreateDirectConversation(c.userID, toUserID)
+	if err != nil {
+		return fmt.Errorf("resolving conversation: %s", err)
+	}
+
 	// Store message in sqlite3 database
-	_, err := database.ForumDB.Exec("INSERT INTO message (from_user, to_user, is_read, txt, created_at) VALUES (?, ?, ?, ?, ?)",
-		chatMessage.From, chatEvent.To, 0, chatMessage.Message, chatMessage.Sent)
+	_, err = database.ForumDB.Exec("INSERT INTO message (conversation_id, sender_id, txt, created_at) VALUES (?, ?, ?, ?)",
+		convID, c.userID, chatMessage.Message, chatMessage.Sent)
 	if err != nil {
 		return fmt.Errorf("failed to store message in database: %s", err)
 	}
@@ -125,16 +140,33 @@ func getChatHistory(event Event, c *Client) error {
 		return fmt.Errorf("event unmarshalling error: %s", err)
 	}
 	// FromUser is always the authenticated requester, never whatever the
-	// client claims — otherwise any connection could request (and, via the
-	// old by-username delivery below, potentially have delivered) any two
-	// arbitrary users' private conversation.
+	// client claims — otherwise any connection could request another pair's
+	// private conversation just by naming it in the payload.
 	chtMsg.FromUser = c.username
 	log.Println("History Request: ", chtMsg)
 
+	messages := []ChatMessage{}
+
+	otherUserID, err := lookupUserIDByUsername(chtMsg.ToUser)
+	if err != nil {
+		// No such user — nothing to return, same as the old design's
+		// behavior when a bogus ToUser matched zero rows.
+		return sendChatHistory(c, messages)
+	}
+
+	convID, found, err := findDirectConversation(c.userID, otherUserID)
+	if err != nil {
+		return fmt.Errorf("looking up conversation: %s", err)
+	}
+	if !found {
+		// The two users have never exchanged a message, so there's no
+		// conversation row yet — an empty history, not an error.
+		return sendChatHistory(c, messages)
+	}
+
 	// First get the total number of rows for the specific chat conversation
 	var count int
-	err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM message WHERE (from_user = ? AND to_user = ?) OR (from_user = ? AND to_user = ?)", chtMsg.FromUser, chtMsg.ToUser, chtMsg.ToUser, chtMsg.FromUser).Scan(&count)
-	if err != nil {
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM message WHERE conversation_id = ?", convID).Scan(&count); err != nil {
 		return fmt.Errorf("failed to count table lines: %s", err)
 	}
 
@@ -145,29 +177,51 @@ func getChatHistory(event Event, c *Client) error {
 
 	rows, err := database.ForumDB.Query(`
     SELECT * FROM (
-        SELECT * FROM message 
-        WHERE (from_user = ? AND to_user = ?) OR (from_user = ? AND to_user = ?) 
-        ORDER BY id DESC 
+        SELECT id, sender_id, txt, created_at FROM message
+        WHERE conversation_id = ?
+        ORDER BY id DESC
         LIMIT ? OFFSET ?
-    ) sub 
-    ORDER BY id ASC`, chtMsg.FromUser, chtMsg.ToUser, chtMsg.ToUser, chtMsg.FromUser, chtMsg.Limit, chtMsg.Offset)
+    ) sub
+    ORDER BY id ASC`, convID, chtMsg.Limit, chtMsg.Offset)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve history: %s", err)
 
 	}
 	defer rows.Close()
 
-	var messages []ChatMessage
 	for rows.Next() {
-		var msg ChatMessage
-		err = rows.Scan(&msg.Id, &msg.FromUser, &msg.ToUser, &msg.IsRead, &msg.Text, &msg.CreatedAt)
-		if err != nil {
+		var id, senderID int
+		var text, createdAt string
+		if err := rows.Scan(&id, &senderID, &text, &createdAt); err != nil {
 			return fmt.Errorf("failed to scan history: %s", err)
+		}
+		msg := ChatMessage{
+			Id:        id,
+			Text:      text,
+			CreatedAt: createdAt,
+			// Read receipts aren't wired up yet — every history entry
+			// reports unread until that lands.
+			IsRead: false,
+		}
+		// This is a direct (1:1) conversation between exactly the requester
+		// and chtMsg.ToUser, so the sender is always one of those two —
+		// resolving From/To from the already-known usernames avoids a join
+		// back to `user` per row.
+		if senderID == c.userID {
+			msg.FromUser = c.username
+			msg.ToUser = chtMsg.ToUser
+		} else {
+			msg.FromUser = chtMsg.ToUser
+			msg.ToUser = c.username
 		}
 		messages = append(messages, msg)
 	}
 	log.Println("History of Messages: ", messages)
 
+	return sendChatHistory(c, messages)
+}
+
+func sendChatHistory(c *Client, messages []ChatMessage) error {
 	data, err := json.Marshal(messages)
 	if err != nil {
 		return fmt.Errorf("failed to marshal history message error: %s", err)

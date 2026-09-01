@@ -81,6 +81,10 @@ func migrate(db *sql.DB) error {
 		return fmt.Errorf("creating user_post_reaction table: %w", err)
 	}
 
+	if err := migrateConversationModel(db); err != nil {
+		return fmt.Errorf("migrating message table to conversation model: %w", err)
+	}
+
 	return nil
 }
 
