@@ -68,6 +68,18 @@ export function ChatWindow({ state }: ChatWindowProps) {
         ? `${[...state.typingUsers].join(', ')} typing...`
         : 'typing...'
 
+  // "Seen by" compares against the newest message with a real (server-
+  // confirmed) id — id 0 marks a not-yet-reconciled local echo of this
+  // client's own just-sent message, which can't be compared against a read
+  // watermark yet.
+  const latestConfirmedId = Math.max(0, ...state.messages.filter((m) => m.id > 0).map((m) => m.id))
+  const seenBy =
+    latestConfirmedId > 0
+      ? Object.entries(state.readStates)
+          .filter(([, lastRead]) => lastRead >= latestConfirmedId)
+          .map(([username]) => username)
+      : []
+
   return (
     <div className="chat-window" id={`chat:${conversationId}`}>
       <h3>{state.isGroup ? state.title : `Chat with ${state.title}`}</h3>
@@ -79,10 +91,16 @@ export function ChatWindow({ state }: ChatWindowProps) {
         {state.messages.map((message) => (
           // Not index-based: loadMoreHistory prepends whole batches to the
           // front, which would shift every later message's index and
-          // confuse React's reconciliation.
-          <ChatMessageRow key={`${message.from}-${message.timestamp}-${message.message}`} message={message} />
+          // confuse React's reconciliation. Real messages key off their
+          // server id; an id-0 local echo (this client's own just-sent,
+          // not-yet-reconciled message) falls back to a composite key.
+          <ChatMessageRow
+            key={message.id > 0 ? `msg-${message.id}` : `local-${message.from}-${message.timestamp}-${message.message}`}
+            message={message}
+          />
         ))}
       </div>
+      {seenBy.length > 0 && <div className="seen-by">Seen by {seenBy.join(', ')}</div>}
       <div className="typing">
         {typingLabel && (
           <>

@@ -215,9 +215,18 @@ func TestSendMessage_BroadcastsToOtherMemberNotSender(t *testing.T) {
 		t.Fatalf("unexpected sent-message payload: %+v", msg)
 	}
 
-	// The sender should not receive an echo of their own message.
+	// The sender gets a targeted "message-ack" (so their client learns the
+	// message's real id, e.g. for read-receipt comparisons) but never a
+	// "sent-message" echo of their own message.
+	senderEventType, _, ok := sender.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for the sender's message-ack event")
+	}
+	if senderEventType != websocket.MessageAck {
+		t.Fatalf("expected message-ack event, got %q", senderEventType)
+	}
 	if _, _, ok := sender.WaitEvent(100 * time.Millisecond); ok {
-		t.Fatal("sender should not receive their own message back")
+		t.Fatal("sender should not receive anything beyond the message-ack")
 	}
 }
 

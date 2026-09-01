@@ -126,11 +126,17 @@ func getConversationInfo(convID int) (*ConversationInfo, bool, error) {
 		return nil, false, err
 	}
 
+	readStates, err := getConversationReadStates(convID)
+	if err != nil {
+		return nil, false, err
+	}
+
 	return &ConversationInfo{
 		ConversationID: convID,
 		IsGroup:        isGroup,
 		Name:           name.String,
 		Members:        members,
+		ReadStates:     readStates,
 	}, true, nil
 }
 
@@ -222,4 +228,68 @@ func getUserConversations(userID int) ([]ConversationInfo, error) {
 		}
 	}
 	return conversations, nil
+}
+
+// getConversationReadStates returns every member's read watermark. A member
+// with no message_read row yet (never read anything) is reported at 0 via
+// the LEFT JOIN + COALESCE, rather than being omitted.
+func getConversationReadStates(convID int) ([]ReadState, error) {
+	rows, err := database.ForumDB.Query(`
+		SELECT user.id, user.uname, COALESCE(message_read.last_read_message_id, 0)
+		FROM conversation_member
+		JOIN user ON user.id = conversation_member.user_id
+		LEFT JOIN message_read ON message_read.conversation_id = conversation_member.conversation_id
+			AND message_read.user_id = conversation_member.user_id
+		WHERE conversation_member.conversation_id = ?
+		ORDER BY user.uname ASC`, convID)
+	if err != nil {
+		return nil, fmt.Errorf("loading read states: %w", err)
+	}
+	defer rows.Close()
+
+	states := []ReadState{}
+	for rows.Next() {
+		var s ReadState
+		if err := rows.Scan(&s.UserID, &s.Username, &s.LastReadMessageID); err != nil {
+			return nil, fmt.Errorf("scanning read state: %w", err)
+		}
+		states = append(states, s)
+	}
+	return states, rows.Err()
+}
+
+// messageExistsInConversation reports whether messageID is a real message
+// belonging to convID — mark-read validates against this so a client can't
+// claim to have read a message that isn't even part of the conversation.
+func messageExistsInConversation(convID, messageID int) (bool, error) {
+	var exists int
+	err := database.ForumDB.QueryRow(
+		`SELECT 1 FROM message WHERE id = ? AND conversation_id = ?`, messageID, convID,
+	).Scan(&exists)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// markConversationRead advances userID's read watermark for convID to
+// messageID — but only forward, never backward, so an out-of-order
+// mark-read (e.g. from a stale request) can't regress it.
+func markConversationRead(convID, userID, messageID int) error {
+	now := time.Now().Format("2006-01-02 15:04:05")
+	_, err := database.ForumDB.Exec(`
+		INSERT INTO message_read (conversation_id, user_id, last_read_message_id, updated_at)
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(conversation_id, user_id) DO UPDATE SET
+			last_read_message_id = MAX(last_read_message_id, excluded.last_read_message_id),
+			updated_at = excluded.updated_at`,
+		convID, userID, messageID, now,
+	)
+	if err != nil {
+		return fmt.Errorf("marking conversation read: %w", err)
+	}
+	return nil
 }

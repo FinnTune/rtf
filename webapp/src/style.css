@@ -787,6 +787,12 @@ padding: 10px 14px 14px;
     padding: 0 14px;
 }
 
+.seen-by {
+padding: 0 14px 4px;
+font-size: 11px;
+color: var(--text-muted);
+}
+
 .msg-alert {
 display: inline-flex;
 align-items: center;

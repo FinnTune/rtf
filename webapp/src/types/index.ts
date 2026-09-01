@@ -63,7 +63,12 @@ export interface RegisterPayload {
 // came with, always valid input to `new Date(...)`. Which conversation a
 // message belongs to is which ChatWindowState it lives in, not a field on
 // the message itself.
+// id is 0 for a message this client sent optimistically and hasn't yet
+// reconciled with the server's real id (the server never echoes a sent
+// message back to its own sender) — never a real message's actual id,
+// which is always a positive, database-assigned integer.
 export interface ChatMessageVM {
+  id: number
   from: string
   message: string
   timestamp: string | number
@@ -76,9 +81,16 @@ export interface ConversationMember {
   username: string
 }
 
+export interface ReadState {
+  user_id: number
+  username: string
+  last_read_message_id: number
+}
+
 export interface ConversationInfo {
   conversation_id: number
   is_group: boolean
   name?: string
   members: ConversationMember[]
+  read_states: ReadState[]
 }

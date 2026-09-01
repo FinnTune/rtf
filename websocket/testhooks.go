@@ -170,6 +170,11 @@ func GetConversationsForTest(client *TestClientHandle) error {
 	return getConversations(Event{Type: GetConversations}, client.client)
 }
 
+// MarkReadForTest invokes the mark-read handler for tests.
+func MarkReadForTest(payload json.RawMessage, client *TestClientHandle) error {
+	return markRead(Event{Type: MarkRead, Payload: payload}, client.client)
+}
+
 // TestOtps wraps OTP map lifecycle for external tests.
 type TestOtps struct {
 	otps   *otpsMap

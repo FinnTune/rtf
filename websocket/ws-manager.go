@@ -72,14 +72,27 @@ func sendMessage(event Event, c *Client) error {
 
 	sent := time.Now()
 	// Store message in sqlite3 database
-	if _, err := database.ForumDB.Exec(
+	result, err := database.ForumDB.Exec(
 		"INSERT INTO message (conversation_id, sender_id, txt, created_at) VALUES (?, ?, ?, ?)",
 		chatEvent.ConversationID, c.userID, chatEvent.Message, sent,
-	); err != nil {
+	)
+	if err != nil {
 		return fmt.Errorf("failed to store message in database: %s", err)
+	}
+	messageID, err := result.LastInsertId()
+	if err != nil {
+		return fmt.Errorf("failed to read new message id: %s", err)
+	}
+
+	// The sender has, by definition, already read their own message —
+	// advance their watermark now rather than requiring a separate
+	// mark-read round trip for something that's already true.
+	if err := markConversationRead(chatEvent.ConversationID, c.userID, int(messageID)); err != nil {
+		return fmt.Errorf("marking sender's own message read: %s", err)
 	}
 
 	chatMessage := SendMessageEvent{
+		Id:             int(messageID),
 		ConversationID: chatEvent.ConversationID,
 		// From is always the authenticated sender, never anything the
 		// client could supply — otherwise any connection could send
@@ -94,7 +107,22 @@ func sendMessage(event Event, c *Client) error {
 		return fmt.Errorf("failed to marshal broadcast message error: %s", err)
 	}
 
-	return broadcastToConversation(c.manager, chatEvent.ConversationID, c.userID, Event{Type: EventSendMessage, Payload: data})
+	if err := broadcastToConversation(c.manager, chatEvent.ConversationID, c.userID, Event{Type: EventSendMessage, Payload: data}); err != nil {
+		return err
+	}
+
+	// "sent-message" only ever reaches the conversation's OTHER members
+	// (broadcastToConversation excludes the sender) — without a separate ack
+	// back to the sender's own connection, they'd never learn their own
+	// message's real database id and could never see a "seen by" indicator
+	// advance past their own latest message.
+	ackData, err := json.Marshal(MessageAckEvent{ConversationID: chatEvent.ConversationID, Id: int(messageID)})
+	if err != nil {
+		return fmt.Errorf("failed to marshal message-ack event: %s", err)
+	}
+	c.egress <- Event{Type: MessageAck, Payload: ackData}
+
+	return nil
 }
 
 // broadcastToConversation delivers outgoingEvent to every currently
@@ -383,6 +411,53 @@ func getConversations(event Event, c *Client) error {
 	return nil
 }
 
+// markRead handles the "mark-read" event: the client reports having seen
+// everything up to and including a given message. Advances the requester's
+// own watermark and broadcasts the new state to the conversation's other
+// members as a "read-receipt".
+func markRead(event Event, c *Client) error {
+	var req MarkReadRequest
+	if err := json.Unmarshal(event.Payload, &req); err != nil {
+		return fmt.Errorf("event unmarshalling error: %s", err)
+	}
+
+	isMember, err := isConversationMember(req.ConversationID, c.userID)
+	if err != nil {
+		return fmt.Errorf("checking conversation membership: %s", err)
+	}
+	if !isMember {
+		return nil
+	}
+
+	exists, err := messageExistsInConversation(req.ConversationID, req.MessageID)
+	if err != nil {
+		return fmt.Errorf("checking message existence: %s", err)
+	}
+	if !exists {
+		// Client-supplied message_id doesn't belong to this conversation —
+		// dropped rather than trusted, same posture as every other
+		// client-supplied id in this package.
+		return nil
+	}
+
+	if err := markConversationRead(req.ConversationID, c.userID, req.MessageID); err != nil {
+		return fmt.Errorf("marking conversation read: %s", err)
+	}
+
+	receipt := ReadReceiptEvent{
+		ConversationID: req.ConversationID,
+		UserID:         c.userID,
+		Username:       c.username,
+		MessageID:      req.MessageID,
+	}
+	data, err := json.Marshal(receipt)
+	if err != nil {
+		return fmt.Errorf("failed to marshal read-receipt event: %s", err)
+	}
+
+	return broadcastToConversation(c.manager, req.ConversationID, c.userID, Event{Type: ReadReceipt, Payload: data})
+}
+
 func sendChatOpened(c *Client, info ConversationInfo) error {
 	data, err := json.Marshal(info)
 	if err != nil {
@@ -415,6 +490,7 @@ func (m *Manager) RegisterEventHandlers() {
 	m.eventHandlers[OpenDirectChat] = openDirectChat
 	m.eventHandlers[CreateGroupChat] = createGroupChat
 	m.eventHandlers[GetConversations] = getConversations
+	m.eventHandlers[MarkRead] = markRead
 
 }
 
