@@ -3,7 +3,7 @@ import { useChat } from '../../contexts/ChatContext'
 
 export function OnlineUsersList() {
   const { user } = useAuth()
-  const { onlineUsers, unreadUsers, openChat } = useChat()
+  const { onlineUsers, unreadUsernames, openDirectChat } = useChat()
 
   return (
     <ul id="users-list">
@@ -12,13 +12,13 @@ export function OnlineUsersList() {
           key={username}
           onClick={() => {
             if (username !== user?.username) {
-              openChat(username)
+              openDirectChat(username)
             }
           }}
         >
           <span className="online-dot" />
           {username}
-          {unreadUsers.has(username) && <span className="msg-alert">!</span>}
+          {unreadUsernames.has(username) && <span className="msg-alert">!</span>}
         </li>
       ))}
     </ul>

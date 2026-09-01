@@ -39,6 +39,12 @@ const (
 
 	defaultCommentsPageSize = 20
 	maxCommentsPageSize     = 100
+
+	maxGroupNameLength = 50
+	// Includes the creator, who's added automatically — a request naming
+	// this many *other* usernames is still rejected, since the actual group
+	// ends up one larger than what was requested.
+	maxGroupMembers = 50
 )
 
 var validSortValues = map[string]bool{
@@ -157,4 +163,35 @@ func validateAuthorQuery(author string) (string, error) {
 func escapeLikePattern(s string) string {
 	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 	return replacer.Replace(s)
+}
+
+// validateGroupChat trims the name and de-duplicates the member usernames
+// for a "create-group-chat" request, rejecting an empty/oversized name or a
+// member list that's empty or too large. Username existence itself isn't
+// checked here — that requires a DB lookup, done by the caller once it
+// knows the request shape itself is sane.
+func validateGroupChat(name string, usernames []string) (string, []string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" || len(name) > maxGroupNameLength {
+		return "", nil, fmt.Errorf("group name must be 1-%d characters", maxGroupNameLength)
+	}
+
+	seen := make(map[string]bool, len(usernames))
+	unique := make([]string, 0, len(usernames))
+	for _, u := range usernames {
+		u = strings.TrimSpace(u)
+		if u == "" || seen[u] {
+			continue
+		}
+		seen[u] = true
+		unique = append(unique, u)
+	}
+	if len(unique) == 0 {
+		return "", nil, fmt.Errorf("a group needs at least one other member")
+	}
+	if len(unique) > maxGroupMembers {
+		return "", nil, fmt.Errorf("a group may have at most %d other members", maxGroupMembers)
+	}
+
+	return name, unique, nil
 }

@@ -1,53 +1,73 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAuth } from './AuthContext'
 import { useWebSocket } from './WebSocketContext'
-import type { ChatMessageVM } from '../types'
+import type { ChatMessageVM, ConversationInfo } from '../types'
 
 const HISTORY_PAGE_SIZE = 10
 
 export interface ChatWindowState {
+  conversationId: number
+  isGroup: boolean
+  // The group's name, or the other member's username for a direct chat —
+  // whatever a window's title bar should show.
+  title: string
   messages: ChatMessageVM[]
   offset: number
   loadingHistory: boolean
-  isOtherTyping: boolean
+  // A set, not a single flag, since a group conversation can have more than
+  // one person typing at once.
+  typingUsers: Set<string>
 }
 
 interface ChatContextValue {
   // Sorted unread-first (in the order each became unread), then the rest
-  // alphabetically — the original app intended this via a module-level
-  // `alertUsers` array, but nothing in it ever actually populated that
-  // array, so the real app never did this in practice. Fixed here since
-  // real, persistent React state naturally does the right thing instead.
+  // alphabetically.
   onlineUsers: string[]
-  unreadUsers: Set<string>
-  openWindows: Record<string, ChatWindowState>
-  openChat: (username: string) => void
-  closeChat: (username: string) => void
-  sendMessage: (username: string, text: string) => void
-  loadMoreHistory: (username: string) => void
-  sendTyping: (username: string) => void
-  sendStopTyping: (username: string) => void
+  unreadConversations: Set<number>
+  // Derived from unreadConversations for direct chats specifically — what
+  // OnlineUsersList checks to show the "!" badge next to a username.
+  unreadUsernames: Set<string>
+  openWindows: Record<number, ChatWindowState>
+  groupChats: ConversationInfo[]
+  openDirectChat: (username: string) => void
+  // Opens (or reveals, if already open) a window for a conversation whose
+  // full info is already known — e.g. clicking an entry in the group chats
+  // list, where unlike a direct chat there's no username to resolve first.
+  openConversation: (info: ConversationInfo) => void
+  createGroupChat: (name: string, usernames: string[]) => void
+  closeChat: (conversationId: number) => void
+  sendMessage: (conversationId: number, text: string) => void
+  loadMoreHistory: (conversationId: number) => void
+  sendTyping: (conversationId: number) => void
+  sendStopTyping: (conversationId: number) => void
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null)
 
 interface RawChatHistoryItem {
   from: string
-  to: string
   message: string
   created_at: string
 }
 
 interface RawSentMessage {
+  conversation_id: number
   from: string
-  to: string
   message: string
   sent: string
 }
 
 interface RawTypingEvent {
+  conversation_id: number
   from: string
-  to: string
+}
+
+function otherMember(info: ConversationInfo, myUsername: string): string {
+  return info.members.find((m) => m.username !== myUsername)?.username ?? info.name ?? 'Unknown'
+}
+
+function titleFor(info: ConversationInfo, myUsername: string): string {
+  return info.is_group ? (info.name ?? 'Group chat') : otherMember(info, myUsername)
 }
 
 export function ChatProvider({ children }: { children: ReactNode }) {
@@ -56,79 +76,169 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const myUsername = user?.username ?? ''
 
   const [onlineUsernames, setOnlineUsernames] = useState<string[]>([])
-  const [unreadUsers, setUnreadUsers] = useState<Set<string>>(new Set())
-  const [openWindows, setOpenWindows] = useState<Record<string, ChatWindowState>>({})
+  const [unreadConversations, setUnreadConversations] = useState<Set<number>>(new Set())
+  const [openWindows, setOpenWindows] = useState<Record<number, ChatWindowState>>({})
+  const [conversations, setConversations] = useState<Record<number, ConversationInfo>>({})
 
-  // Subscription handlers close over this to know which conversations are
-  // currently open, without needing to resubscribe every time a window
-  // opens/closes.
+  // Subscription handlers close over these to read current state without
+  // needing to resubscribe every time it changes.
   const openWindowsRef = useRef(openWindows)
   useEffect(() => {
     openWindowsRef.current = openWindows
   }, [openWindows])
+  const conversationsRef = useRef(conversations)
+  useEffect(() => {
+    conversationsRef.current = conversations
+  }, [conversations])
+  // FIFO correlation for get-chat-history/get-more-chat-history requests —
+  // the chat_history response carries no conversation_id of its own when
+  // it's empty (nothing to infer it from), and there's no request/response
+  // id in this WS protocol. Requests are sent and answered in order over a
+  // single connection, so a queue is a safe enough correlation mechanism.
+  const pendingHistoryRef = useRef<number[]>([])
 
-  const markUnread = useCallback(
-    (username: string) => {
-      if (username === myUsername) return
-      setUnreadUsers((prev) => (prev.has(username) ? prev : new Set(prev).add(username)))
+  const directConversationIdByUsername = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const info of Object.values(conversations)) {
+      if (!info.is_group) {
+        map[otherMember(info, myUsername)] = info.conversation_id
+      }
+    }
+    return map
+  }, [conversations, myUsername])
+
+  const groupChats = useMemo(() => Object.values(conversations).filter((c) => c.is_group), [conversations])
+
+  const markUnread = useCallback((conversationId: number) => {
+    setUnreadConversations((prev) => (prev.has(conversationId) ? prev : new Set(prev).add(conversationId)))
+  }, [])
+
+  // Ensures a window exists for a conversation (fetching page-1 history the
+  // first time), and clears its unread state — the single place both
+  // "I clicked to open this" and "the server just pushed this at me"
+  // (chat-opened) converge.
+  const revealWindow = useCallback(
+    (info: ConversationInfo) => {
+      setUnreadConversations((prev) => {
+        if (!prev.has(info.conversation_id)) return prev
+        const next = new Set(prev)
+        next.delete(info.conversation_id)
+        return next
+      })
+      if (!openWindowsRef.current[info.conversation_id]) {
+        setOpenWindows((prev) => ({
+          ...prev,
+          [info.conversation_id]: {
+            conversationId: info.conversation_id,
+            isGroup: info.is_group,
+            title: titleFor(info, myUsername),
+            messages: [],
+            offset: 0,
+            loadingHistory: true,
+            typingUsers: new Set(),
+          },
+        }))
+        pendingHistoryRef.current.push(info.conversation_id)
+        send('get-chat-history', { conversation_id: info.conversation_id, offset: 0, limit: HISTORY_PAGE_SIZE })
+      }
     },
-    [myUsername],
+    [send, myUsername],
   )
+  const revealWindowRef = useRef(revealWindow)
+  useEffect(() => {
+    revealWindowRef.current = revealWindow
+  }, [revealWindow])
 
   useEffect(() => {
     const unsubUsers = subscribe('users-online', (payload) => {
       setOnlineUsernames(Object.keys(payload as Record<string, boolean>))
     })
 
+    const unsubChatOpened = subscribe('chat-opened', (payload) => {
+      const info = payload as ConversationInfo
+      setConversations((prev) => ({ ...prev, [info.conversation_id]: info }))
+      revealWindowRef.current(info)
+    })
+
+    const unsubConversationsList = subscribe('conversations-list', (payload) => {
+      const list = payload as ConversationInfo[]
+      setConversations((prev) => {
+        const next = { ...prev }
+        for (const info of list) next[info.conversation_id] = info
+        return next
+      })
+    })
+
     const unsubSent = subscribe('sent-message', (payload) => {
       const data = payload as RawSentMessage
-      const otherParty = data.from === myUsername ? data.to : data.from
-      const vm: ChatMessageVM = { from: data.from, to: data.to, message: data.message, timestamp: data.sent }
-      if (openWindowsRef.current[otherParty]) {
+      const vm: ChatMessageVM = { from: data.from, message: data.message, timestamp: data.sent }
+
+      // A direct conversation's very first incoming message can arrive
+      // before this client ever learned about it (it only opened by the
+      // *other* party calling open-direct-chat) — synthesize minimal
+      // metadata from the message itself rather than requiring a round
+      // trip just to find out who it's with. A group conversation is
+      // always pushed via chat-opened at creation time to every then-online
+      // member, so this fallback path is direct-chat-only.
+      let info = conversationsRef.current[data.conversation_id]
+      if (!info) {
+        info = {
+          conversation_id: data.conversation_id,
+          is_group: false,
+          members: [
+            { user_id: -1, username: data.from },
+            { user_id: -1, username: myUsername },
+          ],
+        }
+        setConversations((prev) => ({ ...prev, [info.conversation_id]: info }))
+      }
+
+      if (openWindowsRef.current[data.conversation_id]) {
         setOpenWindows((prev) => ({
           ...prev,
-          [otherParty]: { ...prev[otherParty], messages: [...prev[otherParty].messages, vm] },
+          [data.conversation_id]: { ...prev[data.conversation_id], messages: [...prev[data.conversation_id].messages, vm] },
         }))
       } else {
-        markUnread(data.from)
+        markUnread(data.conversation_id)
       }
     })
 
     const unsubHistory = subscribe('chat_history', (payload) => {
-      const batch = payload as RawChatHistoryItem[] | null
-      if (!batch || batch.length === 0) return
-      // Every message in one response is for the same conversation (the
-      // server scopes the query to the requester's own identity plus one
-      // other user) — the first message's "other party" identifies it.
-      const first = batch[0]
-      const otherParty = first.from === myUsername ? first.to : first.from
-      if (!openWindowsRef.current[otherParty]) {
-        markUnread(otherParty)
-        return
-      }
-      const vms: ChatMessageVM[] = batch.map((m) => ({ from: m.from, to: m.to, message: m.message, timestamp: m.created_at }))
-      setOpenWindows((prev) => ({
-        ...prev,
-        [otherParty]: { ...prev[otherParty], messages: [...vms, ...prev[otherParty].messages], loadingHistory: false },
-      }))
+      const convId = pendingHistoryRef.current.shift()
+      if (convId === undefined) return
+      const batch = (payload as RawChatHistoryItem[] | null) ?? []
+      setOpenWindows((prev) => {
+        const existing = prev[convId]
+        if (!existing) return prev
+        const vms: ChatMessageVM[] = batch.map((m) => ({ from: m.from, message: m.message, timestamp: m.created_at }))
+        return { ...prev, [convId]: { ...existing, messages: [...vms, ...existing.messages], loadingHistory: false } }
+      })
     })
 
     const unsubTyping = subscribe('typing', (payload) => {
       const data = payload as RawTypingEvent
-      if (openWindowsRef.current[data.from]) {
-        setOpenWindows((prev) => ({ ...prev, [data.from]: { ...prev[data.from], isOtherTyping: true } }))
-      }
+      setOpenWindows((prev) => {
+        const existing = prev[data.conversation_id]
+        if (!existing) return prev
+        return { ...prev, [data.conversation_id]: { ...existing, typingUsers: new Set(existing.typingUsers).add(data.from) } }
+      })
     })
 
     const unsubStopTyping = subscribe('stop-typing', (payload) => {
       const data = payload as RawTypingEvent
-      if (openWindowsRef.current[data.from]) {
-        setOpenWindows((prev) => ({ ...prev, [data.from]: { ...prev[data.from], isOtherTyping: false } }))
-      }
+      setOpenWindows((prev) => {
+        const existing = prev[data.conversation_id]
+        if (!existing) return prev
+        const next = new Set(existing.typingUsers)
+        next.delete(data.from)
+        return { ...prev, [data.conversation_id]: { ...existing, typingUsers: next } }
+      })
     })
 
     return () => {
       unsubUsers()
+      unsubChatOpened()
+      unsubConversationsList()
       unsubSent()
       unsubHistory()
       unsubTyping()
@@ -136,85 +246,103 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     }
   }, [subscribe, myUsername, markUnread])
 
-  const openChat = useCallback(
+  const openDirectChat = useCallback(
     (username: string) => {
-      setUnreadUsers((prev) => {
-        if (!prev.has(username)) return prev
-        const next = new Set(prev)
-        next.delete(username)
-        return next
-      })
-      // Checked against the ref, not a flag mutated inside the setOpenWindows
-      // updater below — that updater isn't guaranteed to run synchronously
-      // before this line, so a flag set inside it can't be trusted here.
-      if (!openWindowsRef.current[username]) {
-        setOpenWindows((prev) => ({
-          ...prev,
-          [username]: { messages: [], offset: 0, loadingHistory: true, isOtherTyping: false },
-        }))
-        send('get-chat-history', { from: myUsername, to: username, offset: 0, limit: HISTORY_PAGE_SIZE })
+      if (username === myUsername) return
+      const knownConvId = directConversationIdByUsername[username]
+      const known = knownConvId !== undefined ? conversationsRef.current[knownConvId] : undefined
+      if (known) {
+        revealWindow(known)
+        return
       }
+      send('open-direct-chat', { username })
     },
-    [send, myUsername],
+    [send, myUsername, directConversationIdByUsername, revealWindow],
   )
 
-  const closeChat = useCallback((username: string) => {
+  const createGroupChat = useCallback(
+    (name: string, usernames: string[]) => {
+      send('create-group-chat', { name, usernames })
+    },
+    [send],
+  )
+
+  const closeChat = useCallback((conversationId: number) => {
     setOpenWindows((prev) => {
-      if (!(username in prev)) return prev
+      if (!(conversationId in prev)) return prev
       const next = { ...prev }
-      delete next[username]
+      delete next[conversationId]
       return next
     })
   }, [])
 
   const sendMessage = useCallback(
-    (username: string, text: string) => {
+    (conversationId: number, text: string) => {
       // The server never echoes a sent message back to its own sender (see
-      // ws-manager.go's sendMessage — it only delivers to the recipient) —
-      // append it locally, optimistically, or the sender would never see
+      // ws-manager.go's sendMessage — it only broadcasts to other members)
+      // — append it locally, optimistically, or the sender would never see
       // their own message in the window at all.
-      const vm: ChatMessageVM = { from: myUsername, to: username, message: text, timestamp: Date.now() }
+      const vm: ChatMessageVM = { from: myUsername, message: text, timestamp: Date.now() }
       setOpenWindows((prev) => {
-        const existing = prev[username] ?? { messages: [], offset: 0, loadingHistory: false, isOtherTyping: false }
-        return { ...prev, [username]: { ...existing, messages: [...existing.messages, vm] } }
+        const existing = prev[conversationId]
+        if (!existing) return prev
+        return { ...prev, [conversationId]: { ...existing, messages: [...existing.messages, vm] } }
       })
-      send('new-message', { message: text, from: myUsername, to: username, sent: Date.now() })
+      send('new-message', { conversation_id: conversationId, message: text })
     },
     [send, myUsername],
   )
 
   const loadMoreHistory = useCallback(
-    (username: string) => {
+    (conversationId: number) => {
       setOpenWindows((prev) => {
-        const existing = prev[username]
+        const existing = prev[conversationId]
         if (!existing || existing.loadingHistory) return prev
         const nextOffset = existing.offset + HISTORY_PAGE_SIZE
-        send('get-more-chat-history', { from: myUsername, to: username, offset: nextOffset, limit: HISTORY_PAGE_SIZE })
-        return { ...prev, [username]: { ...existing, offset: nextOffset, loadingHistory: true } }
+        pendingHistoryRef.current.push(conversationId)
+        send('get-more-chat-history', { conversation_id: conversationId, offset: nextOffset, limit: HISTORY_PAGE_SIZE })
+        return { ...prev, [conversationId]: { ...existing, offset: nextOffset, loadingHistory: true } }
       })
     },
-    [send, myUsername],
+    [send],
   )
 
-  const sendTyping = useCallback((username: string) => send('typing', { from: myUsername, to: username }), [send, myUsername])
+  const sendTyping = useCallback((conversationId: number) => send('typing', { conversation_id: conversationId }), [send])
   const sendStopTyping = useCallback(
-    (username: string) => send('stop-typing', { from: myUsername, to: username }),
-    [send, myUsername],
+    (conversationId: number) => send('stop-typing', { conversation_id: conversationId }),
+    [send],
+  )
+
+  const isUnreadUsername = useCallback(
+    (username: string) => {
+      const convId = directConversationIdByUsername[username]
+      return convId !== undefined && unreadConversations.has(convId)
+    },
+    [directConversationIdByUsername, unreadConversations],
+  )
+
+  const unreadUsernames = useMemo(
+    () => new Set(Object.keys(directConversationIdByUsername).filter(isUnreadUsername)),
+    [directConversationIdByUsername, isUnreadUsername],
   )
 
   const onlineUsers = useMemo(() => {
-    const unread = [...unreadUsers].filter((u) => onlineUsernames.includes(u))
-    const rest = onlineUsernames.filter((u) => !unreadUsers.has(u)).sort()
+    const unread = onlineUsernames.filter(isUnreadUsername)
+    const rest = onlineUsernames.filter((u) => !isUnreadUsername(u)).sort()
     return [...unread, ...rest]
-  }, [onlineUsernames, unreadUsers])
+  }, [onlineUsernames, isUnreadUsername])
 
   return (
     <ChatContext.Provider
       value={{
         onlineUsers,
-        unreadUsers,
+        unreadConversations,
+        unreadUsernames,
         openWindows,
-        openChat,
+        groupChats,
+        openDirectChat,
+        openConversation: revealWindow,
+        createGroupChat,
         closeChat,
         sendMessage,
         loadMoreHistory,
