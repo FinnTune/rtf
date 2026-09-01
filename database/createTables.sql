@@ -109,6 +109,23 @@ CREATE TABLE message (
  FOREIGN KEY(sender_id) REFERENCES user(id)
 );
 
+-- One row per (conversation, member) tracking a "read up to" watermark —
+-- works uniformly for a 1:1 read receipt and a group's "seen by" list,
+-- unlike the old message.is_read boolean this replaces (which was never
+-- actually wired up: always written 0, never updated, never read by the
+-- frontend). A member with no row yet is implicitly caught up to nothing
+-- (message id 0).
+CREATE TABLE message_read (
+ id INTEGER NOT NULL PRIMARY KEY,
+ conversation_id INTEGER NOT NULL,
+ user_id INTEGER NOT NULL,
+ last_read_message_id INTEGER NOT NULL DEFAULT 0,
+ updated_at DATETIME NOT NULL,
+ UNIQUE(conversation_id, user_id),
+ FOREIGN KEY(conversation_id) REFERENCES conversation(id),
+ FOREIGN KEY(user_id) REFERENCES user(id)
+);
+
 -- Insert in user table for testing
 -- INSERT INTO user ( id, fname, lname, uname, email, age, gender, pass, created_at) VALUES (1, admin, admin, admin, admin@example.com, 1, male, passHash!!!,  DateTime('now', 'localtime'))
 

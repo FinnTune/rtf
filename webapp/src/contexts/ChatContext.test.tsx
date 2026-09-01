@@ -87,6 +87,10 @@ function openBobConversation(socket: ControllableFakeWebSocket, result: { curren
         { user_id: 1, username: 'alice' },
         { user_id: 2, username: 'bob' },
       ],
+      read_states: [
+        { user_id: 1, username: 'alice', last_read_message_id: 0 },
+        { user_id: 2, username: 'bob', last_read_message_id: 0 },
+      ],
     }),
   )
   return conversationId
@@ -134,6 +138,10 @@ describe('ChatContext', () => {
           { user_id: 1, username: 'alice' },
           { user_id: 2, username: 'bob' },
         ],
+        read_states: [
+          { user_id: 1, username: 'alice', last_read_message_id: 0 },
+          { user_id: 2, username: 'bob', last_read_message_id: 0 },
+        ],
       }),
     )
     await waitFor(() => expect(result.current.openWindows[5]).toBeDefined())
@@ -166,20 +174,46 @@ describe('ChatContext', () => {
     expect(socket.sent).toHaveLength(callsBefore)
   })
 
-  it('routes a chat_history batch to the window awaiting it', async () => {
+  it('routes a chat_history batch to the window awaiting it and marks it read up to the newest message', async () => {
     const { result, socket } = await setup()
     const convId = openBobConversation(socket, result)
     await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
 
     act(() =>
       socket.simulateMessage('chat_history', [
-        { from: 'bob', message: 'first', created_at: '2026-01-01T00:00:00Z' },
-        { from: 'alice', message: 'second', created_at: '2026-01-01T00:01:00Z' },
+        { id: 10, from: 'bob', message: 'first', created_at: '2026-01-01T00:00:00Z' },
+        { id: 11, from: 'alice', message: 'second', created_at: '2026-01-01T00:01:00Z' },
       ]),
     )
     await waitFor(() => expect(result.current.openWindows[convId].messages).toHaveLength(2))
     expect(result.current.openWindows[convId].messages.map((m) => m.message)).toEqual(['first', 'second'])
     expect(result.current.openWindows[convId].loadingHistory).toBe(false)
+
+    const markReadFrame = JSON.parse(socket.sent[socket.sent.length - 1]) as { type: string; payload: unknown }
+    expect(markReadFrame).toEqual({ type: 'mark-read', payload: { conversation_id: convId, message_id: 11 } })
+  })
+
+  it('a read-receipt event updates the window\'s read state for that member', async () => {
+    const { result, socket } = await setup()
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
+
+    act(() => socket.simulateMessage('read-receipt', { conversation_id: convId, user_id: 2, username: 'bob', message_id: 7 }))
+    await waitFor(() => expect(result.current.openWindows[convId].readStates.bob).toBe(7))
+  })
+
+  it('an incoming message while the window is open triggers mark-read for that message', async () => {
+    const { result, socket } = await setup()
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
+
+    act(() =>
+      socket.simulateMessage('sent-message', { id: 42, conversation_id: convId, from: 'bob', message: 'hi', sent: '2026-01-01T00:00:00Z' }),
+    )
+    await waitFor(() => expect(result.current.openWindows[convId].messages).toHaveLength(1))
+
+    const markReadFrame = JSON.parse(socket.sent[socket.sent.length - 1]) as { type: string; payload: unknown }
+    expect(markReadFrame).toEqual({ type: 'mark-read', payload: { conversation_id: convId, message_id: 42 } })
   })
 
   it('sendMessage appends the message locally, since the server never echoes it back to the sender', async () => {
@@ -189,9 +223,23 @@ describe('ChatContext', () => {
 
     act(() => result.current.sendMessage(convId, 'hello there'))
     expect(result.current.openWindows[convId].messages).toHaveLength(1)
-    expect(result.current.openWindows[convId].messages[0]).toMatchObject({ from: 'alice', message: 'hello there' })
+    // id: 0 marks it unconfirmed — the server never echoes a sent message
+    // back to its own sender, so this client never learns its real id.
+    expect(result.current.openWindows[convId].messages[0]).toMatchObject({ id: 0, from: 'alice', message: 'hello there' })
     const sentFrame = JSON.parse(socket.sent[socket.sent.length - 1]) as { type: string; payload: unknown }
     expect(sentFrame).toEqual({ type: 'new-message', payload: { conversation_id: convId, message: 'hello there' } })
+  })
+
+  it('a message-ack reconciles the sender\'s own optimistic message with its real id', async () => {
+    const { result, socket } = await setup()
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
+
+    act(() => result.current.sendMessage(convId, 'hello there'))
+    expect(result.current.openWindows[convId].messages[0].id).toBe(0)
+
+    act(() => socket.simulateMessage('message-ack', { conversation_id: convId, id: 99 }))
+    await waitFor(() => expect(result.current.openWindows[convId].messages[0].id).toBe(99))
   })
 
   it('closeChat removes the window', async () => {
@@ -215,6 +263,11 @@ describe('ChatContext', () => {
           { user_id: 1, username: 'alice' },
           { user_id: 2, username: 'bob' },
           { user_id: 3, username: 'carol' },
+        ],
+        read_states: [
+          { user_id: 1, username: 'alice', last_read_message_id: 0 },
+          { user_id: 2, username: 'bob', last_read_message_id: 0 },
+          { user_id: 3, username: 'carol', last_read_message_id: 0 },
         ],
       }),
     )

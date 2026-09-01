@@ -299,4 +299,3 @@ type UserLoginResponse struct {
 	// database on each request regardless of what a client claims.
 	Role string `json:"role"`
 }
-

@@ -17,6 +17,9 @@ export interface ChatWindowState {
   // A set, not a single flag, since a group conversation can have more than
   // one person typing at once.
   typingUsers: Set<string>
+  // Every OTHER member's read watermark, keyed by username — the current
+  // user's own entry isn't tracked here since there's no "seen by me" UI.
+  readStates: Record<string, number>
 }
 
 interface ChatContextValue {
@@ -45,12 +48,14 @@ interface ChatContextValue {
 const ChatContext = createContext<ChatContextValue | null>(null)
 
 interface RawChatHistoryItem {
+  id: number
   from: string
   message: string
   created_at: string
 }
 
 interface RawSentMessage {
+  id: number
   conversation_id: number
   from: string
   message: string
@@ -62,12 +67,31 @@ interface RawTypingEvent {
   from: string
 }
 
+interface RawReadReceipt {
+  conversation_id: number
+  username: string
+  message_id: number
+}
+
+interface RawMessageAck {
+  conversation_id: number
+  id: number
+}
+
 function otherMember(info: ConversationInfo, myUsername: string): string {
   return info.members.find((m) => m.username !== myUsername)?.username ?? info.name ?? 'Unknown'
 }
 
 function titleFor(info: ConversationInfo, myUsername: string): string {
   return info.is_group ? (info.name ?? 'Group chat') : otherMember(info, myUsername)
+}
+
+function readStatesFor(info: ConversationInfo, myUsername: string): Record<string, number> {
+  const states: Record<string, number> = {}
+  for (const state of info.read_states) {
+    if (state.username !== myUsername) states[state.username] = state.last_read_message_id
+  }
+  return states
 }
 
 export function ChatProvider({ children }: { children: ReactNode }) {
@@ -136,6 +160,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             offset: 0,
             loadingHistory: true,
             typingUsers: new Set(),
+            readStates: readStatesFor(info, myUsername),
           },
         }))
         pendingHistoryRef.current.push(info.conversation_id)
@@ -148,6 +173,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     revealWindowRef.current = revealWindow
   }, [revealWindow])
+
+  // Reports having seen up to messageId — skipped for the sender's own
+  // messages, since ws-manager.go's sendMessage already auto-advances the
+  // sender's own watermark server-side.
+  const markRead = useCallback(
+    (conversationId: number, messageId: number) => {
+      if (messageId > 0) send('mark-read', { conversation_id: conversationId, message_id: messageId })
+    },
+    [send],
+  )
 
   useEffect(() => {
     const unsubUsers = subscribe('users-online', (payload) => {
@@ -171,7 +206,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     const unsubSent = subscribe('sent-message', (payload) => {
       const data = payload as RawSentMessage
-      const vm: ChatMessageVM = { from: data.from, message: data.message, timestamp: data.sent }
+      const vm: ChatMessageVM = { id: data.id, from: data.from, message: data.message, timestamp: data.sent }
 
       // A direct conversation's very first incoming message can arrive
       // before this client ever learned about it (it only opened by the
@@ -189,6 +224,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             { user_id: -1, username: data.from },
             { user_id: -1, username: myUsername },
           ],
+          read_states: [],
         }
         setConversations((prev) => ({ ...prev, [info.conversation_id]: info }))
       }
@@ -198,6 +234,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           ...prev,
           [data.conversation_id]: { ...prev[data.conversation_id], messages: [...prev[data.conversation_id].messages, vm] },
         }))
+        // The window is open, so the user is presumably seeing this now.
+        markRead(data.conversation_id, data.id)
       } else {
         markUnread(data.conversation_id)
       }
@@ -210,8 +248,42 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setOpenWindows((prev) => {
         const existing = prev[convId]
         if (!existing) return prev
-        const vms: ChatMessageVM[] = batch.map((m) => ({ from: m.from, message: m.message, timestamp: m.created_at }))
+        const vms: ChatMessageVM[] = batch.map((m) => ({ id: m.id, from: m.from, message: m.message, timestamp: m.created_at }))
         return { ...prev, [convId]: { ...existing, messages: [...vms, ...existing.messages], loadingHistory: false } }
+      })
+      if (batch.length > 0) {
+        markRead(convId, Math.max(...batch.map((m) => m.id)))
+      }
+    })
+
+    const unsubReadReceipt = subscribe('read-receipt', (payload) => {
+      const data = payload as RawReadReceipt
+      setOpenWindows((prev) => {
+        const existing = prev[data.conversation_id]
+        if (!existing) return prev
+        return {
+          ...prev,
+          [data.conversation_id]: { ...existing, readStates: { ...existing.readStates, [data.username]: data.message_id } },
+        }
+      })
+    })
+
+    const unsubMessageAck = subscribe('message-ack', (payload) => {
+      const data = payload as RawMessageAck
+      // Reconciles this client's own just-sent message with its real,
+      // database-assigned id — the server never echoes "sent-message" back
+      // to its own sender, so without this the sender's own latest message
+      // would carry id 0 forever and could never show a "seen by" state.
+      // Matches the oldest unconfirmed (id: 0) entry, since sends from a
+      // single client are acked in the order they were made.
+      setOpenWindows((prev) => {
+        const existing = prev[data.conversation_id]
+        if (!existing) return prev
+        const index = existing.messages.findIndex((m) => m.id === 0)
+        if (index === -1) return prev
+        const messages = [...existing.messages]
+        messages[index] = { ...messages[index], id: data.id }
+        return { ...prev, [data.conversation_id]: { ...existing, messages } }
       })
     })
 
@@ -241,10 +313,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       unsubConversationsList()
       unsubSent()
       unsubHistory()
+      unsubReadReceipt()
+      unsubMessageAck()
       unsubTyping()
       unsubStopTyping()
     }
-  }, [subscribe, myUsername, markUnread])
+  }, [subscribe, myUsername, markUnread, markRead])
 
   const openDirectChat = useCallback(
     (username: string) => {
@@ -282,7 +356,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       // ws-manager.go's sendMessage — it only broadcasts to other members)
       // — append it locally, optimistically, or the sender would never see
       // their own message in the window at all.
-      const vm: ChatMessageVM = { from: myUsername, message: text, timestamp: Date.now() }
+      // id: 0 marks this as an unconfirmed local echo — the server never
+      // echoes a sent message back to its own sender, so this client never
+      // learns this particular message's real id (its read watermark was
+      // already auto-advanced server-side regardless, see sendMessage in
+      // ws-manager.go).
+      const vm: ChatMessageVM = { id: 0, from: myUsername, message: text, timestamp: Date.now() }
       setOpenWindows((prev) => {
         const existing = prev[conversationId]
         if (!existing) return prev
