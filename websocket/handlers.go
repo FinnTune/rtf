@@ -160,6 +160,29 @@ func attachReactionData(posts []Post, viewerUserID int) error {
 	return viewerRows.Err()
 }
 
+// postSortJoinAndOrder returns the SQL JOIN fragment (empty for the default
+// "newest" sort) and ORDER BY clause for a normalized sort value. The
+// ranking has to happen in SQL, via a joined grouped-count subquery, rather
+// than post-processing in Go after attachReactionData: the listing queries
+// paginate with LIMIT/OFFSET, so whatever ORDER BY runs before that LIMIT is
+// the only thing that determines which page of posts comes back.
+func postSortJoinAndOrder(sort string) (join string, order string) {
+	switch sort {
+	case "most_liked":
+		return `LEFT JOIN (
+			SELECT post_id, COUNT(*) AS cnt FROM user_post_reaction WHERE is_liked = 1 GROUP BY post_id
+		) AS sort_agg ON sort_agg.post_id = post.id`,
+			`ORDER BY COALESCE(sort_agg.cnt, 0) DESC, post.created_at DESC, post.id DESC`
+	case "most_commented":
+		return `LEFT JOIN (
+			SELECT post_id, COUNT(*) AS cnt FROM comment GROUP BY post_id
+		) AS sort_agg ON sort_agg.post_id = post.id`,
+			`ORDER BY COALESCE(sort_agg.cnt, 0) DESC, post.created_at DESC, post.id DESC`
+	default:
+		return "", `ORDER BY post.created_at DESC, post.id DESC`
+	}
+}
+
 func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	// Get the session cookie from the request
 	log.Println("Checking login status.")
@@ -610,6 +633,12 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 			offset = v
 		}
 
+		sort, err := validateSortParam(r.URL.Query().Get("sort"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		var total int
 		if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM post").Scan(&total); err != nil {
 			log.Printf("Error counting posts: %s", err)
@@ -617,9 +646,11 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		//Get a page of posts from database, newest first. id DESC breaks ties
-		//between posts created within the same second.
-		query := `SELECT * FROM post ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?;`
+		//Get a page of posts from database, ordered per the sort param. id
+		//DESC breaks ties between posts created within the same second.
+		join, order := postSortJoinAndOrder(sort)
+		query := `SELECT post.id, post.user_id, post.title, post.content, post.author, post.created_at
+		FROM post ` + join + ` ` + order + ` LIMIT ? OFFSET ?;`
 		rows, err := database.ForumDB.Query(query, limit, offset)
 		if err != nil {
 			log.Printf("Error executing query: %s", err)
@@ -684,6 +715,12 @@ func GetPostsByAuthorHandler(w http.ResponseWriter, r *http.Request) {
 		offset = v
 	}
 
+	sort, err := validateSortParam(r.URL.Query().Get("sort"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	var total int
 	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM post WHERE author = ?", author).Scan(&total); err != nil {
 		log.Printf("Error counting posts by author: %s", err)
@@ -691,7 +728,9 @@ func GetPostsByAuthorHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := `SELECT * FROM post WHERE author = ? ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?;`
+	join, order := postSortJoinAndOrder(sort)
+	query := `SELECT post.id, post.user_id, post.title, post.content, post.author, post.created_at
+	FROM post ` + join + ` WHERE post.author = ? ` + order + ` LIMIT ? OFFSET ?;`
 	rows, err := database.ForumDB.Query(query, author, limit, offset)
 	if err != nil {
 		log.Printf("Error executing query: %s", err)
@@ -1095,12 +1134,18 @@ func SearchPostsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sort, err := validateSortParam(r.URL.Query().Get("sort"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	likePattern := "%" + escapeLikePattern(query) + "%"
 
-	rows, err := database.ForumDB.Query(
-		`SELECT * FROM post WHERE title LIKE ? ESCAPE '\' OR content LIKE ? ESCAPE '\' ORDER BY created_at DESC, id DESC LIMIT ?`,
-		likePattern, likePattern, maxSearchResults,
-	)
+	join, order := postSortJoinAndOrder(sort)
+	searchQuery := `SELECT post.id, post.user_id, post.title, post.content, post.author, post.created_at
+	FROM post ` + join + ` WHERE post.title LIKE ? ESCAPE '\' OR post.content LIKE ? ESCAPE '\' ` + order + ` LIMIT ?`
+	rows, err := database.ForumDB.Query(searchQuery, likePattern, likePattern, maxSearchResults)
 	if err != nil {
 		log.Printf("Error executing search query: %s", err)
 		http.Error(w, "Failed to search posts", http.StatusInternalServerError)
@@ -1553,6 +1598,12 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 			offset = v
 		}
 
+		sort, err := validateSortParam(r.URL.Query().Get("sort"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		args := make([]interface{}, len(categories.Categories))
 		for i, v := range categories.Categories {
 			args[i] = v
@@ -1561,21 +1612,23 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		placeholders := strings.Repeat("?,", len(categories.Categories))
 		placeholders = placeholders[:len(placeholders)-1]
 
-		whereClause := `INNER JOIN category_relation ON post.id = category_relation.post_id
-		WHERE category_relation.category_id IN (
+		categoryJoin := `INNER JOIN category_relation ON post.id = category_relation.post_id`
+		whereClause := `WHERE category_relation.category_id IN (
 		SELECT id FROM category WHERE category_name IN (` + placeholders + `))`
 
 		var total int
-		countQuery := `SELECT COUNT(DISTINCT post.id) FROM post ` + whereClause
+		countQuery := `SELECT COUNT(DISTINCT post.id) FROM post ` + categoryJoin + ` ` + whereClause
 		if err := database.ForumDB.QueryRow(countQuery, args...).Scan(&total); err != nil {
 			log.Printf("Error counting posts by category: %s", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
 
+		sortJoin, order := postSortJoinAndOrder(sort)
 		query := `SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at
-		FROM post ` + whereClause + `
-		ORDER BY post.created_at DESC, post.id DESC
+		FROM post ` + categoryJoin + ` ` + sortJoin + `
+		` + whereClause + `
+		` + order + `
 		LIMIT ? OFFSET ?`
 		queryArgs := append(append([]interface{}{}, args...), limit, offset)
 
