@@ -8,6 +8,7 @@ import type { Post } from '../../types'
 import { LoadingButton } from '../common/LoadingButton'
 import { CommentList } from './CommentList'
 import { PostEditForm } from './PostEditForm'
+import { ReactionButtons } from './ReactionButtons'
 
 export function SinglePostView() {
   const { id = '' } = useParams()
@@ -83,6 +84,7 @@ export function SinglePostView() {
           onCancel={() => setEditing(false)}
         />
       )}
+      <ReactionButtons post={post} />
       <p>
         Author:{' '}
         <Link to={`/users/${encodeURIComponent(post.Author)}`} className="author-link">

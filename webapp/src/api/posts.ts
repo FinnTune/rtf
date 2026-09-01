@@ -74,3 +74,22 @@ export async function deletePost(id: number): Promise<void> {
     body: JSON.stringify({ id }),
   })
 }
+
+export interface ReactionResult {
+  likeCount: number
+  dislikeCount: number
+  myReaction: string
+}
+
+// Submitting the same reaction again toggles it off; submitting the
+// opposite one switches it — see ReactToPostHandler for the exact
+// server-side state machine this mirrors for the optimistic update in
+// hooks/useReaction.ts.
+export async function reactToPost(postId: number, isLiked: boolean): Promise<ReactionResult> {
+  const { data } = await requestJson<{ like_count: number; dislike_count: number; my_reaction: string }>('/reactToPost', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ post_id: postId, is_liked: isLiked }),
+  })
+  return { likeCount: data.like_count, dislikeCount: data.dislike_count, myReaction: data.my_reaction }
+}

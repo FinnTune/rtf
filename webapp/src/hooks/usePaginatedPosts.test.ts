@@ -5,7 +5,17 @@ import type { Post } from '../types'
 import { usePaginatedPosts } from './usePaginatedPosts'
 
 function makePost(id: number): Post {
-  return { PostId: id, UserId: 1, Title: `Post ${id}`, Content: 'x', Author: 'alice', Created: '2026-01-01' }
+  return {
+    PostId: id,
+    UserId: 1,
+    Title: `Post ${id}`,
+    Content: 'x',
+    Author: 'alice',
+    Created: '2026-01-01',
+    LikeCount: 0,
+    DislikeCount: 0,
+    MyReaction: 'none',
+  }
 }
 
 describe('usePaginatedPosts', () => {
