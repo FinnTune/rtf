@@ -300,13 +300,3 @@ type UserLoginResponse struct {
 	Role string `json:"role"`
 }
 
-type ChatMessage struct {
-	Id        int    `json:"id"`
-	FromUser  string `json:"from"`
-	ToUser    string `json:"to"`
-	IsRead    bool   `json:"is_read"`
-	Text      string `json:"message"`
-	CreatedAt string `json:"created_at"`
-	Limit     int    `json:"limit"`
-	Offset    int    `json:"offset"`
-}

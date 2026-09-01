@@ -80,6 +80,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
         // is already bound to the OTP-verified identity — so there's
         // nothing meaningful to send beyond the event type itself.
         socket.send(JSON.stringify({ type: 'user-connect', payload: {} }))
+        // Existing group chats (unlike a direct chat) can't be rediscovered
+        // just by clicking an online user, so fetch them once up front.
+        socket.send(JSON.stringify({ type: 'get-conversations', payload: {} }))
       }
 
       socket.onclose = () => {

@@ -9,8 +9,8 @@ export function ChatWindowsLayer() {
 
   return (
     <>
-      {Object.entries(openWindows).map(([username, state]) => (
-        <ChatWindow key={username} username={username} state={state} />
+      {Object.values(openWindows).map((state) => (
+        <ChatWindow key={state.conversationId} state={state} />
       ))}
     </>
   )

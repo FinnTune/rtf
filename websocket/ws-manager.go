@@ -56,52 +56,65 @@ func sendMessage(event Event, c *Client) error {
 	if err := json.Unmarshal(event.Payload, &chatEvent); err != nil {
 		return fmt.Errorf("event unmarshalling error: %s", err)
 	}
-	var chatMessage SendMessageEvent
-	chatMessage.Sent = time.Now()
-	chatMessage.Message = chatEvent.Message
-	// From is always the authenticated sender, never the client-supplied
-	// value — otherwise any connection could send messages that appear (and
-	// are permanently stored) as coming from an arbitrary other user.
-	chatMessage.From = c.username
-	chatMessage.To = chatEvent.To
 
-	// A nonexistent recipient username is dropped rather than treated as a
-	// hard error — an error here would kill the sender's whole WebSocket
-	// connection (see routeEvent), which is a much harsher failure than the
-	// old behavior (silently storing a message to a nonexistent user).
-	toUserID, err := lookupUserIDByUsername(chatEvent.To)
+	isMember, err := isConversationMember(chatEvent.ConversationID, c.userID)
 	if err != nil {
-		log.Printf("sendMessage: recipient %q not found, dropping message: %s", chatEvent.To, err)
+		return fmt.Errorf("checking conversation membership: %s", err)
+	}
+	if !isMember {
+		// Not a hard error — the conversation_id is client-supplied and
+		// could be stale (e.g. the conversation was never opened by this
+		// client) or malicious; dropping it silently avoids killing the
+		// connection over what's usually just a UI race, not an attack.
+		log.Printf("sendMessage: %s is not a member of conversation %d, dropping message", c.username, chatEvent.ConversationID)
 		return nil
 	}
 
-	convID, err := resolveOrCreateDirectConversation(c.userID, toUserID)
-	if err != nil {
-		return fmt.Errorf("resolving conversation: %s", err)
-	}
-
+	sent := time.Now()
 	// Store message in sqlite3 database
-	_, err = database.ForumDB.Exec("INSERT INTO message (conversation_id, sender_id, txt, created_at) VALUES (?, ?, ?, ?)",
-		convID, c.userID, chatMessage.Message, chatMessage.Sent)
-	if err != nil {
+	if _, err := database.ForumDB.Exec(
+		"INSERT INTO message (conversation_id, sender_id, txt, created_at) VALUES (?, ?, ?, ?)",
+		chatEvent.ConversationID, c.userID, chatEvent.Message, sent,
+	); err != nil {
 		return fmt.Errorf("failed to store message in database: %s", err)
 	}
 
+	chatMessage := SendMessageEvent{
+		ConversationID: chatEvent.ConversationID,
+		// From is always the authenticated sender, never anything the
+		// client could supply — otherwise any connection could send
+		// messages that appear (and are permanently stored) as coming from
+		// an arbitrary other user.
+		From:    c.username,
+		Message: chatEvent.Message,
+		Sent:    sent,
+	}
 	data, err := json.Marshal(chatMessage)
 	if err != nil {
 		return fmt.Errorf("failed to marshal broadcast message error: %s", err)
 	}
-	outgoingEvent := Event{
-		Payload: data,
-		Type:    EventSendMessage,
+
+	return broadcastToConversation(c.manager, chatEvent.ConversationID, c.userID, Event{Type: EventSendMessage, Payload: data})
+}
+
+// broadcastToConversation delivers outgoingEvent to every currently
+// connected client that belongs to conversation convID, except the one
+// with excludeUserID (the sender, who already has the message locally).
+func broadcastToConversation(m *Manager, convID, excludeUserID int, outgoingEvent Event) error {
+	memberIDs, err := getConversationMemberIDs(convID)
+	if err != nil {
+		return fmt.Errorf("loading conversation members for broadcast: %w", err)
+	}
+	members := make(map[int]bool, len(memberIDs))
+	for _, id := range memberIDs {
+		members[id] = true
 	}
 
-	for _, recipient := range c.manager.clientsSnapshot() {
-		if recipient.username == chatEvent.To {
+	for _, recipient := range m.clientsSnapshot() {
+		if recipient.userID != excludeUserID && members[recipient.userID] {
 			recipient.egress <- outgoingEvent
 		}
 	}
-
 	return nil
 }
 
@@ -135,44 +148,43 @@ func addUserInfo(event Event, c *Client) error {
 
 func getChatHistory(event Event, c *Client) error {
 
-	var chtMsg ChatMessage
-	if err := json.Unmarshal(event.Payload, &chtMsg); err != nil {
+	var req GetHistoryRequest
+	if err := json.Unmarshal(event.Payload, &req); err != nil {
 		return fmt.Errorf("event unmarshalling error: %s", err)
 	}
-	// FromUser is always the authenticated requester, never whatever the
-	// client claims — otherwise any connection could request another pair's
-	// private conversation just by naming it in the payload.
-	chtMsg.FromUser = c.username
-	log.Println("History Request: ", chtMsg)
+	log.Println("History Request: ", req)
 
-	messages := []ChatMessage{}
+	messages := []ChatHistoryMessage{}
 
-	otherUserID, err := lookupUserIDByUsername(chtMsg.ToUser)
+	// Never trust a client-supplied conversation_id without checking
+	// membership — otherwise any connection could read any conversation's
+	// history just by guessing/incrementing an id.
+	isMember, err := isConversationMember(req.ConversationID, c.userID)
 	if err != nil {
-		// No such user — nothing to return, same as the old design's
-		// behavior when a bogus ToUser matched zero rows.
+		return fmt.Errorf("checking conversation membership: %s", err)
+	}
+	if !isMember {
 		return sendChatHistory(c, messages)
 	}
 
-	convID, found, err := findDirectConversation(c.userID, otherUserID)
+	members, err := getConversationMembers(req.ConversationID)
 	if err != nil {
-		return fmt.Errorf("looking up conversation: %s", err)
+		return fmt.Errorf("loading conversation members: %s", err)
 	}
-	if !found {
-		// The two users have never exchanged a message, so there's no
-		// conversation row yet — an empty history, not an error.
-		return sendChatHistory(c, messages)
+	usernameByID := make(map[int]string, len(members))
+	for _, m := range members {
+		usernameByID[m.UserID] = m.Username
 	}
 
 	// First get the total number of rows for the specific chat conversation
 	var count int
-	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM message WHERE conversation_id = ?", convID).Scan(&count); err != nil {
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM message WHERE conversation_id = ?", req.ConversationID).Scan(&count); err != nil {
 		return fmt.Errorf("failed to count table lines: %s", err)
 	}
 
 	// Check if the requested offset plus limit is greater than the total number of rows
-	if chtMsg.Offset+chtMsg.Limit > count {
-		chtMsg.Limit = count - chtMsg.Offset // Adjust the limit
+	if req.Offset+req.Limit > count {
+		req.Limit = count - req.Offset // Adjust the limit
 	}
 
 	rows, err := database.ForumDB.Query(`
@@ -182,7 +194,7 @@ func getChatHistory(event Event, c *Client) error {
         ORDER BY id DESC
         LIMIT ? OFFSET ?
     ) sub
-    ORDER BY id ASC`, convID, chtMsg.Limit, chtMsg.Offset)
+    ORDER BY id ASC`, req.ConversationID, req.Limit, req.Offset)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve history: %s", err)
 
@@ -195,33 +207,20 @@ func getChatHistory(event Event, c *Client) error {
 		if err := rows.Scan(&id, &senderID, &text, &createdAt); err != nil {
 			return fmt.Errorf("failed to scan history: %s", err)
 		}
-		msg := ChatMessage{
-			Id:        id,
-			Text:      text,
-			CreatedAt: createdAt,
-			// Read receipts aren't wired up yet — every history entry
-			// reports unread until that lands.
-			IsRead: false,
-		}
-		// This is a direct (1:1) conversation between exactly the requester
-		// and chtMsg.ToUser, so the sender is always one of those two —
-		// resolving From/To from the already-known usernames avoids a join
-		// back to `user` per row.
-		if senderID == c.userID {
-			msg.FromUser = c.username
-			msg.ToUser = chtMsg.ToUser
-		} else {
-			msg.FromUser = chtMsg.ToUser
-			msg.ToUser = c.username
-		}
-		messages = append(messages, msg)
+		messages = append(messages, ChatHistoryMessage{
+			Id:             id,
+			ConversationID: req.ConversationID,
+			From:           usernameByID[senderID],
+			Message:        text,
+			CreatedAt:      createdAt,
+		})
 	}
 	log.Println("History of Messages: ", messages)
 
 	return sendChatHistory(c, messages)
 }
 
-func sendChatHistory(c *Client, messages []ChatMessage) error {
+func sendChatHistory(c *Client, messages []ChatHistoryMessage) error {
 	data, err := json.Marshal(messages)
 	if err != nil {
 		return fmt.Errorf("failed to marshal history message error: %s", err)
@@ -239,58 +238,170 @@ func sendChatHistory(c *Client, messages []ChatMessage) error {
 }
 
 func typing(event Event, c *Client) error {
+	return forwardTypingEvent(Typing, event, c)
+}
 
-	var chtMsg ChatMessage
-	if err := json.Unmarshal(event.Payload, &chtMsg); err != nil {
+func stopTyping(event Event, c *Client) error {
+	return forwardTypingEvent(StopTyping, event, c)
+}
+
+// forwardTypingEvent decodes a "typing"/"stop-typing" payload and, once
+// confirmed the sender actually belongs to the named conversation,
+// broadcasts it (with From forced to the authenticated sender) to that
+// conversation's other members.
+func forwardTypingEvent(eventType string, event Event, c *Client) error {
+	var typingEvent TypingEvent
+	if err := json.Unmarshal(event.Payload, &typingEvent); err != nil {
 		return fmt.Errorf("event unmarshalling error: %s", err)
 	}
+
+	isMember, err := isConversationMember(typingEvent.ConversationID, c.userID)
+	if err != nil {
+		return fmt.Errorf("checking conversation membership: %s", err)
+	}
+	if !isMember {
+		return nil
+	}
+
 	// Never trust who the client claims is typing — otherwise any
 	// connection could impersonate another user's typing indicator.
-	chtMsg.FromUser = c.username
+	typingEvent.From = c.username
 
-	data, err := json.Marshal(chtMsg)
+	data, err := json.Marshal(typingEvent)
 	if err != nil {
-		return fmt.Errorf("failed to marshal history message error: %s", err)
+		return fmt.Errorf("failed to marshal typing event: %s", err)
 	}
 
-	outgoingEvent := Event{
-		Type:    Typing,
-		Payload: json.RawMessage(data),
+	return broadcastToConversation(c.manager, typingEvent.ConversationID, c.userID, Event{Type: eventType, Payload: data})
+}
+
+// openDirectChat resolves (creating if needed) the 1:1 conversation between
+// the requester and a named user, and replies with its metadata so the
+// client can open a window keyed by conversation_id.
+func openDirectChat(event Event, c *Client) error {
+	var req OpenDirectChatRequest
+	if err := json.Unmarshal(event.Payload, &req); err != nil {
+		return fmt.Errorf("event unmarshalling error: %s", err)
 	}
 
+	otherUserID, err := lookupUserIDByUsername(req.Username)
+	if err != nil {
+		return sendChatError(c, fmt.Sprintf("user %q not found", req.Username))
+	}
+	if otherUserID == c.userID {
+		return sendChatError(c, "cannot open a chat with yourself")
+	}
+
+	convID, err := resolveOrCreateDirectConversation(c.userID, otherUserID)
+	if err != nil {
+		return fmt.Errorf("resolving conversation: %s", err)
+	}
+
+	info, found, err := getConversationInfo(convID)
+	if err != nil {
+		return fmt.Errorf("loading conversation info: %s", err)
+	}
+	if !found {
+		return fmt.Errorf("conversation %d vanished immediately after creation", convID)
+	}
+
+	return sendChatOpened(c, *info)
+}
+
+// createGroupChat creates a named group conversation containing the
+// requester plus every named username, and — since a brand-new group has no
+// message yet to organically notify anyone — pushes "chat-opened" to every
+// named member who's currently connected, so it shows up immediately rather
+// than only the next time they reconnect.
+func createGroupChat(event Event, c *Client) error {
+	var req CreateGroupChatRequest
+	if err := json.Unmarshal(event.Payload, &req); err != nil {
+		return fmt.Errorf("event unmarshalling error: %s", err)
+	}
+
+	name, usernames, err := validateGroupChat(req.Name, req.Usernames)
+	if err != nil {
+		return sendChatError(c, err.Error())
+	}
+
+	memberIDs := []int{c.userID}
+	for _, username := range usernames {
+		userID, err := lookupUserIDByUsername(username)
+		if err != nil {
+			return sendChatError(c, fmt.Sprintf("user %q not found", username))
+		}
+		if userID != c.userID {
+			memberIDs = append(memberIDs, userID)
+		}
+	}
+
+	convID, err := createGroupConversation(name, memberIDs)
+	if err != nil {
+		return fmt.Errorf("creating group conversation: %s", err)
+	}
+
+	info, found, err := getConversationInfo(convID)
+	if err != nil {
+		return fmt.Errorf("loading conversation info: %s", err)
+	}
+	if !found {
+		return fmt.Errorf("conversation %d vanished immediately after creation", convID)
+	}
+
+	data, err := json.Marshal(info)
+	if err != nil {
+		return fmt.Errorf("failed to marshal chat-opened event: %s", err)
+	}
+	outgoingEvent := Event{Type: ChatOpened, Payload: data}
+
+	memberSet := make(map[int]bool, len(memberIDs))
+	for _, id := range memberIDs {
+		memberSet[id] = true
+	}
 	for _, recipient := range c.manager.clientsSnapshot() {
-		if recipient.username == chtMsg.ToUser {
+		if memberSet[recipient.userID] {
 			recipient.egress <- outgoingEvent
-			log.Println("History sent to: ", recipient.username)
 		}
 	}
 	return nil
 }
 
-func stopTyping(event Event, c *Client) error {
-	var chtMsg ChatMessage
-	if err := json.Unmarshal(event.Payload, &chtMsg); err != nil {
-		return fmt.Errorf("event unmarshalling error: %s", err)
-	}
-	// Same rationale as typing() above.
-	chtMsg.FromUser = c.username
-
-	data, err := json.Marshal(chtMsg)
+// getConversations replies with every conversation the requester belongs
+// to — sent once right after connecting so existing group chats (which,
+// unlike a direct chat, can't be rediscovered just by clicking an online
+// user) show up without any action from the user.
+func getConversations(event Event, c *Client) error {
+	conversations, err := getUserConversations(c.userID)
 	if err != nil {
-		return fmt.Errorf("failed to marshal history message error: %s", err)
+		return fmt.Errorf("loading conversations: %s", err)
 	}
+	data, err := json.Marshal(conversations)
+	if err != nil {
+		return fmt.Errorf("failed to marshal conversations-list event: %s", err)
+	}
+	c.egress <- Event{Type: ConversationsList, Payload: data}
+	return nil
+}
 
-	outgoingEvent := Event{
-		Type:    StopTyping,
-		Payload: json.RawMessage(data),
+func sendChatOpened(c *Client, info ConversationInfo) error {
+	data, err := json.Marshal(info)
+	if err != nil {
+		return fmt.Errorf("failed to marshal chat-opened event: %s", err)
 	}
+	c.egress <- Event{Type: ChatOpened, Payload: data}
+	return nil
+}
 
-	for _, recipient := range c.manager.clientsSnapshot() {
-		if recipient.username == chtMsg.ToUser {
-			recipient.egress <- outgoingEvent
-			log.Println("History sent to: ", recipient.username)
-		}
+// sendChatError delivers a user-facing error to just the requesting
+// connection — never broadcast, and never fatal to the connection itself
+// (routeEvent only kills the connection on a non-nil Go error, and this
+// always returns nil after sending).
+func sendChatError(c *Client, message string) error {
+	data, err := json.Marshal(ChatErrorEvent{Message: message})
+	if err != nil {
+		return fmt.Errorf("failed to marshal chat-error event: %s", err)
 	}
+	c.egress <- Event{Type: ChatError, Payload: data}
 	return nil
 }
 
@@ -301,6 +412,9 @@ func (m *Manager) RegisterEventHandlers() {
 	m.eventHandlers[GetMoreChatHistory] = getChatHistory
 	m.eventHandlers[Typing] = typing
 	m.eventHandlers[StopTyping] = stopTyping
+	m.eventHandlers[OpenDirectChat] = openDirectChat
+	m.eventHandlers[CreateGroupChat] = createGroupChat
+	m.eventHandlers[GetConversations] = getConversations
 
 }
 

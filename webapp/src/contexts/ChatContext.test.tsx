@@ -75,6 +75,23 @@ async function setup(myUsername = 'alice') {
   return { result, socket }
 }
 
+// Drives the open-direct-chat request/chat-opened response round trip and
+// returns the resulting conversation id.
+function openBobConversation(socket: ControllableFakeWebSocket, result: { current: ReturnType<typeof useChat> }, conversationId = 5) {
+  act(() => result.current.openDirectChat('bob'))
+  act(() =>
+    socket.simulateMessage('chat-opened', {
+      conversation_id: conversationId,
+      is_group: false,
+      members: [
+        { user_id: 1, username: 'alice' },
+        { user_id: 2, username: 'bob' },
+      ],
+    }),
+  )
+  return conversationId
+}
+
 afterEach(() => {
   vi.unstubAllGlobals()
 })
@@ -88,74 +105,123 @@ describe('ChatContext', () => {
 
   it('marks a sender unread when their message arrives with no window open', async () => {
     const { result, socket } = await setup()
-    act(() => socket.simulateMessage('sent-message', { from: 'bob', to: 'alice', message: 'hi', sent: '2026-01-01T00:00:00Z' }))
-    await waitFor(() => expect(result.current.unreadUsers.has('bob')).toBe(true))
+    act(() => socket.simulateMessage('sent-message', { conversation_id: 5, from: 'bob', message: 'hi', sent: '2026-01-01T00:00:00Z' }))
+    await waitFor(() => expect(result.current.unreadUsernames.has('bob')).toBe(true))
   })
 
   it('appends to the open window instead of marking unread when the window is already open', async () => {
     const { result, socket } = await setup()
-    act(() => result.current.openChat('bob'))
-    await waitFor(() => expect(result.current.openWindows.bob).toBeDefined())
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
 
-    act(() => socket.simulateMessage('sent-message', { from: 'bob', to: 'alice', message: 'hi', sent: '2026-01-01T00:00:00Z' }))
-    await waitFor(() => expect(result.current.openWindows.bob.messages).toHaveLength(1))
-    expect(result.current.unreadUsers.has('bob')).toBe(false)
+    act(() => socket.simulateMessage('sent-message', { conversation_id: convId, from: 'bob', message: 'hi', sent: '2026-01-01T00:00:00Z' }))
+    await waitFor(() => expect(result.current.openWindows[convId].messages).toHaveLength(1))
+    expect(result.current.unreadUsernames.has('bob')).toBe(false)
   })
 
-  it('openChat clears any existing unread flag and requests history for page 1', async () => {
+  it('openDirectChat resolves an unknown user via open-direct-chat and requests history for page 1', async () => {
     const { result, socket } = await setup()
-    act(() => socket.simulateMessage('sent-message', { from: 'bob', to: 'alice', message: 'hi', sent: '2026-01-01T00:00:00Z' }))
-    await waitFor(() => expect(result.current.unreadUsers.has('bob')).toBe(true))
 
-    act(() => result.current.openChat('bob'))
-    await waitFor(() => expect(result.current.unreadUsers.has('bob')).toBe(false))
-    const historyRequest = JSON.parse(socket.sent[socket.sent.length - 1])
-    expect(historyRequest).toEqual({ type: 'get-chat-history', payload: { from: 'alice', to: 'bob', offset: 0, limit: 10 } })
+    act(() => result.current.openDirectChat('bob'))
+    const openRequest = JSON.parse(socket.sent[socket.sent.length - 1]) as { type: string; payload: unknown }
+    expect(openRequest).toEqual({ type: 'open-direct-chat', payload: { username: 'bob' } })
+
+    act(() =>
+      socket.simulateMessage('chat-opened', {
+        conversation_id: 5,
+        is_group: false,
+        members: [
+          { user_id: 1, username: 'alice' },
+          { user_id: 2, username: 'bob' },
+        ],
+      }),
+    )
+    await waitFor(() => expect(result.current.openWindows[5]).toBeDefined())
+    const historyRequest = JSON.parse(socket.sent[socket.sent.length - 1]) as { type: string; payload: unknown }
+    expect(historyRequest).toEqual({ type: 'get-chat-history', payload: { conversation_id: 5, offset: 0, limit: 10 } })
+  })
+
+  it('openDirectChat on an already-known conversation skips the open-direct-chat round trip', async () => {
+    const { result, socket } = await setup()
+    // Learn about bob's conversation via an incoming message, without ever
+    // opening a window for it.
+    act(() => socket.simulateMessage('sent-message', { conversation_id: 5, from: 'bob', message: 'hi', sent: '2026-01-01T00:00:00Z' }))
+    await waitFor(() => expect(result.current.unreadUsernames.has('bob')).toBe(true))
+
+    act(() => result.current.openDirectChat('bob'))
+    await waitFor(() => expect(result.current.unreadUsernames.has('bob')).toBe(false))
+    const lastFrame = JSON.parse(socket.sent[socket.sent.length - 1]) as { type: string; payload: unknown }
+    // Goes straight to fetching history — no open-direct-chat round trip,
+    // since the conversation is already known.
+    expect(lastFrame).toEqual({ type: 'get-chat-history', payload: { conversation_id: 5, offset: 0, limit: 10 } })
   })
 
   it('reopening an already-open window does not re-request history', async () => {
     const { result, socket } = await setup()
-    act(() => result.current.openChat('bob'))
-    await waitFor(() => expect(result.current.openWindows.bob).toBeDefined())
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
     const callsBefore = socket.sent.length
 
-    act(() => result.current.openChat('bob'))
+    act(() => result.current.openDirectChat('bob'))
     expect(socket.sent).toHaveLength(callsBefore)
   })
 
-  it("routes a chat_history batch to the right window using the first message's other party", async () => {
+  it('routes a chat_history batch to the window awaiting it', async () => {
     const { result, socket } = await setup()
-    act(() => result.current.openChat('bob'))
-    await waitFor(() => expect(result.current.openWindows.bob).toBeDefined())
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
 
     act(() =>
       socket.simulateMessage('chat_history', [
-        { from: 'bob', to: 'alice', message: 'first', created_at: '2026-01-01T00:00:00Z' },
-        { from: 'alice', to: 'bob', message: 'second', created_at: '2026-01-01T00:01:00Z' },
+        { from: 'bob', message: 'first', created_at: '2026-01-01T00:00:00Z' },
+        { from: 'alice', message: 'second', created_at: '2026-01-01T00:01:00Z' },
       ]),
     )
-    await waitFor(() => expect(result.current.openWindows.bob.messages).toHaveLength(2))
-    expect(result.current.openWindows.bob.messages.map((m) => m.message)).toEqual(['first', 'second'])
+    await waitFor(() => expect(result.current.openWindows[convId].messages).toHaveLength(2))
+    expect(result.current.openWindows[convId].messages.map((m) => m.message)).toEqual(['first', 'second'])
+    expect(result.current.openWindows[convId].loadingHistory).toBe(false)
   })
 
   it('sendMessage appends the message locally, since the server never echoes it back to the sender', async () => {
     const { result, socket } = await setup()
-    act(() => result.current.openChat('bob'))
-    await waitFor(() => expect(result.current.openWindows.bob).toBeDefined())
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
 
-    act(() => result.current.sendMessage('bob', 'hello there'))
-    expect(result.current.openWindows.bob.messages).toHaveLength(1)
-    expect(result.current.openWindows.bob.messages[0]).toMatchObject({ from: 'alice', to: 'bob', message: 'hello there' })
-    const sentFrame = JSON.parse(socket.sent[socket.sent.length - 1])
-    expect(sentFrame.type).toBe('new-message')
+    act(() => result.current.sendMessage(convId, 'hello there'))
+    expect(result.current.openWindows[convId].messages).toHaveLength(1)
+    expect(result.current.openWindows[convId].messages[0]).toMatchObject({ from: 'alice', message: 'hello there' })
+    const sentFrame = JSON.parse(socket.sent[socket.sent.length - 1]) as { type: string; payload: unknown }
+    expect(sentFrame).toEqual({ type: 'new-message', payload: { conversation_id: convId, message: 'hello there' } })
   })
 
   it('closeChat removes the window', async () => {
-    const { result } = await setup()
-    act(() => result.current.openChat('bob'))
-    await waitFor(() => expect(result.current.openWindows.bob).toBeDefined())
+    const { result, socket } = await setup()
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
 
-    act(() => result.current.closeChat('bob'))
-    expect(result.current.openWindows.bob).toBeUndefined()
+    act(() => result.current.closeChat(convId))
+    expect(result.current.openWindows[convId]).toBeUndefined()
+  })
+
+  it('a pushed chat-opened event (e.g. being added to a group) opens a window automatically', async () => {
+    const { result, socket } = await setup()
+
+    act(() =>
+      socket.simulateMessage('chat-opened', {
+        conversation_id: 9,
+        is_group: true,
+        name: 'Trip Planning',
+        members: [
+          { user_id: 1, username: 'alice' },
+          { user_id: 2, username: 'bob' },
+          { user_id: 3, username: 'carol' },
+        ],
+      }),
+    )
+
+    await waitFor(() => expect(result.current.openWindows[9]).toBeDefined())
+    expect(result.current.openWindows[9].isGroup).toBe(true)
+    expect(result.current.openWindows[9].title).toBe('Trip Planning')
+    expect(result.current.groupChats.map((g) => g.conversation_id)).toContain(9)
   })
 })

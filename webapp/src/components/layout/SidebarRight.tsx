@@ -1,3 +1,4 @@
+import { GroupChatsPanel } from '../chat/GroupChatsPanel'
 import { OnlineUsersList } from '../chat/OnlineUsersList'
 
 export function SidebarRight() {
@@ -7,6 +8,7 @@ export function SidebarRight() {
         <h3>Users</h3>
         <OnlineUsersList />
       </div>
+      <GroupChatsPanel />
     </aside>
   )
 }

@@ -9,23 +9,118 @@ import (
 	"rtForum/websocket"
 )
 
+// mustOpenDirectChat drives the open-direct-chat request/response round
+// trip and returns the resulting conversation info, failing the test on any
+// error or unexpected event.
+func mustOpenDirectChat(t *testing.T, requester *websocket.TestClientHandle, username string) websocket.ConversationInfo {
+	t.Helper()
+	payload, _ := json.Marshal(websocket.OpenDirectChatRequest{Username: username})
+	if err := websocket.OpenDirectChatForTest(payload, requester); err != nil {
+		t.Fatalf("openDirectChat failed: %v", err)
+	}
+	eventType, eventPayload, ok := requester.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat-opened")
+	}
+	if eventType != websocket.ChatOpened {
+		t.Fatalf("expected chat-opened event, got %q (payload %s)", eventType, eventPayload)
+	}
+	var info websocket.ConversationInfo
+	if err := json.Unmarshal(eventPayload, &info); err != nil {
+		t.Fatalf("failed to decode chat-opened: %v", err)
+	}
+	return info
+}
+
+func sendMessagePayload(t *testing.T, convID int, message string) json.RawMessage {
+	t.Helper()
+	payload, err := json.Marshal(websocket.ReceiveMessageEvent{ConversationID: convID, Message: message})
+	if err != nil {
+		t.Fatalf("failed to marshal send-message payload: %v", err)
+	}
+	return payload
+}
+
+func TestOpenDirectChat_CreatesAndReturnsConversation(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	// actual_user (42) has never messaged admin (1) before — this is the
+	// seed data's only pair without a pre-existing direct conversation.
+	requester := websocket.AddTestClient("s1", "admin", 1)
+
+	info := mustOpenDirectChat(t, requester, "actual_user")
+
+	if info.IsGroup {
+		t.Fatal("expected a direct (non-group) conversation")
+	}
+	if len(info.Members) != 2 {
+		t.Fatalf("expected 2 members, got %d: %+v", len(info.Members), info.Members)
+	}
+}
+
+func TestOpenDirectChat_ReusesExistingConversation(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	requester := websocket.AddTestClient("s1", "admin", 1)
+
+	first := mustOpenDirectChat(t, requester, "actual_user")
+	second := mustOpenDirectChat(t, requester, "actual_user")
+
+	if first.ConversationID != second.ConversationID {
+		t.Fatalf("expected the same conversation both times, got %d and %d", first.ConversationID, second.ConversationID)
+	}
+}
+
+func TestOpenDirectChat_RejectsNonexistentUser(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	requester := websocket.AddTestClient("s1", "admin", 1)
+	payload, _ := json.Marshal(websocket.OpenDirectChatRequest{Username: "does-not-exist"})
+
+	if err := websocket.OpenDirectChatForTest(payload, requester); err != nil {
+		t.Fatalf("openDirectChat should not error for an unknown user, got: %v", err)
+	}
+
+	eventType, _, ok := requester.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat-error")
+	}
+	if eventType != websocket.ChatError {
+		t.Fatalf("expected chat-error event, got %q", eventType)
+	}
+}
+
+func TestOpenDirectChat_RejectsSelf(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	requester := websocket.AddTestClient("s1", "admin", 1)
+	payload, _ := json.Marshal(websocket.OpenDirectChatRequest{Username: "admin"})
+
+	if err := websocket.OpenDirectChatForTest(payload, requester); err != nil {
+		t.Fatalf("openDirectChat should not error, got: %v", err)
+	}
+
+	eventType, _, ok := requester.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat-error")
+	}
+	if eventType != websocket.ChatError {
+		t.Fatalf("expected chat-error event, got %q", eventType)
+	}
+}
+
 func TestSendMessage_StoresInDatabase(t *testing.T) {
 	websocket.ResetTestState()
 	db := testutil.UseForumDB(t)
 
-	// sendMessage resolves the recipient username against the real `user`
-	// table now (to find/create their direct conversation), so these need
-	// to be real seeded users, not placeholder identities.
 	sender := websocket.AddTestClient("s1", "admin", 1)
-	_ = websocket.AddTestClient("s2", "alice", 2)
+	info := mustOpenDirectChat(t, sender, "actual_user")
 
-	payload, _ := json.Marshal(map[string]string{
-		"message": "test chat message",
-		"from":    "admin",
-		"to":      "alice",
-	})
-
-	if err := websocket.SendMessageForTest(payload, sender); err != nil {
+	if err := websocket.SendMessageForTest(sendMessagePayload(t, info.ConversationID, "test chat message"), sender); err != nil {
 		t.Fatalf("sendMessage failed: %v", err)
 	}
 
@@ -36,21 +131,23 @@ func TestSendMessage_StoresInDatabase(t *testing.T) {
 	}
 }
 
-func TestSendMessage_UsesAuthenticatedSenderNotPayloadFrom(t *testing.T) {
+func TestSendMessage_AlwaysAttributesToAuthenticatedSender(t *testing.T) {
 	websocket.ResetTestState()
 	db := testutil.UseForumDB(t)
 
-	// What's under test is that the payload's claimed "from" (a spoof
-	// attempt) is discarded in favor of the authenticated sender's real
-	// user id, regardless of what value it holds.
+	// The wire protocol carries no client-supplied "from"/sender field at
+	// all anymore (unlike the old username-based design) — this locks in
+	// that a message is always stored under the authenticated connection's
+	// real user id, regardless of what extra fields a malicious payload
+	// might smuggle in.
 	sender := websocket.AddTestClient("s1", "admin", 1)
+	info := mustOpenDirectChat(t, sender, "actual_user")
 
-	payload, _ := json.Marshal(map[string]string{
-		"message": "spoof test message",
-		"from":    "root",
-		"to":      "alice",
+	payload, _ := json.Marshal(map[string]any{
+		"conversation_id": info.ConversationID,
+		"message":         "spoof test message",
+		"sender_id":       999,
 	})
-
 	if err := websocket.SendMessageForTest(payload, sender); err != nil {
 		t.Fatalf("sendMessage failed: %v", err)
 	}
@@ -65,32 +162,62 @@ func TestSendMessage_UsesAuthenticatedSenderNotPayloadFrom(t *testing.T) {
 	}
 }
 
-func TestSendMessage_DropsMessageToNonexistentRecipient(t *testing.T) {
+func TestSendMessage_RejectsNonMember(t *testing.T) {
 	websocket.ResetTestState()
 	db := testutil.UseForumDB(t)
 
-	sender := websocket.AddTestClient("s1", "admin", 1)
+	// Seed conversation 1 (admin/alice, from the base fixture) — alice is
+	// authenticated as herself but tries to post into a conversation seeded
+	// separately between admin and actual_user.
+	other := websocket.AddTestClient("s-other", "admin", 1)
+	info := mustOpenDirectChat(t, other, "actual_user")
 
-	payload, _ := json.Marshal(map[string]string{
-		"message": "message to nobody",
-		"from":    "admin",
-		"to":      "does-not-exist",
-	})
-
-	// A recipient username that doesn't resolve to a real user is dropped,
-	// not an error — returning an error here would kill the sender's whole
-	// WebSocket connection (see routeEvent), a much harsher failure than
-	// silently not storing an unsendable message.
-	if err := websocket.SendMessageForTest(payload, sender); err != nil {
-		t.Fatalf("sendMessage should not error for an unresolvable recipient, got: %v", err)
+	outsider := websocket.AddTestClient("s2", "alice", 2)
+	if err := websocket.SendMessageForTest(sendMessagePayload(t, info.ConversationID, "sneaky message"), outsider); err != nil {
+		t.Fatalf("sendMessage should not error for a non-member, got: %v", err)
 	}
 
 	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM message WHERE txt = ?`, "message to nobody").Scan(&count); err != nil {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM message WHERE txt = ?`, "sneaky message").Scan(&count); err != nil {
 		t.Fatalf("failed to query message count: %v", err)
 	}
 	if count != 0 {
-		t.Fatalf("expected no message stored for a nonexistent recipient, found %d", count)
+		t.Fatalf("expected no message stored for a non-member, found %d", count)
+	}
+}
+
+func TestSendMessage_BroadcastsToOtherMemberNotSender(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	sender := websocket.AddTestClient("s1", "admin", 1)
+	recipient := websocket.AddTestClient("s2", "actual_user", 42)
+	info := mustOpenDirectChat(t, sender, "actual_user")
+	// Drain the chat-opened event sender received above.
+	sender.WaitEvent(time.Second)
+
+	if err := websocket.SendMessageForTest(sendMessagePayload(t, info.ConversationID, "hi there"), sender); err != nil {
+		t.Fatalf("sendMessage failed: %v", err)
+	}
+
+	eventType, eventPayload, ok := recipient.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for the recipient's sent-message event")
+	}
+	if eventType != websocket.EventSendMessage {
+		t.Fatalf("expected sent-message event, got %q", eventType)
+	}
+	var msg websocket.SendMessageEvent
+	if err := json.Unmarshal(eventPayload, &msg); err != nil {
+		t.Fatalf("failed to decode sent-message: %v", err)
+	}
+	if msg.From != "admin" || msg.Message != "hi there" {
+		t.Fatalf("unexpected sent-message payload: %+v", msg)
+	}
+
+	// The sender should not receive an echo of their own message.
+	if _, _, ok := sender.WaitEvent(100 * time.Millisecond); ok {
+		t.Fatal("sender should not receive their own message back")
 	}
 }
 
@@ -99,27 +226,16 @@ func TestSendMessage_ReusesSameConversationAcrossMessages(t *testing.T) {
 	db := testutil.UseForumDB(t)
 
 	sender := websocket.AddTestClient("s1", "admin", 1)
+	info := mustOpenDirectChat(t, sender, "actual_user")
 
 	for _, text := range []string{"first message", "second message"} {
-		payload, _ := json.Marshal(map[string]string{"message": text, "from": "admin", "to": "actual_user"})
-		if err := websocket.SendMessageForTest(payload, sender); err != nil {
+		if err := websocket.SendMessageForTest(sendMessagePayload(t, info.ConversationID, text), sender); err != nil {
 			t.Fatalf("sendMessage failed: %v", err)
 		}
 	}
 
-	var conversationCount int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM conversation WHERE direct_pair_key = '1-42'`).Scan(&conversationCount); err != nil {
-		t.Fatalf("failed to count conversations: %v", err)
-	}
-	if conversationCount != 1 {
-		t.Fatalf("expected exactly one direct conversation to be created for the pair, got %d", conversationCount)
-	}
-
 	var messageCount int
-	if err := db.QueryRow(`
-		SELECT COUNT(*) FROM message
-		JOIN conversation ON conversation.id = message.conversation_id
-		WHERE conversation.direct_pair_key = '1-42'`).Scan(&messageCount); err != nil {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM message WHERE conversation_id = ?`, info.ConversationID).Scan(&messageCount); err != nil {
 		t.Fatalf("failed to count messages: %v", err)
 	}
 	if messageCount != 2 {
@@ -127,74 +243,46 @@ func TestSendMessage_ReusesSameConversationAcrossMessages(t *testing.T) {
 	}
 }
 
-func TestGetChatHistory_ReturnsEmptyForNonexistentOtherUser(t *testing.T) {
+func TestGetChatHistory_RejectsNonMember(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
 
+	owner := websocket.AddTestClient("s-owner", "admin", 1)
+	info := mustOpenDirectChat(t, owner, "actual_user")
+
+	outsider := websocket.AddTestClient("s2", "alice", 2)
+	payload, _ := json.Marshal(websocket.GetHistoryRequest{ConversationID: info.ConversationID, Limit: 10, Offset: 0})
+
+	if err := websocket.GetChatHistoryForTest(payload, outsider); err != nil {
+		t.Fatalf("getChatHistory failed: %v", err)
+	}
+
+	eventType, eventPayload, ok := outsider.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat history")
+	}
+	if eventType != websocket.SendChatHistory {
+		t.Fatalf("expected chat_history event, got %q", eventType)
+	}
+
+	var messages []websocket.ChatHistoryMessage
+	if err := json.Unmarshal(eventPayload, &messages); err != nil {
+		t.Fatalf("failed to decode chat history: %v", err)
+	}
+	if len(messages) != 0 {
+		t.Fatalf("a non-member should never see another conversation's history: got %d messages, want 0: %+v", len(messages), messages)
+	}
+}
+
+func TestGetChatHistory_ReturnsMessages(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	// Uses the base seed's direct conversation between admin (1) and alice
+	// (2) (conversation id 1), which already has two messages.
 	requester := websocket.AddTestClient("s1", "admin", 1)
 
-	payload, _ := json.Marshal(websocket.ChatMessage{
-		FromUser: "admin",
-		ToUser:   "does-not-exist",
-		Limit:    10,
-		Offset:   0,
-	})
-
-	if err := websocket.GetChatHistoryForTest(payload, requester); err != nil {
-		t.Fatalf("getChatHistory failed: %v", err)
-	}
-
-	eventType, eventPayload, ok := requester.WaitEvent(time.Second)
-	if !ok {
-		t.Fatal("timed out waiting for chat history")
-	}
-	if eventType != websocket.SendChatHistory {
-		t.Fatalf("expected chat_history event, got %q", eventType)
-	}
-	var messages []websocket.ChatMessage
-	if err := json.Unmarshal(eventPayload, &messages); err != nil {
-		t.Fatalf("failed to decode chat history: %v", err)
-	}
-	if len(messages) != 0 {
-		t.Fatalf("expected no messages for a nonexistent other user, got %d", len(messages))
-	}
-}
-
-func TestGetChatHistory_IgnoresSpoofedFromUser(t *testing.T) {
-	websocket.ResetTestState()
-	db := testutil.UseForumDB(t)
-
-	// Seed a private conversation between two users (admin=1, actual_user=42)
-	// the requester is not part of.
-	convResult, err := db.Exec(`INSERT INTO conversation (is_group, direct_pair_key, created_at) VALUES (0, '1-42', datetime('now'))`)
-	if err != nil {
-		t.Fatalf("failed to seed conversation: %v", err)
-	}
-	convID, _ := convResult.LastInsertId()
-	if _, err := db.Exec(
-		`INSERT INTO conversation_member (conversation_id, user_id, joined_at) VALUES (?, 1, datetime('now')), (?, 42, datetime('now'))`,
-		convID, convID,
-	); err != nil {
-		t.Fatalf("failed to seed conversation members: %v", err)
-	}
-	if _, err := db.Exec(
-		`INSERT INTO message (conversation_id, sender_id, txt, created_at) VALUES (?, 1, 'private admin-actual_user message', datetime('now'))`,
-		convID,
-	); err != nil {
-		t.Fatalf("failed to seed message: %v", err)
-	}
-
-	// alice (real id 2) is really connected as "alice", but the request
-	// claims FromUser is "admin" to try to read admin's conversation with
-	// actual_user.
-	requester := websocket.AddTestClient("s1", "alice", 2)
-
-	payload, _ := json.Marshal(websocket.ChatMessage{
-		FromUser: "admin",
-		ToUser:   "actual_user",
-		Limit:    10,
-		Offset:   0,
-	})
+	payload, _ := json.Marshal(websocket.GetHistoryRequest{ConversationID: 1, Limit: 10, Offset: 0})
 
 	if err := websocket.GetChatHistoryForTest(payload, requester); err != nil {
 		t.Fatalf("getChatHistory failed: %v", err)
@@ -208,70 +296,236 @@ func TestGetChatHistory_IgnoresSpoofedFromUser(t *testing.T) {
 		t.Fatalf("expected chat_history event, got %q", eventType)
 	}
 
-	var messages []websocket.ChatMessage
+	var messages []websocket.ChatHistoryMessage
 	if err := json.Unmarshal(eventPayload, &messages); err != nil {
 		t.Fatalf("failed to decode chat history: %v", err)
 	}
-	if len(messages) != 0 {
-		t.Fatalf("spoofed FromUser leaked another conversation: got %d messages, want 0: %+v", len(messages), messages)
+	if len(messages) != 2 {
+		t.Fatalf("expected 2 messages in history, got %d", len(messages))
+	}
+	if messages[0].From != "admin" || messages[1].From != "alice" {
+		t.Fatalf("unexpected sender attribution: %+v", messages)
 	}
 }
 
-func TestTyping_UsesAuthenticatedSenderNotPayloadFrom(t *testing.T) {
+func TestTyping_ForwardsToOtherMemberNotSender(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
 
 	sender := websocket.AddTestClient("s1", "admin", 1)
 	recipient := websocket.AddTestClient("s2", "alice", 2)
 
-	payload, _ := json.Marshal(websocket.ChatMessage{
-		FromUser: "root", // spoofed
-		ToUser:   "alice",
-	})
+	// Uses the base seed's direct conversation (id 1) between admin and alice.
+	payload, _ := json.Marshal(websocket.TypingEvent{ConversationID: 1, From: "root"}) // From is spoofed, must be ignored
 
 	if err := websocket.TypingForTest(payload, sender); err != nil {
 		t.Fatalf("typing failed: %v", err)
 	}
 
-	_, eventPayload, ok := recipient.WaitEvent(time.Second)
+	eventType, eventPayload, ok := recipient.WaitEvent(time.Second)
 	if !ok {
 		t.Fatal("timed out waiting for typing notification")
 	}
-	var forwarded websocket.ChatMessage
+	if eventType != websocket.Typing {
+		t.Fatalf("expected typing event, got %q", eventType)
+	}
+	var forwarded websocket.TypingEvent
 	if err := json.Unmarshal(eventPayload, &forwarded); err != nil {
 		t.Fatalf("failed to decode typing event: %v", err)
 	}
-	if forwarded.FromUser != "admin" {
-		t.Fatalf("typing indicator was spoofed: forwarded from %q, want the authenticated sender %q", forwarded.FromUser, "admin")
+	if forwarded.From != "admin" {
+		t.Fatalf("typing indicator was spoofed: forwarded from %q, want the authenticated sender %q", forwarded.From, "admin")
 	}
 }
 
-func TestStopTyping_UsesAuthenticatedSenderNotPayloadFrom(t *testing.T) {
+func TestTyping_DoesNotForwardForNonMember(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	// actual_user (42) isn't a member of conversation 1 (admin/alice).
+	outsider := websocket.AddTestClient("s1", "actual_user", 42)
+	recipient := websocket.AddTestClient("s2", "alice", 2)
+
+	payload, _ := json.Marshal(websocket.TypingEvent{ConversationID: 1})
+	if err := websocket.TypingForTest(payload, outsider); err != nil {
+		t.Fatalf("typing should not error for a non-member, got: %v", err)
+	}
+
+	if _, _, ok := recipient.WaitEvent(200 * time.Millisecond); ok {
+		t.Fatal("a non-member's typing event should never be forwarded")
+	}
+}
+
+func TestStopTyping_ForwardsToOtherMemberNotSender(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
 
 	sender := websocket.AddTestClient("s1", "admin", 1)
 	recipient := websocket.AddTestClient("s2", "alice", 2)
 
-	payload, _ := json.Marshal(websocket.ChatMessage{
-		FromUser: "root", // spoofed
-		ToUser:   "alice",
-	})
+	payload, _ := json.Marshal(websocket.TypingEvent{ConversationID: 1, From: "root"})
 
 	if err := websocket.StopTypingForTest(payload, sender); err != nil {
 		t.Fatalf("stopTyping failed: %v", err)
 	}
 
-	_, eventPayload, ok := recipient.WaitEvent(time.Second)
+	eventType, eventPayload, ok := recipient.WaitEvent(time.Second)
 	if !ok {
 		t.Fatal("timed out waiting for stop-typing notification")
 	}
-	var forwarded websocket.ChatMessage
+	if eventType != websocket.StopTyping {
+		t.Fatalf("expected stop-typing event, got %q", eventType)
+	}
+	var forwarded websocket.TypingEvent
 	if err := json.Unmarshal(eventPayload, &forwarded); err != nil {
 		t.Fatalf("failed to decode stop-typing event: %v", err)
 	}
-	if forwarded.FromUser != "admin" {
-		t.Fatalf("stop-typing indicator was spoofed: forwarded from %q, want the authenticated sender %q", forwarded.FromUser, "admin")
+	if forwarded.From != "admin" {
+		t.Fatalf("stop-typing indicator was spoofed: forwarded from %q, want the authenticated sender %q", forwarded.From, "admin")
+	}
+}
+
+func TestCreateGroupChat_CreatesConversationAndNotifiesOnlineMembers(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	creator := websocket.AddTestClient("s1", "admin", 1)
+	member := websocket.AddTestClient("s2", "alice", 2)
+
+	payload, _ := json.Marshal(websocket.CreateGroupChatRequest{Name: "Trip Planning", Usernames: []string{"alice", "actual_user"}})
+	if err := websocket.CreateGroupChatForTest(payload, creator); err != nil {
+		t.Fatalf("createGroupChat failed: %v", err)
+	}
+
+	eventType, eventPayload, ok := creator.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat-opened (creator)")
+	}
+	if eventType != websocket.ChatOpened {
+		t.Fatalf("expected chat-opened event, got %q", eventType)
+	}
+	var info websocket.ConversationInfo
+	if err := json.Unmarshal(eventPayload, &info); err != nil {
+		t.Fatalf("failed to decode chat-opened: %v", err)
+	}
+	if !info.IsGroup {
+		t.Fatal("expected a group conversation")
+	}
+	if info.Name != "Trip Planning" {
+		t.Fatalf("expected name %q, got %q", "Trip Planning", info.Name)
+	}
+	if len(info.Members) != 3 {
+		t.Fatalf("expected 3 members (creator + 2 named), got %d: %+v", len(info.Members), info.Members)
+	}
+
+	// alice is online, so she should also get a chat-opened push immediately.
+	memberEventType, _, ok := member.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat-opened (online member)")
+	}
+	if memberEventType != websocket.ChatOpened {
+		t.Fatalf("expected chat-opened event for the online member, got %q", memberEventType)
+	}
+
+	var memberCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM conversation_member WHERE conversation_id = ?`, info.ConversationID).Scan(&memberCount); err != nil {
+		t.Fatalf("failed to count conversation members: %v", err)
+	}
+	if memberCount != 3 {
+		t.Fatalf("expected 3 persisted members, got %d", memberCount)
+	}
+}
+
+func TestCreateGroupChat_RejectsUnknownMember(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	creator := websocket.AddTestClient("s1", "admin", 1)
+	payload, _ := json.Marshal(websocket.CreateGroupChatRequest{Name: "Ghosts", Usernames: []string{"does-not-exist"}})
+
+	if err := websocket.CreateGroupChatForTest(payload, creator); err != nil {
+		t.Fatalf("createGroupChat should not error, got: %v", err)
+	}
+
+	eventType, _, ok := creator.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat-error")
+	}
+	if eventType != websocket.ChatError {
+		t.Fatalf("expected chat-error event, got %q", eventType)
+	}
+}
+
+func TestCreateGroupChat_RejectsEmptyName(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	creator := websocket.AddTestClient("s1", "admin", 1)
+	payload, _ := json.Marshal(websocket.CreateGroupChatRequest{Name: "  ", Usernames: []string{"alice"}})
+
+	if err := websocket.CreateGroupChatForTest(payload, creator); err != nil {
+		t.Fatalf("createGroupChat should not error, got: %v", err)
+	}
+
+	eventType, _, ok := creator.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat-error")
+	}
+	if eventType != websocket.ChatError {
+		t.Fatalf("expected chat-error event, got %q", eventType)
+	}
+}
+
+func TestCreateGroupChat_RejectsNoMembers(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	creator := websocket.AddTestClient("s1", "admin", 1)
+	payload, _ := json.Marshal(websocket.CreateGroupChatRequest{Name: "Solo", Usernames: []string{}})
+
+	if err := websocket.CreateGroupChatForTest(payload, creator); err != nil {
+		t.Fatalf("createGroupChat should not error, got: %v", err)
+	}
+
+	eventType, _, ok := creator.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat-error")
+	}
+	if eventType != websocket.ChatError {
+		t.Fatalf("expected chat-error event, got %q", eventType)
+	}
+}
+
+func TestGetConversations_ReturnsAllUserConversations(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	// admin (1) is already a member of the base seed's direct conversation
+	// (id 1, with alice). Create a group too, then confirm both show up.
+	requester := websocket.AddTestClient("s1", "admin", 1)
+	groupPayload, _ := json.Marshal(websocket.CreateGroupChatRequest{Name: "Everyone", Usernames: []string{"alice", "actual_user"}})
+	if err := websocket.CreateGroupChatForTest(groupPayload, requester); err != nil {
+		t.Fatalf("createGroupChat failed: %v", err)
+	}
+	requester.WaitEvent(time.Second) // drain the chat-opened event
+
+	if err := websocket.GetConversationsForTest(requester); err != nil {
+		t.Fatalf("getConversations failed: %v", err)
+	}
+
+	eventType, eventPayload, ok := requester.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for conversations-list")
+	}
+	if eventType != websocket.ConversationsList {
+		t.Fatalf("expected conversations-list event, got %q", eventType)
+	}
+	var conversations []websocket.ConversationInfo
+	if err := json.Unmarshal(eventPayload, &conversations); err != nil {
+		t.Fatalf("failed to decode conversations-list: %v", err)
+	}
+	if len(conversations) != 2 {
+		t.Fatalf("expected 2 conversations (1 direct + 1 group), got %d: %+v", len(conversations), conversations)
 	}
 }
 
@@ -342,93 +596,6 @@ func TestAddUserInfo_IgnoresSpoofedIdentityInPayload(t *testing.T) {
 	}
 	if !websocket.IsInLoggedInList("admin") {
 		t.Fatal("expected the real identity (admin) in LoggedInList")
-	}
-}
-
-func TestGetChatHistory_ReturnsMessages(t *testing.T) {
-	websocket.ResetTestState()
-	testutil.UseForumDB(t)
-
-	// Uses the base seed's direct conversation between admin (1) and alice
-	// (2), which already has two messages.
-	requester := websocket.AddTestClient("s1", "admin", 1)
-
-	payload, _ := json.Marshal(websocket.ChatMessage{
-		FromUser: "admin",
-		ToUser:   "alice",
-		Limit:    10,
-		Offset:   0,
-	})
-
-	if err := websocket.GetChatHistoryForTest(payload, requester); err != nil {
-		t.Fatalf("getChatHistory failed: %v", err)
-	}
-
-	eventType, eventPayload, ok := requester.WaitEvent(time.Second)
-	if !ok {
-		t.Fatal("timed out waiting for chat history")
-	}
-	if eventType != websocket.SendChatHistory {
-		t.Fatalf("expected chat_history event, got %q", eventType)
-	}
-
-	var messages []websocket.ChatMessage
-	if err := json.Unmarshal(eventPayload, &messages); err != nil {
-		t.Fatalf("failed to decode chat history: %v", err)
-	}
-	if len(messages) != 2 {
-		t.Fatalf("expected 2 messages in history, got %d", len(messages))
-	}
-}
-
-func TestTyping_ForwardsToRecipient(t *testing.T) {
-	websocket.ResetTestState()
-	testutil.UseForumDB(t)
-
-	sender := websocket.AddTestClient("s1", "admin", 1)
-	recipient := websocket.AddTestClient("s2", "alice", 2)
-
-	payload, _ := json.Marshal(websocket.ChatMessage{
-		FromUser: "admin",
-		ToUser:   "alice",
-		Text:     "typing...",
-	})
-
-	if err := websocket.TypingForTest(payload, sender); err != nil {
-		t.Fatalf("typing failed: %v", err)
-	}
-
-	eventType, _, ok := recipient.WaitEvent(time.Second)
-	if !ok {
-		t.Fatal("timed out waiting for typing notification")
-	}
-	if eventType != websocket.Typing {
-		t.Fatalf("expected typing event, got %q", eventType)
-	}
-}
-
-func TestStopTyping_ForwardsToRecipient(t *testing.T) {
-	websocket.ResetTestState()
-	testutil.UseForumDB(t)
-
-	sender := websocket.AddTestClient("s1", "admin", 1)
-	recipient := websocket.AddTestClient("s2", "alice", 2)
-
-	payload, _ := json.Marshal(websocket.ChatMessage{
-		FromUser: "admin",
-		ToUser:   "alice",
-	})
-
-	if err := websocket.StopTypingForTest(payload, sender); err != nil {
-		t.Fatalf("stopTyping failed: %v", err)
-	}
-
-	eventType, _, ok := recipient.WaitEvent(time.Second)
-	if !ok {
-		t.Fatal("timed out waiting for stop-typing notification")
-	}
-	if eventType != websocket.StopTyping {
-		t.Fatalf("expected stop-typing event, got %q", eventType)
 	}
 }
 

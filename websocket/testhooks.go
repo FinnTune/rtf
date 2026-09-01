@@ -155,6 +155,21 @@ func StopTypingForTest(payload json.RawMessage, client *TestClientHandle) error 
 	return stopTyping(Event{Type: StopTyping, Payload: payload}, client.client)
 }
 
+// OpenDirectChatForTest invokes the open-direct-chat handler for tests.
+func OpenDirectChatForTest(payload json.RawMessage, client *TestClientHandle) error {
+	return openDirectChat(Event{Type: OpenDirectChat, Payload: payload}, client.client)
+}
+
+// CreateGroupChatForTest invokes the create-group-chat handler for tests.
+func CreateGroupChatForTest(payload json.RawMessage, client *TestClientHandle) error {
+	return createGroupChat(Event{Type: CreateGroupChat, Payload: payload}, client.client)
+}
+
+// GetConversationsForTest invokes the get-conversations handler for tests.
+func GetConversationsForTest(client *TestClientHandle) error {
+	return getConversations(Event{Type: GetConversations}, client.client)
+}
+
 // TestOtps wraps OTP map lifecycle for external tests.
 type TestOtps struct {
 	otps   *otpsMap
