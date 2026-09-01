@@ -53,6 +53,17 @@ func migrate(db *sql.DB) error {
 		return fmt.Errorf("promoting seed admin user: %w", err)
 	}
 
+	hasImgURL, err := columnExists(db, "post", "img_url")
+	if err != nil {
+		return fmt.Errorf("checking for post.img_url column: %w", err)
+	}
+	if !hasImgURL {
+		if _, err := db.Exec(`ALTER TABLE post ADD COLUMN img_url VARCHAR(200)`); err != nil {
+			return fmt.Errorf("adding post.img_url column: %w", err)
+		}
+		log.Println("Migrated: added img_url column to post table.")
+	}
+
 	// A brand-new table, unlike user.role above, so CREATE TABLE IF NOT
 	// EXISTS is all the idempotency an already-deployed database needs —
 	// no column-existence dance required.

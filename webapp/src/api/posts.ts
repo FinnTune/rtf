@@ -58,12 +58,16 @@ export async function getPost(id: number | string): Promise<Post> {
   return data
 }
 
-export async function addPost(title: string, content: string, categories: PostCategoryRef[]): Promise<void> {
-  await requestVoid('/addPost', {
+// Returns the new post's id so the caller can immediately attach an image
+// via uploadPostImage, a separate request since image upload is multipart
+// and post creation is JSON.
+export async function addPost(title: string, content: string, categories: PostCategoryRef[]): Promise<number> {
+  const { data } = await requestJson<{ id: number }>('/addPost', {
     method: 'POST',
     headers: jsonHeaders,
     body: JSON.stringify({ title, content, categories }),
   })
+  return data.id
 }
 
 export async function editPost(
@@ -86,6 +90,20 @@ export async function deletePost(id: number): Promise<void> {
     headers: jsonHeaders,
     body: JSON.stringify({ id }),
   })
+}
+
+// Uploads (or replaces) the image attached to a post the caller owns. No
+// Content-Type header is set — the browser fills in the multipart boundary
+// itself from the FormData body.
+export async function uploadPostImage(postId: number, file: File): Promise<string> {
+  const formData = new FormData()
+  formData.append('post_id', String(postId))
+  formData.append('image', file)
+  const { data } = await requestJson<{ img_url: string }>('/uploadPostImage', {
+    method: 'POST',
+    body: formData,
+  })
+  return data.img_url
 }
 
 export interface ReactionResult {

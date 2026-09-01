@@ -23,7 +23,7 @@ CREATE TABLE post (
  content VARCHAR(150) NOT NULL,
  author VARCHAR(30) NOT NULL,
  created_at DATETIME NOT NULL,
---  img_url VARCHAR(100),
+ img_url VARCHAR(200),
 --  approved TINYINT(1) NOT NULL,
 --  dummy TINYINT(1) NOT NULL,
 FOREIGN KEY(user_id) REFERENCES user(id),

@@ -11,6 +11,8 @@ export interface Post {
   Content: string
   Author: string
   Created: string
+  // Empty string means "no image" — never null/undefined, see attachReactionData's counterpart on the Go side.
+  ImgURL: string
   LikeCount: number
   DislikeCount: number
   MyReaction: string

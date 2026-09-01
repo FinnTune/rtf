@@ -20,10 +20,13 @@ function mockBackend() {
         return new Response(JSON.stringify([{ id: 1, name: 'Sports' }]), { status: 200 })
       }
       if (url.startsWith('/addPost')) {
-        return new Response('Post Successful', { status: 200 })
+        return new Response(JSON.stringify({ id: 7 }), { status: 200 })
       }
       if (url.startsWith('/getAllPosts')) {
         return new Response(JSON.stringify([]), { status: 200, headers: { 'X-Total-Count': '0' } })
+      }
+      if (url.startsWith('/uploadPostImage')) {
+        return new Response(JSON.stringify({ img_url: '/uploads/posts/newimage.png' }), { status: 200 })
       }
       throw new Error('Unexpected fetch: ' + url)
     }),
@@ -77,5 +80,28 @@ describe('AddPostForm', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Submit Post' }))
     const fetchMock = vi.mocked(fetch)
     expect(fetchMock.mock.calls.some(([input]) => requestUrl(input as string | URL | Request).startsWith('/addPost'))).toBe(false)
+  })
+
+  it('uploads the selected image to the newly created post', async () => {
+    mockBackend()
+    renderAddPostForm()
+
+    await userEvent.type(screen.getByLabelText('Title:'), 'My New Post')
+    await userEvent.type(screen.getByLabelText('Content:'), 'Some interesting content.')
+    const file = new File(['fake-image-bytes'], 'photo.png', { type: 'image/png' })
+    await userEvent.upload(screen.getByLabelText('Image (optional):'), file)
+    await userEvent.click(screen.getByRole('button', { name: 'Submit Post' }))
+
+    await waitFor(() => expect(screen.getByText('Feed placeholder')).toBeInTheDocument())
+    expect(await screen.findByText('Your post was submitted.')).toBeInTheDocument()
+
+    const fetchMock = vi.mocked(fetch)
+    const uploadCall = fetchMock.mock.calls.find(([input]) =>
+      requestUrl(input as string | URL | Request).startsWith('/uploadPostImage'),
+    )
+    expect(uploadCall).toBeDefined()
+    const formData = (uploadCall![1] as RequestInit).body as FormData
+    expect(formData.get('post_id')).toBe('7')
+    expect((formData.get('image') as File).name).toBe('photo.png')
   })
 })

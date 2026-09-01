@@ -54,6 +54,10 @@ type Post struct {
 	Content string
 	Author  string
 	Created string
+	// Empty string means "no image" — img_url is nullable in the schema,
+	// but every SELECT that populates this struct uses COALESCE(img_url,
+	// '') so callers never have to deal with a NULL/empty distinction.
+	ImgURL string
 	// Populated by attachReactionData, not by the SELECT * that scans the
 	// rest of this struct — every post-listing/detail handler calls it
 	// separately (see that function's doc comment for why: reactions are a

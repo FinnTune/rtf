@@ -649,7 +649,7 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 		//Get a page of posts from database, ordered per the sort param. id
 		//DESC breaks ties between posts created within the same second.
 		join, order := postSortJoinAndOrder(sort)
-		query := `SELECT post.id, post.user_id, post.title, post.content, post.author, post.created_at
+		query := `SELECT post.id, post.user_id, post.title, post.content, post.author, post.created_at, COALESCE(post.img_url, '')
 		FROM post ` + join + ` ` + order + ` LIMIT ? OFFSET ?;`
 		rows, err := database.ForumDB.Query(query, limit, offset)
 		if err != nil {
@@ -665,7 +665,7 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 		//Iterate through rows and append to posts slice
 		for rows.Next() {
 			var post Post
-			err = rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created)
+			err = rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created, &post.ImgURL)
 			if err != nil {
 				log.Printf("Error scanning rows: %s", err)
 				http.Error(w, "Failed to load posts", http.StatusInternalServerError)
@@ -729,7 +729,7 @@ func GetPostsByAuthorHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	join, order := postSortJoinAndOrder(sort)
-	query := `SELECT post.id, post.user_id, post.title, post.content, post.author, post.created_at
+	query := `SELECT post.id, post.user_id, post.title, post.content, post.author, post.created_at, COALESCE(post.img_url, '')
 	FROM post ` + join + ` WHERE post.author = ? ` + order + ` LIMIT ? OFFSET ?;`
 	rows, err := database.ForumDB.Query(query, author, limit, offset)
 	if err != nil {
@@ -742,7 +742,7 @@ func GetPostsByAuthorHandler(w http.ResponseWriter, r *http.Request) {
 	posts := []Post{}
 	for rows.Next() {
 		var post Post
-		err = rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created)
+		err = rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created, &post.ImgURL)
 		if err != nil {
 			log.Printf("Error scanning rows: %s", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
@@ -777,8 +777,8 @@ func GetPostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var post Post
-	err = database.ForumDB.QueryRow("SELECT * FROM post WHERE id = ?", id).
-		Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created)
+	err = database.ForumDB.QueryRow("SELECT id, user_id, title, content, author, created_at, COALESCE(img_url, '') FROM post WHERE id = ?", id).
+		Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created, &post.ImgURL)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
@@ -1143,7 +1143,7 @@ func SearchPostsHandler(w http.ResponseWriter, r *http.Request) {
 	likePattern := "%" + escapeLikePattern(query) + "%"
 
 	join, order := postSortJoinAndOrder(sort)
-	searchQuery := `SELECT post.id, post.user_id, post.title, post.content, post.author, post.created_at
+	searchQuery := `SELECT post.id, post.user_id, post.title, post.content, post.author, post.created_at, COALESCE(post.img_url, '')
 	FROM post ` + join + ` WHERE post.title LIKE ? ESCAPE '\' OR post.content LIKE ? ESCAPE '\' ` + order + ` LIMIT ?`
 	rows, err := database.ForumDB.Query(searchQuery, likePattern, likePattern, maxSearchResults)
 	if err != nil {
@@ -1156,7 +1156,7 @@ func SearchPostsHandler(w http.ResponseWriter, r *http.Request) {
 	posts := []Post{}
 	for rows.Next() {
 		var post Post
-		if err := rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created); err != nil {
+		if err := rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created, &post.ImgURL); err != nil {
 			log.Printf("Error scanning rows: %s", err)
 			http.Error(w, "Failed to search posts", http.StatusInternalServerError)
 			return
@@ -1326,9 +1326,13 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Println("Post added successfully: ", post)
 
-		// Handle success
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Post Successful"))
+		// The new post's id is returned so the client can immediately attach
+		// an image via /uploadPostImage, which is a separate request since
+		// image upload is multipart and post creation is JSON.
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(struct {
+			ID int64 `json:"id"`
+		}{ID: postID})
 	}
 }
 
@@ -1510,7 +1514,8 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var ownerID int
-	err = database.ForumDB.QueryRow("SELECT user_id FROM post WHERE id = ?", requestBody.ID).Scan(&ownerID)
+	var imgURL string
+	err = database.ForumDB.QueryRow("SELECT user_id, COALESCE(img_url, '') FROM post WHERE id = ?", requestBody.ID).Scan(&ownerID, &imgURL)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
@@ -1551,6 +1556,10 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("failed to commit post deletion: %s", err)
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
 		return
+	}
+
+	if imgURL != "" {
+		deleteUploadedImage(imgURL)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -1625,7 +1634,7 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		sortJoin, order := postSortJoinAndOrder(sort)
-		query := `SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at
+		query := `SELECT DISTINCT post.id, post.user_id, post.title, post.content, post.author, post.created_at, COALESCE(post.img_url, '')
 		FROM post ` + categoryJoin + ` ` + sortJoin + `
 		` + whereClause + `
 		` + order + `
@@ -1648,7 +1657,7 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		for rows.Next() {
 			postCount++
 			var post Post
-			err = rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created)
+			err = rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created, &post.ImgURL)
 			if err != nil {
 				log.Printf("Error scanning rows: %s", err)
 				http.Error(w, "Failed to load posts", http.StatusInternalServerError)

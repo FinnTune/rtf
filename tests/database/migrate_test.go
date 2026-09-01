@@ -24,6 +24,15 @@ CREATE TABLE user (
 	pass VARCHAR(20) NOT NULL,
 	created_at VARCHAR(30) NOT NULL
 );
+
+CREATE TABLE post (
+	id INTEGER NOT NULL PRIMARY KEY,
+	user_id INTEGER NOT NULL,
+	title VARCHAR(30) NOT NULL,
+	content VARCHAR(150) NOT NULL,
+	author VARCHAR(30) NOT NULL,
+	created_at DATETIME NOT NULL
+);
 `
 
 func openPreRoleDB(t *testing.T) *sql.DB {
@@ -100,6 +109,30 @@ func TestMigrate_PromotesSeedAdminUser(t *testing.T) {
 	}
 	if role != "admin" {
 		t.Fatalf("expected a user literally named 'admin' to be promoted, got role %q", role)
+	}
+}
+
+func TestMigrate_AddsImgURLColumnToExistingDatabase(t *testing.T) {
+	db := openPreRoleDB(t)
+
+	hasImgURL, err := database.ColumnExistsForTest(db, "post", "img_url")
+	if err != nil {
+		t.Fatalf("ColumnExistsForTest: %v", err)
+	}
+	if hasImgURL {
+		t.Fatal("expected the pre-migration schema to not already have an img_url column")
+	}
+
+	if err := database.MigrateForTest(db); err != nil {
+		t.Fatalf("MigrateForTest: %v", err)
+	}
+
+	hasImgURL, err = database.ColumnExistsForTest(db, "post", "img_url")
+	if err != nil {
+		t.Fatalf("ColumnExistsForTest after migrate: %v", err)
+	}
+	if !hasImgURL {
+		t.Fatal("expected migrate to add an img_url column")
 	}
 }
 

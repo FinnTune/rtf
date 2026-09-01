@@ -5,13 +5,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../../contexts/AuthContext'
 import { FeedViewProvider } from '../../contexts/FeedViewContext'
 import { StatusMessageProvider } from '../../contexts/StatusMessageContext'
+import { StatusBanner } from '../common/StatusBanner'
 import { SinglePostView } from './SinglePostView'
 
 function requestUrl(input: string | URL | Request): string {
   return typeof input === 'string' ? input : input.toString()
 }
 
-function mockBackend(loggedInAs: string, postAuthor: string) {
+function mockBackend(loggedInAs: string, postAuthor: string, imgUrl = '') {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string | URL | Request) => {
@@ -24,7 +25,15 @@ function mockBackend(loggedInAs: string, postAuthor: string) {
       }
       if (url.startsWith('/getPost')) {
         return new Response(
-          JSON.stringify({ PostId: 7, UserId: 9, Title: 'A Post', Content: 'Body text', Author: postAuthor, Created: '2026-01-01' }),
+          JSON.stringify({
+            PostId: 7,
+            UserId: 9,
+            Title: 'A Post',
+            Content: 'Body text',
+            Author: postAuthor,
+            Created: '2026-01-01',
+            ImgURL: imgUrl,
+          }),
           { status: 200 },
         )
       }
@@ -33,6 +42,9 @@ function mockBackend(loggedInAs: string, postAuthor: string) {
       }
       if (url.startsWith('/deletePost')) {
         return new Response('Post deleted', { status: 200 })
+      }
+      if (url.startsWith('/uploadPostImage')) {
+        return new Response(JSON.stringify({ img_url: '/uploads/posts/newimage.png' }), { status: 200 })
       }
       if (url.startsWith('/getAllPosts')) {
         return new Response(JSON.stringify([]), { status: 200, headers: { 'X-Total-Count': '0' } })
@@ -51,6 +63,7 @@ function renderPostRoute() {
       <StatusMessageProvider>
         <AuthProvider>
           <FeedViewProvider>
+            <StatusBanner />
             <Routes>
               <Route path="/" element={<p>Feed placeholder</p>} />
               <Route path="/posts/:id" element={<SinglePostView />} />
@@ -106,5 +119,37 @@ describe('SinglePostView', () => {
     expect(screen.getByDisplayValue('A Post')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Body text')).toBeInTheDocument()
     expect(screen.queryByText('A Post')).not.toBeInTheDocument()
+  })
+
+  it('displays the post image when one is set', async () => {
+    mockBackend('alice', 'admin', '/uploads/posts/existing.png')
+    renderPostRoute()
+    const img = await screen.findByRole('img', { name: 'A Post' })
+    expect(img).toHaveAttribute('src', '/uploads/posts/existing.png')
+  })
+
+  it('does not render an image element when the post has none', async () => {
+    mockBackend('alice', 'admin')
+    renderPostRoute()
+    await screen.findByText('A Post')
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
+  it('uploading an image from the edit form updates the displayed image', async () => {
+    mockBackend('admin', 'admin')
+    renderPostRoute()
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit' }))
+
+    const fileInput = screen.getByLabelText('Image') as HTMLInputElement
+    const file = new File(['fake-image-bytes'], 'photo.png', { type: 'image/png' })
+    await userEvent.upload(fileInput, file)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Upload Image' }))
+
+    expect(await screen.findByText('Image updated.')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    const img = await screen.findByRole('img', { name: 'A Post' })
+    expect(img).toHaveAttribute('src', '/uploads/posts/newimage.png')
   })
 })

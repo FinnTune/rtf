@@ -71,6 +71,7 @@ export function SinglePostView() {
       {!editing && (
         <>
           <h3>{post.Title}</h3>
+          {post.ImgURL && <img src={post.ImgURL} alt={post.Title} className="post-image" />}
           <p>{post.Content}</p>
         </>
       )}
@@ -81,6 +82,7 @@ export function SinglePostView() {
             setPost({ ...post, Title: updated.title, Content: updated.content })
             setEditing(false)
           }}
+          onImageUploaded={(imgUrl) => setPost({ ...post, ImgURL: imgUrl })}
           onCancel={() => setEditing(false)}
         />
       )}
