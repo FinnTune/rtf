@@ -238,6 +238,24 @@ text-decoration: none;
 text-decoration: underline;
 }
 
+.reaction-buttons {
+display: flex;
+gap: 8px;
+margin-top: 10px;
+}
+
+.reaction-btn {
+margin: 0;
+padding: 6px 12px;
+font-size: 13px;
+flex-grow: 0;
+}
+
+.reaction-btn.active {
+background-color: var(--surface-hover);
+border-color: rgba(255, 255, 255, 0.4);
+}
+
 /* Header styles */
 .header {
 display: flex;

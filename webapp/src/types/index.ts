@@ -1,5 +1,9 @@
 // Post's JSON keys have no server-side struct tags — these field names are
-// the literal wire format (websocket/structs.go's Post struct).
+// the literal wire format (websocket/structs.go's Post struct). MyReaction
+// is "none" | "liked" | "disliked" — "none" for both an anonymous viewer
+// and a logged-in one who hasn't reacted (the two are indistinguishable
+// from the response alone, since post-listing endpoints don't require
+// login just to browse).
 export interface Post {
   PostId: number
   UserId: number
@@ -7,6 +11,9 @@ export interface Post {
   Content: string
   Author: string
   Created: string
+  LikeCount: number
+  DislikeCount: number
+  MyReaction: string
 }
 
 export interface Category {

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { Post } from '../../types'
+import { ReactionButtons } from './ReactionButtons'
 
 export function PostCard({ post }: { post: Post }) {
   return (
@@ -15,6 +16,7 @@ export function PostCard({ post }: { post: Post }) {
         {' · '}
         {post.Created}
       </div>
+      <ReactionButtons post={post} />
     </li>
   )
 }
