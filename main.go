@@ -133,6 +133,7 @@ func buildServer() *http.Server {
 	http.HandleFunc("/uploadPostImage", writeLimiter.Limit(websocket.CSRFProtect(websocket.UploadPostImageHandler)))
 	http.HandleFunc("/getPostsByCategory", readLimiter.Limit(websocket.PostsByCategoryHandler))
 	http.HandleFunc("/searchPosts", readLimiter.Limit(websocket.SearchPostsHandler))
+	http.HandleFunc("/searchMessages", readLimiter.Limit(websocket.SearchMessagesHandler))
 	http.HandleFunc("/addcomment", writeLimiter.Limit(websocket.CSRFProtect(websocket.AddCommentHandler)))
 	http.HandleFunc("/editComment", writeLimiter.Limit(websocket.CSRFProtect(websocket.EditCommentHandler)))
 	http.HandleFunc("/deleteComment", writeLimiter.Limit(websocket.CSRFProtect(websocket.DeleteCommentHandler)))
