@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { isTabInBackground, requestNotificationPermission, showBrowserNotification } from '../notifications'
 import { useAuth } from './AuthContext'
+import { useStatusMessage } from './StatusMessageContext'
 import { useWebSocket } from './WebSocketContext'
 import type { ChatMessageVM, ConversationInfo } from '../types'
 
@@ -97,7 +99,16 @@ function readStatesFor(info: ConversationInfo, myUsername: string): Record<strin
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const { subscribe, send } = useWebSocket()
+  const { showMessage } = useStatusMessage()
   const myUsername = user?.username ?? ''
+
+  // Asked for once per logged-in session, not per message — repeatedly
+  // calling requestPermission on an already-decided (granted or denied)
+  // permission is a harmless no-op, but there's no reason to try more than
+  // once per mount.
+  useEffect(() => {
+    if (myUsername) requestNotificationPermission()
+  }, [myUsername])
 
   const [onlineUsernames, setOnlineUsernames] = useState<string[]>([])
   const [unreadConversations, setUnreadConversations] = useState<Set<number>>(new Set())
@@ -238,6 +249,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         markRead(data.conversation_id, data.id)
       } else {
         markUnread(data.conversation_id)
+        // Only for the "wasn't already open" case — if the window IS open,
+        // the message already appears directly in the visible chat UI, so a
+        // toast on top of it would just be noise.
+        const title = info.is_group ? (info.name ?? 'Group chat') : data.from
+        showMessage(`New message from ${title}: ${data.message}`, 'info')
+      }
+
+      // A native OS notification, independent of whether the window is
+      // open — it's specifically for when the user isn't looking at this
+      // tab at all, which the in-app toast above can't reach them through.
+      if (isTabInBackground()) {
+        const title = info.is_group ? (info.name ?? 'Group chat') : data.from
+        const body = info.is_group ? `${data.from}: ${data.message}` : data.message
+        showBrowserNotification(title, body)
       }
     })
 
@@ -318,7 +343,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       unsubTyping()
       unsubStopTyping()
     }
-  }, [subscribe, myUsername, markUnread, markRead])
+  }, [subscribe, myUsername, markUnread, markRead, showMessage])
 
   const openDirectChat = useCallback(
     (username: string) => {
