@@ -1188,3 +1188,37 @@ font-size: 13px;
         flex-basis: 100%;
     }
 }
+
+/* Phone-width tightening — .chat-window in particular is unusable below
+   this without it: a fixed 280px float:right window (plus its floated
+   siblings, one per open conversation) either overflows a narrow viewport
+   or wraps into an illegible stack of slivers. Everything else here is
+   spacing/sizing tightened for a screen this narrow, not a structural
+   change (the single-column stack above already applies at this width). */
+@media (max-width: 600px) {
+    .app-shell {
+        padding: 0 12px;
+        margin: 12px auto;
+        gap: 12px;
+    }
+
+    .topbar {
+        padding: 10px 14px;
+        gap: 10px;
+    }
+
+    .topbar #title {
+        font-size: 18px;
+    }
+
+    .chat-window {
+        float: none;
+        clear: none;
+        width: auto;
+        margin: 8px auto;
+    }
+
+    .dropdown-content {
+        max-width: calc(100vw - 48px);
+    }
+}
