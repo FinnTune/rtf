@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { onActivationKey } from '../../a11y'
 import { searchMessages } from '../../api/chat'
 import { useChat } from '../../contexts/ChatContext'
 import { useStatusMessage } from '../../contexts/StatusMessageContext'
@@ -32,6 +33,7 @@ export function MessageSearchPanel() {
         <input
           type="text"
           placeholder="Search your messages..."
+          aria-label="Search your messages"
           value={query}
           maxLength={100}
           onChange={(event) => setQuery(event.target.value)}
@@ -47,7 +49,13 @@ export function MessageSearchPanel() {
             <li className="empty-state">No messages found.</li>
           ) : (
             results.map((result) => (
-              <li key={result.id} onClick={() => openConversationById(result.conversation_id)}>
+              <li
+                key={result.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => openConversationById(result.conversation_id)}
+                onKeyDown={onActivationKey(() => openConversationById(result.conversation_id))}
+              >
                 <div className="message-search-meta">
                   <strong>{result.from}</strong> in {getConversationTitle(result.conversation_id)}
                 </div>

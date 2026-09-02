@@ -6,7 +6,7 @@ import { useStatusMessage } from '../../contexts/StatusMessageContext'
 export function StatusBanner() {
   const { text, type } = useStatusMessage()
   return (
-    <div id="msg" className={`msg-${type}`}>
+    <div id="msg" className={`msg-${type}`} role={type === 'error' ? 'alert' : 'status'}>
       {text}
     </div>
   )

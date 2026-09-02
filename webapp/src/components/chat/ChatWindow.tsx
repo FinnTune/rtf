@@ -66,7 +66,7 @@ export function ChatWindow({ state }: ChatWindowProps) {
       ? null
       : state.isGroup
         ? `${[...state.typingUsers].join(', ')} typing...`
-        : 'typing...'
+        : `${state.title} is typing...`
 
   // "Seen by" compares against the newest message with a real (server-
   // confirmed) id — id 0 marks a not-yet-reconciled local echo of this
@@ -83,7 +83,7 @@ export function ChatWindow({ state }: ChatWindowProps) {
   return (
     <div className="chat-window" id={`chat:${conversationId}`}>
       <h3>{state.isGroup ? state.title : `Chat with ${state.title}`}</h3>
-      <button type="button" className="close-chat" onClick={() => closeChat(conversationId)}>
+      <button type="button" className="close-chat" aria-label="Close chat" onClick={() => closeChat(conversationId)}>
         x
       </button>
       <div className="chat-messages" id={`chat-messages-${conversationId}`} onScroll={handleScroll}>
@@ -104,7 +104,13 @@ export function ChatWindow({ state }: ChatWindowProps) {
       <div className="typing">
         {typingLabel && (
           <>
-            <img id={`typing-indicator-${conversationId}`} src="/img/typing.gif" width={30} height={30} alt="" />
+            <img
+              id={`typing-indicator-${conversationId}`}
+              src="/img/typing.gif"
+              width={30}
+              height={30}
+              alt={state.isGroup ? '' : typingLabel}
+            />
             {state.isGroup && <span>{typingLabel}</span>}
           </>
         )}

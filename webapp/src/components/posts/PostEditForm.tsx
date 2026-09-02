@@ -66,8 +66,16 @@ export function PostEditForm({ post, onSaved, onImageUploaded, onCancel }: PostE
 
   return (
     <div id="edit-post-form">
-      <input type="text" value={title} maxLength={100} required onChange={(event) => setTitle(event.target.value)} />
-      <textarea value={content} maxLength={2000} rows={4} cols={50} required onChange={(event) => setContent(event.target.value)} />
+      <input type="text" aria-label="Title" value={title} maxLength={100} required onChange={(event) => setTitle(event.target.value)} />
+      <textarea
+        aria-label="Content"
+        value={content}
+        maxLength={2000}
+        rows={4}
+        cols={50}
+        required
+        onChange={(event) => setContent(event.target.value)}
+      />
       <CategoryPicker selected={categories} onChange={setCategories} />
       <div className="edit-post-image">
         <input

@@ -67,6 +67,7 @@ function ManageCategoriesForm() {
           value={newName}
           maxLength={30}
           placeholder="New category name"
+          aria-label="New category name"
           onChange={(event) => setNewName(event.target.value)}
         />
         <LoadingButton type="submit" className="btns btn-primary" loading={creating} loadingText="Adding...">
