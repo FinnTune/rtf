@@ -93,6 +93,56 @@ func (c *Client) touch() {
 	c.lastSeen = time.Now()
 }
 
+// sendTimeout bounds how long send() blocks on a client's egress channel.
+// egress is unbuffered and only writeMesssage's own goroutine ever reads
+// it — a connection that drops without a clean close (no read/write error
+// ever surfacing, e.g. a bare network drop) leaves that goroutine gone with
+// nothing left to drain it, and readMessages/writeMesssage's cleanup paths
+// deliberately don't remove such a client from manager.clients (that map
+// lookup is also how ServeWS finds and reuses the same Client object across
+// a reconnect — see TestServeWS_ExistingClient_ReconnectsSameClient).
+// Without a bound here, one such stale client would hang every future
+// broadcast that happens to reach it — an unbuffered, un-timed-out send is
+// what turned that into a real, repeatedly-observed outage.
+//
+// A var, not a const, so tests can shrink it (see SetSendTimeoutForTest in
+// testhooks.go) rather than actually waiting out 2 real seconds to prove a
+// blocked send gives up.
+var sendTimeout = 2 * time.Second
+
+// send delivers an event to this client's egress channel, giving up (and
+// reporting failure rather than blocking indefinitely) if writeMesssage
+// doesn't drain it within sendTimeout. Every send to a Client's egress
+// channel — direct reply or broadcast — should go through this rather than
+// writing to egress directly.
+func (c *Client) send(event Event) bool {
+	select {
+	case c.egress <- event:
+		return true
+	case <-time.After(sendTimeout):
+		log.Printf("timed out delivering %q event to %s; dropping", event.Type, c.username)
+		return false
+	}
+}
+
+// broadcastTo delivers event to every client in recipients concurrently —
+// each recipient's send() runs in its own goroutine, so one slow/stuck
+// recipient's up-to-sendTimeout wait doesn't delay delivery to the others.
+// A sequential loop of send() calls would still be correct (each call is
+// itself bounded) but a broadcast to N stale recipients would then take up
+// to N*sendTimeout instead of a single sendTimeout for the whole batch.
+func broadcastTo(recipients []*Client, event Event) {
+	var wg sync.WaitGroup
+	for _, recipient := range recipients {
+		wg.Add(1)
+		go func(c *Client) {
+			defer wg.Done()
+			c.send(event)
+		}(recipient)
+	}
+	wg.Wait()
+}
+
 // expired reports whether the session has been idle longer than
 // utility.SessionDuration.
 func (c *Client) expired() bool {

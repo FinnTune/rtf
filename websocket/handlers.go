@@ -401,9 +401,10 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 		// Find the client with the matching session ID. Looked up and
 		// released under lock rather than held for the whole function —
 		// m.removeClient below acquires the same lock itself, and holding it
-		// across that call (or across the egress sends further down, which
-		// can block on a slow/stuck client since egress is unbuffered) would
-		// either deadlock or stall every other manager operation.
+		// across that call (or across the send() calls further down, each
+		// bounded by sendTimeout but still real wall-clock time against a
+		// slow client) would either deadlock or stall every other manager
+		// operation.
 		m.Lock()
 		var client *Client
 		for c := range m.clients {
@@ -440,9 +441,7 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 
 		log.Println("Logout and new users list sent")
 
-		for _, recipient := range m.clientsSnapshot() {
-			recipient.egress <- outgoingEvent
-		}
+		broadcastTo(m.clientsSnapshot(), outgoingEvent)
 
 		// Send the login status to the client
 		w.Header().Set("Content-Type", "application/json")

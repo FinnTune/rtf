@@ -15,6 +15,16 @@ func ResetTestState() {
 	LoggedInUsers = make(map[string]*Client)
 }
 
+// SetSendTimeoutForTest temporarily shrinks send()'s egress-channel timeout
+// so a test can prove a blocked send gives up without actually waiting out
+// the real (2s) production timeout. Returns a restore func; callers should
+// defer it.
+func SetSendTimeoutForTest(d time.Duration) (restore func()) {
+	previous := sendTimeout
+	sendTimeout = d
+	return func() { sendTimeout = previous }
+}
+
 // CheckOriginForTest exposes origin validation for external test packages.
 func CheckOriginForTest(r *http.Request) bool {
 	return checkOrigin(r)
