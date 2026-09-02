@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from './AuthContext'
 import { ChatProvider, useChat } from './ChatContext'
-import { StatusMessageProvider } from './StatusMessageContext'
+import { StatusMessageProvider, useStatusMessage } from './StatusMessageContext'
 import { WebSocketProvider } from './WebSocketContext'
 
 class ControllableFakeWebSocket {
@@ -69,6 +69,20 @@ async function setup(myUsername = 'alice') {
   vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(checkLoginResponse(myUsername))))
 
   const { result } = renderHook(() => useChat(), { wrapper })
+  await waitFor(() => expect(ControllableFakeWebSocket.instances.length).toBe(1))
+  const socket = ControllableFakeWebSocket.instances[0]
+  act(() => socket.simulateOpen())
+  return { result, socket }
+}
+
+// Like setup(), but also exposes the status banner state — for tests
+// asserting on the in-app toast a chat notification triggers.
+async function setupWithStatus(myUsername = 'alice') {
+  ControllableFakeWebSocket.instances = []
+  vi.stubGlobal('WebSocket', ControllableFakeWebSocket)
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(checkLoginResponse(myUsername))))
+
+  const { result } = renderHook(() => ({ chat: useChat(), status: useStatusMessage() }), { wrapper })
   await waitFor(() => expect(ControllableFakeWebSocket.instances.length).toBe(1))
   const socket = ControllableFakeWebSocket.instances[0]
   act(() => socket.simulateOpen())
@@ -276,5 +290,29 @@ describe('ChatContext', () => {
     expect(result.current.openWindows[9].isGroup).toBe(true)
     expect(result.current.openWindows[9].title).toBe('Trip Planning')
     expect(result.current.groupChats.map((g) => g.conversation_id)).toContain(9)
+  })
+
+  it('shows an in-app toast when a message arrives for a conversation with no open window', async () => {
+    const { result, socket } = await setupWithStatus()
+
+    act(() =>
+      socket.simulateMessage('sent-message', { id: 1, conversation_id: 5, from: 'bob', message: 'hi there', sent: '2026-01-01T00:00:00Z' }),
+    )
+
+    await waitFor(() => expect(result.current.status.text).toBe('New message from bob: hi there'))
+    expect(result.current.status.type).toBe('info')
+  })
+
+  it('does not show an in-app toast when the message arrives for an already-open window', async () => {
+    const { result, socket } = await setupWithStatus()
+    const convId = openBobConversation(socket, { current: result.current.chat })
+    await waitFor(() => expect(result.current.chat.openWindows[convId]).toBeDefined())
+
+    act(() =>
+      socket.simulateMessage('sent-message', { id: 1, conversation_id: convId, from: 'bob', message: 'hi there', sent: '2026-01-01T00:00:00Z' }),
+    )
+
+    await waitFor(() => expect(result.current.chat.openWindows[convId].messages).toHaveLength(1))
+    expect(result.current.status.text).toBe('')
   })
 })
