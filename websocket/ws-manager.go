@@ -120,7 +120,7 @@ func sendMessage(event Event, c *Client) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal message-ack event: %s", err)
 	}
-	c.egress <- Event{Type: MessageAck, Payload: ackData}
+	c.send(Event{Type: MessageAck, Payload: ackData})
 
 	return nil
 }
@@ -138,11 +138,13 @@ func broadcastToConversation(m *Manager, convID, excludeUserID int, outgoingEven
 		members[id] = true
 	}
 
+	var recipients []*Client
 	for _, recipient := range m.clientsSnapshot() {
 		if recipient.userID != excludeUserID && members[recipient.userID] {
-			recipient.egress <- outgoingEvent
+			recipients = append(recipients, recipient)
 		}
 	}
+	broadcastTo(recipients, outgoingEvent)
 	return nil
 }
 
@@ -167,9 +169,7 @@ func addUserInfo(event Event, c *Client) error {
 		Type:    UsersList,
 	}
 
-	for _, recipient := range c.manager.clientsSnapshot() {
-		recipient.egress <- outgoingEvent
-	}
+	broadcastTo(c.manager.clientsSnapshot(), outgoingEvent)
 
 	return nil
 }
@@ -260,7 +260,7 @@ func sendChatHistory(c *Client, messages []ChatHistoryMessage) error {
 
 	// Deliver directly to the requesting connection — it's already known
 	// and authenticated, no need to search for it by (spoofable) username.
-	c.egress <- outgoingEvent
+	c.send(outgoingEvent)
 	log.Println("History sent to: ", c.username)
 	return nil
 }
@@ -386,11 +386,13 @@ func createGroupChat(event Event, c *Client) error {
 	for _, id := range memberIDs {
 		memberSet[id] = true
 	}
+	var recipients []*Client
 	for _, recipient := range c.manager.clientsSnapshot() {
 		if memberSet[recipient.userID] {
-			recipient.egress <- outgoingEvent
+			recipients = append(recipients, recipient)
 		}
 	}
+	broadcastTo(recipients, outgoingEvent)
 	return nil
 }
 
@@ -407,7 +409,7 @@ func getConversations(event Event, c *Client) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal conversations-list event: %s", err)
 	}
-	c.egress <- Event{Type: ConversationsList, Payload: data}
+	c.send(Event{Type: ConversationsList, Payload: data})
 	return nil
 }
 
@@ -463,7 +465,7 @@ func sendChatOpened(c *Client, info ConversationInfo) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal chat-opened event: %s", err)
 	}
-	c.egress <- Event{Type: ChatOpened, Payload: data}
+	c.send(Event{Type: ChatOpened, Payload: data})
 	return nil
 }
 
@@ -476,7 +478,7 @@ func sendChatError(c *Client, message string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal chat-error event: %s", err)
 	}
-	c.egress <- Event{Type: ChatError, Payload: data}
+	c.send(Event{Type: ChatError, Payload: data})
 	return nil
 }
 
