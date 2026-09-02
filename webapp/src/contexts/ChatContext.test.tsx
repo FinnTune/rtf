@@ -1,64 +1,8 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
-import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AuthProvider } from './AuthContext'
-import { ChatProvider, useChat } from './ChatContext'
-import { StatusMessageProvider, useStatusMessage } from './StatusMessageContext'
-import { WebSocketProvider } from './WebSocketContext'
-
-class ControllableFakeWebSocket {
-  static instances: ControllableFakeWebSocket[] = []
-  static readonly OPEN = 1
-  readyState = 0
-  onopen: (() => void) | null = null
-  onclose: (() => void) | null = null
-  onmessage: ((event: MessageEvent<string>) => void) | null = null
-  sent: string[] = []
-  url: string
-  constructor(url: string) {
-    this.url = url
-    ControllableFakeWebSocket.instances.push(this)
-  }
-  send(data: string) {
-    this.sent.push(data)
-  }
-  close() {
-    this.onclose?.()
-  }
-  simulateOpen() {
-    this.readyState = 1
-    this.onopen?.()
-  }
-  simulateMessage(type: string, payload: unknown) {
-    this.onmessage?.({ data: JSON.stringify({ type, payload }) } as MessageEvent<string>)
-  }
-}
-
-function checkLoginResponse(username: string) {
-  return new Response(
-    JSON.stringify({
-      loggedIn: true,
-      id: 1,
-      username,
-      email: 'a@example.com',
-      joined: '2026-01-01',
-      otp: 'otp-' + Math.random(),
-    }),
-    { status: 200 },
-  )
-}
-
-function wrapper({ children }: { children: ReactNode }) {
-  return (
-    <StatusMessageProvider>
-      <AuthProvider>
-        <WebSocketProvider>
-          <ChatProvider>{children}</ChatProvider>
-        </WebSocketProvider>
-      </AuthProvider>
-    </StatusMessageProvider>
-  )
-}
+import { useChat } from './ChatContext'
+import { useStatusMessage } from './StatusMessageContext'
+import { ControllableFakeWebSocket, chatWrapper as wrapper, checkLoginResponse } from '../testUtils/chatTestHarness'
 
 async function setup(myUsername = 'alice') {
   ControllableFakeWebSocket.instances = []
