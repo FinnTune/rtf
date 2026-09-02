@@ -33,6 +33,7 @@ export function CommentForm({ postId, onAdded }: { postId: number; onAdded: (com
         type="text"
         name="comment"
         placeholder="Enter your comment here"
+        aria-label="Enter your comment here"
         maxLength={500}
         required
         value={content}

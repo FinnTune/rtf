@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { onActivationKey } from '../../a11y'
 import { useChat } from '../../contexts/ChatContext'
 
 export function GroupChatsPanel() {
@@ -39,6 +40,7 @@ export function GroupChatsPanel() {
           <input
             type="text"
             placeholder="Group name"
+            aria-label="Group name"
             value={name}
             maxLength={50}
             onChange={(event) => setName(event.target.value)}
@@ -62,9 +64,15 @@ export function GroupChatsPanel() {
 
       <ul id="group-chats-list">
         {groupChats.map((info) => (
-          <li key={info.conversation_id} onClick={() => openConversation(info)}>
+          <li
+            key={info.conversation_id}
+            role="button"
+            tabIndex={0}
+            onClick={() => openConversation(info)}
+            onKeyDown={onActivationKey(() => openConversation(info))}
+          >
             {info.name}
-            {unreadConversations.has(info.conversation_id) && <span className="msg-alert">!</span>}
+            {unreadConversations.has(info.conversation_id) && <span className="msg-alert" aria-label="Unread messages">!</span>}
           </li>
         ))}
       </ul>

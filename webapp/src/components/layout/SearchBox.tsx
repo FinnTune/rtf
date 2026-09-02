@@ -28,6 +28,7 @@ export function SearchBox({ showClear, onSubmit, onClear }: SearchBoxProps) {
         id="search-input"
         name="q"
         placeholder="Search posts..."
+        aria-label="Search posts"
         maxLength={100}
         value={query}
         onChange={(event) => setQuery(event.target.value)}

@@ -133,7 +133,7 @@ describe('ChatWindow', () => {
     // closeChat's effect lives in ChatContext state, not observable from
     // ChatWindow's own DOM when rendered with a standalone state prop —
     // this just confirms the control exists and doesn't throw on click.
-    const closeButton = screen.getByRole('button', { name: 'x' })
+    const closeButton = screen.getByRole('button', { name: 'Close chat' })
     await userEvent.click(closeButton)
     expect(closeButton).toBeInTheDocument()
   })

@@ -44,7 +44,9 @@ export function CategoryPicker({ selected, onChange }: CategoryPickerProps) {
 
   return (
     <div className="dropdown">
-      <span onClick={() => setIsOpen((open) => !open)}>Select Categories&gt;&gt;</span>
+      <button type="button" className="dropdown-toggle" aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)}>
+        Select Categories&gt;&gt;
+      </button>
       {isOpen && (
         <div className="dropdown-content">
           {categories.map((category) => (

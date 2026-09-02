@@ -58,6 +58,7 @@ export function CommentItem({ comment, onDeleted, onEdited }: CommentItemProps) 
       <p className="comment">
         <input
           type="text"
+          aria-label="Edit comment"
           value={content}
           maxLength={500}
           required

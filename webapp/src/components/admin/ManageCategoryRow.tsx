@@ -49,7 +49,7 @@ export function ManageCategoryRow({ category, onChanged }: ManageCategoryRowProp
   if (editing) {
     return (
       <li className="manage-category-row">
-        <input type="text" value={name} maxLength={30} onChange={(event) => setName(event.target.value)} />
+        <input type="text" aria-label="Category name" value={name} maxLength={30} onChange={(event) => setName(event.target.value)} />
         <LoadingButton type="button" className="btns btn-primary" loading={saving} loadingText="Saving..." onClick={() => void handleSave()}>
           Save
         </LoadingButton>

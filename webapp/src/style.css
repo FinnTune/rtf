@@ -1037,18 +1037,21 @@ position: relative;
 display: inline-block;
 }
 
-.dropdown > span {
+.dropdown-toggle {
 display: inline-block;
 padding: 8px 12px;
+margin: 0;
 border: 1px solid var(--border-subtle);
 border-radius: var(--radius-sm);
+background: none;
 cursor: pointer;
 font-size: 14px;
+font-family: inherit;
 color: var(--text-muted);
 transition: border-color var(--transition), color var(--transition);
 }
 
-.dropdown > span:hover {
+.dropdown-toggle:hover {
 border-color: var(--border-strong);
 color: #fff;
 }
