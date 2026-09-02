@@ -39,6 +39,12 @@ interface ChatContextValue {
   // full info is already known — e.g. clicking an entry in the group chats
   // list, where unlike a direct chat there's no username to resolve first.
   openConversation: (info: ConversationInfo) => void
+  // Same, but by id — for contexts (like a message search result) that
+  // only have a conversation_id and rely on it already being in the
+  // locally-known conversations map (populated by get-conversations on
+  // connect, so true for any conversation with messages in it).
+  openConversationById: (conversationId: number) => void
+  getConversationTitle: (conversationId: number) => string
   createGroupChat: (name: string, usernames: string[]) => void
   closeChat: (conversationId: number) => void
   sendMessage: (conversationId: number, text: string) => void
@@ -144,6 +150,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const groupChats = useMemo(() => Object.values(conversations).filter((c) => c.is_group), [conversations])
 
+  const getConversationTitle = useCallback(
+    (conversationId: number) => {
+      const info = conversations[conversationId]
+      return info ? titleFor(info, myUsername) : `Conversation ${conversationId}`
+    },
+    [conversations, myUsername],
+  )
+
   const markUnread = useCallback((conversationId: number) => {
     setUnreadConversations((prev) => (prev.has(conversationId) ? prev : new Set(prev).add(conversationId)))
   }, [])
@@ -184,6 +198,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     revealWindowRef.current = revealWindow
   }, [revealWindow])
+
+  const openConversationById = useCallback(
+    (conversationId: number) => {
+      const info = conversationsRef.current[conversationId]
+      if (info) revealWindow(info)
+    },
+    [revealWindow],
+  )
 
   // Reports having seen up to messageId — skipped for the sender's own
   // messages, since ws-manager.go's sendMessage already auto-advances the
@@ -446,6 +468,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         groupChats,
         openDirectChat,
         openConversation: revealWindow,
+        openConversationById,
+        getConversationTitle,
         createGroupChat,
         closeChat,
         sendMessage,

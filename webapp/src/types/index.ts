@@ -94,3 +94,13 @@ export interface ConversationInfo {
   members: ConversationMember[]
   read_states: ReadState[]
 }
+
+// Matches websocket.ChatHistoryMessage's JSON tags — the /searchMessages
+// REST endpoint returns this same shape.
+export interface MessageSearchResult {
+  id: number
+  conversation_id: number
+  from: string
+  message: string
+  created_at: string
+}

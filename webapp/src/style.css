@@ -952,6 +952,86 @@ transition: background-color var(--transition);
 background-color: rgba(255, 255, 255, 0.08);
 }
 
+#message-search {
+margin-top: 14px;
+padding: 14px;
+border: 1px solid var(--border-subtle);
+border-radius: var(--radius);
+background-color: var(--primary-color);
+color: #fff;
+box-shadow: var(--shadow-sm);
+}
+
+#message-search h3 {
+margin: 0 0 10px;
+padding: 0 0 10px;
+border-bottom: 1px solid var(--border-subtle);
+font-size: 15px;
+text-transform: uppercase;
+letter-spacing: 0.6px;
+}
+
+#message-search form {
+display: flex;
+gap: 6px;
+}
+
+#message-search input[type='text'] {
+flex: 1;
+min-width: 0;
+padding: 8px 10px;
+border: 1px solid var(--border-subtle);
+border-radius: var(--radius-sm);
+background-color: rgba(255, 255, 255, 0.06);
+color: #fff;
+box-sizing: border-box;
+}
+
+#message-search form .btns {
+flex-grow: 0;
+margin: 0;
+}
+
+#message-search-results {
+list-style: none;
+margin: 12px 0 0;
+padding: 0;
+display: flex;
+flex-direction: column;
+gap: 4px;
+max-height: 260px;
+overflow-y: auto;
+}
+
+#message-search-results li {
+padding: 8px;
+border-radius: var(--radius-sm);
+cursor: pointer;
+transition: background-color var(--transition);
+}
+
+#message-search-results li:hover {
+background-color: rgba(255, 255, 255, 0.08);
+}
+
+#message-search-results li.empty-state {
+cursor: default;
+color: var(--text-muted);
+font-size: 13px;
+}
+
+.message-search-meta {
+font-size: 12px;
+color: var(--text-muted);
+}
+
+.message-search-snippet {
+font-size: 14px;
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+}
+
 .dropdown {
 position: relative;
 display: inline-block;
