@@ -1,61 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AuthProvider } from '../../contexts/AuthContext'
-import { ChatProvider } from '../../contexts/ChatContext'
-import { StatusMessageProvider } from '../../contexts/StatusMessageContext'
-import { WebSocketProvider } from '../../contexts/WebSocketContext'
+import { ControllableFakeWebSocket, chatWrapper as wrapper, checkLoginResponse, requestUrl } from '../../testUtils/chatTestHarness'
 import { MessageSearchPanel } from './MessageSearchPanel'
-
-class ControllableFakeWebSocket {
-  static instances: ControllableFakeWebSocket[] = []
-  static readonly OPEN = 1
-  readyState = 0
-  onopen: (() => void) | null = null
-  onclose: (() => void) | null = null
-  onmessage: ((event: MessageEvent<string>) => void) | null = null
-  sent: string[] = []
-  constructor() {
-    ControllableFakeWebSocket.instances.push(this)
-  }
-  send(data: string) {
-    this.sent.push(data)
-  }
-  close() {
-    this.onclose?.()
-  }
-  simulateOpen() {
-    this.readyState = 1
-    this.onopen?.()
-  }
-  simulateMessage(type: string, payload: unknown) {
-    this.onmessage?.({ data: JSON.stringify({ type, payload }) } as MessageEvent<string>)
-  }
-}
-
-function requestUrl(input: string | URL | Request): string {
-  return typeof input === 'string' ? input : input.toString()
-}
-
-function checkLoginResponse() {
-  return new Response(
-    JSON.stringify({ loggedIn: true, id: 1, username: 'alice', email: 'a@example.com', joined: '2026-01-01', otp: 'otp-' + Math.random() }),
-    { status: 200 },
-  )
-}
-
-function wrapper({ children }: { children: ReactNode }) {
-  return (
-    <StatusMessageProvider>
-      <AuthProvider>
-        <WebSocketProvider>
-          <ChatProvider>{children}</ChatProvider>
-        </WebSocketProvider>
-      </AuthProvider>
-    </StatusMessageProvider>
-  )
-}
 
 async function setup(searchResponse: unknown) {
   ControllableFakeWebSocket.instances = []
@@ -64,7 +11,7 @@ async function setup(searchResponse: unknown) {
     'fetch',
     vi.fn(async (input: string | URL | Request) => {
       const url = requestUrl(input)
-      if (url.startsWith('/checkLogin')) return checkLoginResponse()
+      if (url.startsWith('/checkLogin')) return checkLoginResponse('alice')
       if (url.startsWith('/searchMessages')) return new Response(JSON.stringify(searchResponse), { status: 200 })
       throw new Error('Unexpected fetch in test: ' + url)
     }),
