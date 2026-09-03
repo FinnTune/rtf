@@ -105,6 +105,27 @@ func migrate(db *sql.DB) error {
 		return fmt.Errorf("creating message_read table: %w", err)
 	}
 
+	// CREATE INDEX IF NOT EXISTS is idempotent on its own — no existence
+	// check needed, unlike the ALTER TABLE column additions above. These
+	// back hot-path lookups (chat history, comment listing/counts, category
+	// filtering, reaction batching, per-author feeds, and every user's own
+	// conversation list) that SQLite would otherwise full-scan for, since it
+	// doesn't auto-index foreign-key columns.
+	indexStatements := []string{
+		`CREATE INDEX IF NOT EXISTS idx_message_conversation_id ON message(conversation_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_comment_post_id ON comment(post_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_category_relation_post_id ON category_relation(post_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_category_relation_category_id ON category_relation(category_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_user_post_reaction_post_id ON user_post_reaction(post_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_conversation_member_user_id ON conversation_member(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_post_author ON post(author)`,
+	}
+	for _, stmt := range indexStatements {
+		if _, err := db.Exec(stmt); err != nil {
+			return fmt.Errorf("creating index (%s): %w", stmt, err)
+		}
+	}
+
 	return nil
 }
 

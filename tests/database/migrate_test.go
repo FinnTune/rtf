@@ -11,7 +11,12 @@ import (
 
 // preRoleSchema is the user table shape before the role column existed —
 // standing in for an already-deployed database that predates the
-// migration, the exact case OpenDB's migrate() has to handle.
+// migration, the exact case OpenDB's migrate() has to handle. comment,
+// category_relation, and the legacy-shape message table are included
+// because they're all original, core tables/shapes present since this
+// project's very first schema — any real database this old would already
+// have them — unlike user_post_reaction/conversation_member, which
+// migrate() itself is responsible for conditionally creating.
 const preRoleSchema = `
 CREATE TABLE user (
 	id INTEGER NOT NULL PRIMARY KEY,
@@ -31,6 +36,29 @@ CREATE TABLE post (
 	title VARCHAR(30) NOT NULL,
 	content VARCHAR(150) NOT NULL,
 	author VARCHAR(30) NOT NULL,
+	created_at DATETIME NOT NULL
+);
+
+CREATE TABLE comment (
+	id INTEGER NOT NULL PRIMARY KEY,
+	user_id INTEGER NOT NULL,
+	post_id INTEGER NOT NULL,
+	content VARCHAR(150) NOT NULL,
+	created_at DATETIME NOT NULL
+);
+
+CREATE TABLE category_relation (
+	id INTEGER NOT NULL PRIMARY KEY,
+	category_id INTEGER NOT NULL,
+	post_id INTEGER NOT NULL
+);
+
+CREATE TABLE message (
+	id INTEGER NOT NULL PRIMARY KEY,
+	from_user INTEGER NOT NULL,
+	to_user INTEGER NOT NULL,
+	is_read TINYINT(1) NOT NULL,
+	txt TEXT NOT NULL,
 	created_at DATETIME NOT NULL
 );
 `

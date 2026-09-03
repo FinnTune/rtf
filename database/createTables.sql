@@ -126,6 +126,18 @@ CREATE TABLE message_read (
  FOREIGN KEY(user_id) REFERENCES user(id)
 );
 
+-- SQLite doesn't auto-index foreign-key columns the way some databases do —
+-- these back hot-path lookups (chat history, comment listing/counts,
+-- category filtering, reaction batching, per-author feeds, and every user's
+-- own conversation list) that would otherwise be a full table scan.
+CREATE INDEX idx_message_conversation_id ON message(conversation_id);
+CREATE INDEX idx_comment_post_id ON comment(post_id);
+CREATE INDEX idx_category_relation_post_id ON category_relation(post_id);
+CREATE INDEX idx_category_relation_category_id ON category_relation(category_id);
+CREATE INDEX idx_user_post_reaction_post_id ON user_post_reaction(post_id);
+CREATE INDEX idx_conversation_member_user_id ON conversation_member(user_id);
+CREATE INDEX idx_post_author ON post(author);
+
 -- Insert in user table for testing
 -- INSERT INTO user ( id, fname, lname, uname, email, age, gender, pass, created_at) VALUES (1, admin, admin, admin, admin@example.com, 1, male, passHash!!!,  DateTime('now', 'localtime'))
 

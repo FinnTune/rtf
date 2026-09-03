@@ -7,25 +7,13 @@ import (
 	"rtForum/database"
 )
 
-// seedPreConversationUsersAndMessages adds a legacy-shape message table
-// (the shape createTables.sql used before the conversation model) plus two
-// users, onto the shared pre-role/pre-img_url schema from migrate_test.go —
-// standing in for an already-deployed database that predates the
-// conversation migration.
+// seedPreConversationUsersAndMessages seeds two users onto the shared
+// pre-role/pre-img_url schema from migrate_test.go, which already includes
+// the legacy-shape message table (the shape createTables.sql used before
+// the conversation model) — standing in for an already-deployed database
+// that predates the conversation migration.
 func seedPreConversationUsersAndMessages(t *testing.T, db *sql.DB) {
 	t.Helper()
-	if _, err := db.Exec(`
-		CREATE TABLE message (
-			id INTEGER NOT NULL PRIMARY KEY,
-			from_user INTEGER NOT NULL,
-			to_user INTEGER NOT NULL,
-			is_read TINYINT(1) NOT NULL,
-			txt TEXT NOT NULL,
-			created_at DATETIME NOT NULL
-		);
-	`); err != nil {
-		t.Fatalf("failed to create legacy message table: %v", err)
-	}
 	if _, err := db.Exec(`
 		INSERT INTO user (id, fname, lname, uname, email, age, gender, pass, created_at) VALUES
 		(1, 'Admin', 'User', 'admin', 'admin@example.com', '30', 'other', 'hash', datetime('now')),
