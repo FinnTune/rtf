@@ -23,7 +23,7 @@ RUN go build -o /out/rtforum .
 FROM debian:bookworm-slim
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends sqlite3 ca-certificates \
+    && apt-get install -y --no-install-recommends sqlite3 ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -34,5 +34,7 @@ COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
 EXPOSE 8443
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -kfs https://localhost:8443/healthz || exit 1
 ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["./rtforum"]
