@@ -2,7 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"rtForum/database"
 	"rtForum/utility"
@@ -44,7 +44,7 @@ func SearchMessagesHandler(w http.ResponseWriter, r *http.Request) {
 		ORDER BY message.created_at DESC, message.id DESC
 		LIMIT ?`, client.userID, likePattern, maxSearchResults)
 	if err != nil {
-		log.Printf("Error executing message search query: %s", err)
+		slog.Error("error executing message search query", "error", err)
 		http.Error(w, "Failed to search messages", http.StatusInternalServerError)
 		return
 	}
@@ -54,14 +54,14 @@ func SearchMessagesHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var m ChatHistoryMessage
 		if err := rows.Scan(&m.Id, &m.ConversationID, &m.From, &m.Message, &m.CreatedAt); err != nil {
-			log.Printf("Error scanning message search row: %s", err)
+			slog.Error("error scanning message search row", "error", err)
 			http.Error(w, "Failed to search messages", http.StatusInternalServerError)
 			return
 		}
 		results = append(results, m)
 	}
 	if err := rows.Err(); err != nil {
-		log.Printf("Error iterating message search rows: %s", err)
+		slog.Error("error iterating message search rows", "error", err)
 		http.Error(w, "Failed to search messages", http.StatusInternalServerError)
 		return
 	}

@@ -3,7 +3,8 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
+	"os"
 
 	//sqlite3
 	_ "github.com/mattn/go-sqlite3"
@@ -14,14 +15,16 @@ var ForumDB *sql.DB
 func OpenDB() *sql.DB {
 	dataBase, err := sql.Open("sqlite3", "./database/forum.db")
 	if err != nil {
-		log.Fatalf("Error opening database: %s", err)
+		slog.Error("error opening database", "error", err)
+		os.Exit(1)
 	}
-	log.Println("Database opened successfully.")
+	slog.Info("database opened successfully")
 
 	if err := migrate(dataBase); err != nil {
-		log.Fatalf("Error migrating database: %s", err)
+		slog.Error("error migrating database", "error", err)
+		os.Exit(1)
 	}
-	log.Println("Database migrations applied.")
+	slog.Info("database migrations applied")
 
 	return dataBase
 }
@@ -40,7 +43,7 @@ func migrate(db *sql.DB) error {
 		if _, err := db.Exec(`ALTER TABLE user ADD COLUMN role VARCHAR(10) NOT NULL DEFAULT 'user'`); err != nil {
 			return fmt.Errorf("adding user.role column: %w", err)
 		}
-		log.Println("Migrated: added role column to user table.")
+		slog.Info("migrated: added role column to user table")
 	}
 
 	// Convenience for local/dev databases that happen to have a real user
@@ -61,7 +64,7 @@ func migrate(db *sql.DB) error {
 		if _, err := db.Exec(`ALTER TABLE post ADD COLUMN img_url VARCHAR(200)`); err != nil {
 			return fmt.Errorf("adding post.img_url column: %w", err)
 		}
-		log.Println("Migrated: added img_url column to post table.")
+		slog.Info("migrated: added img_url column to post table")
 	}
 
 	// A brand-new table, unlike user.role above, so CREATE TABLE IF NOT

@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -77,7 +77,7 @@ func UploadPostImageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	} else if err != nil {
-		log.Printf("failed to look up post owner for image upload: %s", err)
+		slog.Error("failed to look up post owner for image upload", "error", err, "post_id", postID)
 		http.Error(w, "Failed to upload image", http.StatusInternalServerError)
 		return
 	}
@@ -99,7 +99,7 @@ func UploadPostImageHandler(w http.ResponseWriter, r *http.Request) {
 	sniff := make([]byte, 512)
 	n, err := file.Read(sniff)
 	if err != nil && err != io.EOF {
-		log.Printf("failed to read uploaded image: %s", err)
+		slog.Error("failed to read uploaded image", "error", err)
 		http.Error(w, "Failed to upload image", http.StatusInternalServerError)
 		return
 	}
@@ -110,20 +110,20 @@ func UploadPostImageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		log.Printf("failed to seek uploaded image: %s", err)
+		slog.Error("failed to seek uploaded image", "error", err)
 		http.Error(w, "Failed to upload image", http.StatusInternalServerError)
 		return
 	}
 
 	if err := os.MkdirAll(postImageUploadDir, 0755); err != nil {
-		log.Printf("failed to create upload directory: %s", err)
+		slog.Error("failed to create upload directory", "error", err)
 		http.Error(w, "Failed to upload image", http.StatusInternalServerError)
 		return
 	}
 
 	filename, err := randomImageFilename(ext)
 	if err != nil {
-		log.Printf("failed to generate image filename: %s", err)
+		slog.Error("failed to generate image filename", "error", err)
 		http.Error(w, "Failed to upload image", http.StatusInternalServerError)
 		return
 	}
@@ -131,25 +131,25 @@ func UploadPostImageHandler(w http.ResponseWriter, r *http.Request) {
 
 	dest, err := os.OpenFile(destPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
 	if err != nil {
-		log.Printf("failed to create image file: %s", err)
+		slog.Error("failed to create image file", "error", err, "path", destPath)
 		http.Error(w, "Failed to upload image", http.StatusInternalServerError)
 		return
 	}
 	if _, err := io.Copy(dest, file); err != nil {
 		dest.Close()
 		os.Remove(destPath)
-		log.Printf("failed to write image file: %s", err)
+		slog.Error("failed to write image file", "error", err, "path", destPath)
 		http.Error(w, "Failed to upload image", http.StatusInternalServerError)
 		return
 	}
 	if err := dest.Close(); err != nil {
-		log.Printf("failed to close image file: %s", err)
+		slog.Error("failed to close image file", "error", err, "path", destPath)
 	}
 
 	newImgURL := postImageURLPrefix + filename
 	if _, err := database.ForumDB.Exec("UPDATE post SET img_url = ? WHERE id = ?", newImgURL, postID); err != nil {
 		os.Remove(destPath)
-		log.Printf("failed to update post img_url: %s", err)
+		slog.Error("failed to update post img_url", "error", err, "post_id", postID)
 		http.Error(w, "Failed to upload image", http.StatusInternalServerError)
 		return
 	}
@@ -192,6 +192,6 @@ func deleteUploadedImage(imgURL string) {
 	}
 	path := filepath.Join(postImageUploadDir, filename)
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-		log.Printf("failed to remove old post image %q: %s", path, err)
+		slog.Error("failed to remove old post image", "path", path, "error", err)
 	}
 }

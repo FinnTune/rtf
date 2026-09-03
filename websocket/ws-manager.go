@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"rtForum/database"
 	"sync"
 	"time"
@@ -20,7 +20,7 @@ type Manager struct {
 
 // Factory function for manager
 func newManager(ctx context.Context) *Manager {
-	log.Println("Manager created.")
+	slog.Info("manager created")
 	m := &Manager{
 		clients:       make(ClientsMapList),
 		eventHandlers: make(map[string]EventHandler),
@@ -51,7 +51,8 @@ func (m *Manager) clientsSnapshot() []*Client {
 
 // Send message handler function
 func sendMessage(event Event, c *Client) error {
-	log.Printf("Event/message sent: %s", event)
+	// event.Payload carries the message text itself — never logged.
+	slog.Debug("send-message event received", "username", c.username, "event_type", event.Type)
 	var chatEvent ReceiveMessageEvent
 	if err := json.Unmarshal(event.Payload, &chatEvent); err != nil {
 		return fmt.Errorf("event unmarshalling error: %s", err)
@@ -66,7 +67,7 @@ func sendMessage(event Event, c *Client) error {
 		// could be stale (e.g. the conversation was never opened by this
 		// client) or malicious; dropping it silently avoids killing the
 		// connection over what's usually just a UI race, not an attack.
-		log.Printf("sendMessage: %s is not a member of conversation %d, dropping message", c.username, chatEvent.ConversationID)
+		slog.Warn("sendMessage: sender is not a conversation member, dropping message", "username", c.username, "conversation_id", chatEvent.ConversationID)
 		return nil
 	}
 
@@ -155,10 +156,10 @@ func broadcastToConversation(m *Manager, convID, excludeUserID int, outgoingEven
 // client-supplied values here would let any authenticated connection
 // declare itself to be any other user.
 func addUserInfo(event Event, c *Client) error {
-	log.Printf("Adding user info: %s", event)
+	slog.Debug("user-connect event received", "username", c.username)
 
 	LoggedInList.Add(c.username)
-	log.Println("User:", c.username, "added to LoggedInList")
+	slog.Info("user added to logged-in list", "username", c.username)
 
 	data, err := json.Marshal(LoggedInList.Snapshot())
 	if err != nil {
@@ -180,7 +181,7 @@ func getChatHistory(event Event, c *Client) error {
 	if err := json.Unmarshal(event.Payload, &req); err != nil {
 		return fmt.Errorf("event unmarshalling error: %s", err)
 	}
-	log.Println("History Request: ", req)
+	slog.Debug("chat history requested", "username", c.username, "conversation_id", req.ConversationID, "limit", req.Limit, "offset", req.Offset)
 
 	messages := []ChatHistoryMessage{}
 
@@ -243,7 +244,8 @@ func getChatHistory(event Event, c *Client) error {
 			CreatedAt:      createdAt,
 		})
 	}
-	log.Println("History of Messages: ", messages)
+	// Never log messages' content here — it's real chat history text.
+	slog.Debug("chat history loaded", "conversation_id", req.ConversationID, "count", len(messages))
 
 	return sendChatHistory(c, messages)
 }
@@ -261,7 +263,7 @@ func sendChatHistory(c *Client, messages []ChatHistoryMessage) error {
 	// Deliver directly to the requesting connection — it's already known
 	// and authenticated, no need to search for it by (spoofable) username.
 	c.send(outgoingEvent)
-	log.Println("History sent to: ", c.username)
+	slog.Debug("chat history sent", "username", c.username)
 	return nil
 }
 
@@ -515,7 +517,7 @@ func (m *Manager) addClient(client *Client) {
 
 	m.clients[client] = true //Add client to manager
 	if conn := client.getConnection(); conn != nil {
-		log.Println("Client:", conn.RemoteAddr(), "added to manager.")
+		slog.Info("client added to manager", "remote_addr", conn.RemoteAddr())
 	}
 }
 
