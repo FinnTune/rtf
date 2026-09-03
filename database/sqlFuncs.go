@@ -56,6 +56,17 @@ func migrate(db *sql.DB) error {
 		return fmt.Errorf("promoting seed admin user: %w", err)
 	}
 
+	hasBanned, err := columnExists(db, "user", "banned")
+	if err != nil {
+		return fmt.Errorf("checking for user.banned column: %w", err)
+	}
+	if !hasBanned {
+		if _, err := db.Exec(`ALTER TABLE user ADD COLUMN banned TINYINT(1) NOT NULL DEFAULT 0`); err != nil {
+			return fmt.Errorf("adding user.banned column: %w", err)
+		}
+		slog.Info("migrated: added banned column to user table")
+	}
+
 	hasImgURL, err := columnExists(db, "post", "img_url")
 	if err != nil {
 		return fmt.Errorf("checking for post.img_url column: %w", err)

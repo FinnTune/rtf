@@ -227,20 +227,35 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 			} else if client.loggedIn {
 				// If the client is found, the user is logged in
 				slog.Debug("session cookie found, user logged in", "username", client.username)
+
+				// Looked up fresh rather than cached on Client so a role
+				// change (promote/demote) or a ban takes effect on the
+				// user's very next checkLogin poll instead of only their
+				// next login.
+				var role string
+				var banned bool
+				if err := database.ForumDB.QueryRow("SELECT role, banned FROM user WHERE id = ?", client.userID).Scan(&role, &banned); err != nil {
+					slog.Error("error looking up role for checkLogin", "username", client.username, "error", err)
+				}
+				if banned {
+					slog.Info("banned user's session terminated at checkLogin", "username", client.username)
+					client.closeConnection()
+					delete(m.clients, client)
+					LoggedInList.Remove(client.username)
+					utility.ClearCookie(w)
+					w.Header().Set("Content-Type", "application/json")
+					json.NewEncoder(w).Encode(UserLoginResponse{
+						LoggedIn: false,
+					})
+					return
+				}
+
 				client.loggedIn = true
 				client.closeConnection()
 
 				// Otp
 				//Create new OTP and store in manager otps map
 				otp := m.otps.newOtp()
-
-				// Looked up fresh rather than cached on Client so a role
-				// change (promote/demote) takes effect on the user's very
-				// next checkLogin poll instead of only their next login.
-				var role string
-				if err := database.ForumDB.QueryRow("SELECT role FROM user WHERE id = ?", client.userID).Scan(&role); err != nil {
-					slog.Error("error looking up role for checkLogin", "username", client.username, "error", err)
-				}
 
 				// Send the login status to the client
 				w.Header().Set("Content-Type", "application/json")
@@ -307,7 +322,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 		userInfo := User{}
 
 		//Query database for user info, scan into struct, and check if password matches
-		err := database.ForumDB.QueryRow("SELECT id, uname, email, pass, created_at, role FROM user WHERE uname = $1 OR email = $1", req.Username).Scan(&userInfo.ID, &userInfo.Username, &userInfo.Email, &userInfo.Password, &userInfo.Joined, &userInfo.Role)
+		err := database.ForumDB.QueryRow("SELECT id, uname, email, pass, created_at, role, banned FROM user WHERE uname = $1 OR email = $1", req.Username).Scan(&userInfo.ID, &userInfo.Username, &userInfo.Email, &userInfo.Password, &userInfo.Joined, &userInfo.Role, &userInfo.Banned)
 		if err != nil {
 			// Never log userInfo here — never populated on this path, but
 			// this is also the wrong-username/wrong-password failure path in
@@ -317,8 +332,13 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			} else {
 				slog.Error("error querying database for login", "error", err)
 			}
-		} else if utility.CheckPasswordHash(req.Password, userInfo.Password) {
-
+		} else if !utility.CheckPasswordHash(req.Password, userInfo.Password) {
+			// Falls through to the unauthenticated response below.
+		} else if userInfo.Banned {
+			slog.Warn("login attempt for banned user", "username", userInfo.Username, "user_id", userInfo.ID)
+			http.Error(w, "This account has been banned.", http.StatusForbidden)
+			return
+		} else {
 			// Never log userInfo directly — it carries the user's password
 			// hash (userInfo.Password).
 			slog.Info("user authenticated", "username", userInfo.Username, "user_id", userInfo.ID)
@@ -942,18 +962,30 @@ func RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		var role string
-		if err := database.ForumDB.QueryRow("SELECT role FROM user WHERE id = ?", client.userID).Scan(&role); err != nil {
+		admin, err := isAdmin(client.userID)
+		if err != nil {
 			slog.Error("failed to look up role for admin check", "error", err, "user_id", client.userID)
 			http.Error(w, "Failed to verify permissions", http.StatusInternalServerError)
 			return
 		}
-		if role != "admin" {
+		if !admin {
 			http.Error(w, "Admin access required", http.StatusForbidden)
 			return
 		}
 		next(w, r)
 	}
+}
+
+// isAdmin reports whether userID currently has the admin role — always
+// looked up fresh from the database (never cached/trusted from client
+// input) so a promotion/demotion takes effect immediately, not just on the
+// user's next login.
+func isAdmin(userID int) (bool, error) {
+	var role string
+	if err := database.ForumDB.QueryRow("SELECT role FROM user WHERE id = ?", userID).Scan(&role); err != nil {
+		return false, err
+	}
+	return role == "admin", nil
 }
 
 // CreateCategoryHandler adds a new category. Admin-only (see RequireAdmin).
@@ -1121,6 +1153,107 @@ func DeleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Category deleted"))
+}
+
+// ListUsersHandler returns every user's public-ish account info (never the
+// password hash) for the admin "Manage Users" view. Admin-only (see
+// RequireAdmin).
+func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	rows, err := database.ForumDB.Query("SELECT id, uname, email, role, banned FROM user ORDER BY uname ASC")
+	if err != nil {
+		slog.Error("error querying users", "error", err)
+		http.Error(w, "Failed to load users", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	type userSummary struct {
+		ID       int    `json:"id"`
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Role     string `json:"role"`
+		Banned   bool   `json:"banned"`
+	}
+	users := []userSummary{}
+	for rows.Next() {
+		var u userSummary
+		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Role, &u.Banned); err != nil {
+			slog.Error("error scanning user row", "error", err)
+			http.Error(w, "Failed to load users", http.StatusInternalServerError)
+			return
+		}
+		users = append(users, u)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(users)
+}
+
+// SetUserBannedHandler bans or unbans a user. Admin-only (see RequireAdmin).
+// Banning immediately disconnects any of that user's live connections
+// (kickUser) and, from their very next checkLogin poll or login attempt
+// onward, rejects them outright — see serveLogin and checkLogin.
+func SetUserBannedHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var requestBody struct {
+		UserID int  `json:"user_id"`
+		Banned bool `json:"banned"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if requestBody.UserID <= 0 {
+		http.Error(w, "a valid user_id is required", http.StatusBadRequest)
+		return
+	}
+
+	// An admin banning their own account would strand every other admin
+	// action their own session might still need — never allowed, regardless
+	// of what kickUser would otherwise do to it.
+	client, clientErr := authenticatedClientFromRequest(r)
+	if clientErr == nil && requestBody.Banned && client.userID == requestBody.UserID {
+		http.Error(w, "you cannot ban your own account", http.StatusBadRequest)
+		return
+	}
+
+	result, err := database.ForumDB.Exec("UPDATE user SET banned = ? WHERE id = ?", requestBody.Banned, requestBody.UserID)
+	if err != nil {
+		slog.Error("failed to update banned status", "error", err, "user_id", requestBody.UserID)
+		http.Error(w, "Failed to update user", http.StatusInternalServerError)
+		return
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		slog.Error("failed to check rows affected", "error", err)
+		http.Error(w, "Failed to update user", http.StatusInternalServerError)
+		return
+	}
+	if rowsAffected == 0 {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	if requestBody.Banned {
+		manager.kickUser(requestBody.UserID)
+	}
+
+	changedBy := 0
+	if clientErr == nil {
+		changedBy = client.userID
+	}
+	slog.Info("user banned status changed", "user_id", requestBody.UserID, "banned", requestBody.Banned, "changed_by", changedBy)
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // SearchPostsHandler returns posts whose title or content contains the
@@ -1529,8 +1662,16 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if ownerID != client.userID {
-		http.Error(w, "You can only delete your own posts", http.StatusForbidden)
-		return
+		admin, err := isAdmin(client.userID)
+		if err != nil {
+			slog.Error("failed to look up role for post deletion", "error", err, "user_id", client.userID)
+			http.Error(w, "Failed to delete post", http.StatusInternalServerError)
+			return
+		}
+		if !admin {
+			http.Error(w, "You can only delete your own posts", http.StatusForbidden)
+			return
+		}
 	}
 
 	tx, err := database.ForumDB.Begin()
@@ -1910,8 +2051,16 @@ func DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if ownerID != client.userID {
-		http.Error(w, "You can only delete your own comments", http.StatusForbidden)
-		return
+		admin, err := isAdmin(client.userID)
+		if err != nil {
+			slog.Error("failed to look up role for comment deletion", "error", err, "user_id", client.userID)
+			http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
+			return
+		}
+		if !admin {
+			http.Error(w, "You can only delete your own comments", http.StatusForbidden)
+			return
+		}
 	}
 
 	if _, err := database.ForumDB.Exec("DELETE FROM comment WHERE id = ?", requestBody.ID); err != nil {

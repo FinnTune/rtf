@@ -4,6 +4,7 @@ import { AuthorPostsPage } from './components/posts/AuthorPostsPage'
 import { Feed } from './components/posts/Feed'
 import { SinglePostView } from './components/posts/SinglePostView'
 import { ManageCategoriesPage } from './components/admin/ManageCategoriesPage'
+import { ManageUsersPage } from './components/admin/ManageUsersPage'
 import { useAuth } from './contexts/AuthContext'
 import { LoggedInShell } from './components/layout/LoggedInShell'
 import { LoggedOutShell } from './components/layout/LoggedOutShell'
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/users/:username" element={<AuthorPostsPage />} />
         <Route path="/new-post" element={<AddPostForm />} />
         <Route path="/admin/categories" element={<ManageCategoriesPage />} />
+        <Route path="/admin/users" element={<ManageUsersPage />} />
       </Routes>
     </LoggedInShell>
   )
