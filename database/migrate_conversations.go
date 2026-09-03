@@ -3,7 +3,7 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 )
 
@@ -90,9 +90,8 @@ func migrateConversationModel(db *sql.DB) error {
 		return fmt.Errorf("committing conversation migration: %w", err)
 	}
 
-	log.Printf(
-		"Migrated: rebuilt message table into conversation model (%d messages migrated, %d skipped for unresolvable usernames). Pre-migration data kept in message_legacy.",
-		migrated, skipped,
+	slog.Info("migrated: rebuilt message table into conversation model, pre-migration data kept in message_legacy",
+		"messages_migrated", migrated, "messages_skipped", skipped,
 	)
 	return nil
 }

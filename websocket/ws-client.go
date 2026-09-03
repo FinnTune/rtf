@@ -2,7 +2,7 @@ package websocket
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"net/http"
 	"rtForum/utility"
 	"sync"
@@ -56,7 +56,7 @@ var (
 
 // Factory function for client
 func newClient(conn *websocket.Conn, manager *Manager, session_id string) *Client {
-	log.Println("New client connected.")
+	slog.Debug("new client struct created")
 	return &Client{
 		connection: conn,
 		manager:    manager,
@@ -120,7 +120,7 @@ func (c *Client) send(event Event) bool {
 	case c.egress <- event:
 		return true
 	case <-time.After(sendTimeout):
-		log.Printf("timed out delivering %q event to %s; dropping", event.Type, c.username)
+		slog.Warn("timed out delivering event, dropping", "event_type", event.Type, "username", c.username)
 		return false
 	}
 }
@@ -178,7 +178,7 @@ func (c *Client) closeConnection() {
 func (c *Client) pongHandler(string) error {
 	conn := c.getConnection()
 	if conn == nil {
-		log.Println("Client connection is nil. No pong received.")
+		slog.Warn("no pong received: client connection is nil")
 		return nil
 	}
 	// log.Println("Pong received, handler called, timer reset.")
@@ -190,7 +190,7 @@ func (c *Client) readMessages() {
 	if conn == nil {
 		return
 	}
-	log.Println("Client IP and client port num.: ", conn.RemoteAddr())
+	slog.Info("client read loop starting", "remote_addr", conn.RemoteAddr())
 	defer func() {
 		//connection clean up - close connection and remove client from manager
 		c.closeConnection()
@@ -199,7 +199,7 @@ func (c *Client) readMessages() {
 
 	//Set read deadline for pong wait.
 	if err := conn.SetReadDeadline(time.Now().Add(pongWait)); err != nil {
-		log.Printf("Client SetReadDeadline() error: %s", err)
+		slog.Error("failed to set read deadline", "error", err)
 		return
 	}
 
@@ -214,9 +214,13 @@ func (c *Client) readMessages() {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
 			LoggedInList.Remove(c.username)
-			log.Println("Client Made an Error: ", err)
+			// Fires on every disconnect, including an ordinary tab close —
+			// Debug rather than Warn since that's the routine case; the
+			// IsUnexpectedCloseError branch below re-logs the genuinely
+			// abnormal subset at Warn.
+			slog.Debug("client read loop ended", "username", c.username, "error", err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				log.Printf("Client ReadMessage() error: %s", err)
+				slog.Warn("unexpected websocket close", "username", c.username, "error", err)
 				c.closeConnection()
 			}
 			//Break scope and html for submission note.
@@ -241,13 +245,13 @@ func (c *Client) readMessages() {
 		var request Event
 
 		if err := json.Unmarshal(msg, &request); err != nil {
-			log.Printf("Error when unmarshalling msg: %s", err)
+			slog.Warn("failed to unmarshal incoming message", "username", c.username, "error", err)
 			//Maybe a bit harsh to break after one incorret message
 			break
 		}
 
 		if err := c.manager.routeEvent(request, c); err != nil {
-			log.Printf("Error when routing event: %s", err)
+			slog.Error("error routing event", "username", c.username, "event_type", request.Type, "error", err)
 			break
 		}
 
@@ -271,38 +275,41 @@ func (c *Client) writeMesssage() {
 			//Check if channel is closed
 			conn := c.getConnection()
 			if conn == nil {
-				log.Println("Client connection is nil.")
+				slog.Warn("client connection is nil, stopping writer", "username", c.username)
 				return
 			}
 			if !ok {
 				if err := conn.WriteMessage(websocket.CloseMessage, nil); err != nil {
-					log.Printf("Error when writing 'close' message to client: %s", err)
+					slog.Warn("failed to write close message", "username", c.username, "error", err)
 					LoggedInList.Remove(c.username)
 				}
-				log.Printf("Error when receiving message from channel 'egress': %s", msg)
+				slog.Info("egress channel closed, stopping writer", "username", c.username)
 				return //break out of for loop/select and triggers the defer cleanup.
 			}
 
+			// Never log msg/data's content here — it can carry private chat
+			// message text (SendMessageEvent.Message), so only the event
+			// type and size are safe to record.
 			data, err := json.Marshal(msg)
 			if err != nil {
-				log.Printf("Error when marshalling msg: %s", err)
+				slog.Error("failed to marshal outgoing message", "username", c.username, "event_type", msg.Type, "error", err)
 				return
 			}
 
 			if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
-				log.Printf("Error when writing msg payload to client: %s", err)
+				slog.Error("failed to write message payload to client", "username", c.username, "event_type", msg.Type, "error", err)
 			}
-			log.Println("Message sent to client. Message:", string(data))
+			slog.Debug("message sent to client", "username", c.username, "event_type", msg.Type, "bytes", len(data))
 
 		case <-ticker.C:
 			//Check if channel is closed
 			conn := c.getConnection()
 			if conn == nil {
-				log.Println("Client connection is nil.")
+				slog.Warn("client connection is nil, stopping writer", "username", c.username)
 				return
 			}
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				log.Printf("Error when writing 'ping' message to client: %s", err)
+				slog.Warn("failed to write ping message", "username", c.username, "error", err)
 				return
 			}
 

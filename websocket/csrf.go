@@ -1,7 +1,7 @@
 package websocket
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 )
 
@@ -14,7 +14,7 @@ import (
 func CSRFProtect(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !checkOrigin(r) {
-			log.Printf("Rejecting %s %s: origin check failed", r.Method, r.URL.Path)
+			slog.Warn("rejecting request: origin check failed", "method", r.Method, "path", r.URL.Path)
 			http.Error(w, "Invalid origin", http.StatusForbidden)
 			return
 		}

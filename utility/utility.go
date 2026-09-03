@@ -1,8 +1,7 @@
 package utility
 
 import (
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -14,7 +13,7 @@ import (
 func HashPassword(password string) string {
 	byt, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	if err != nil {
-		fmt.Println("Could not generate password", err.Error())
+		slog.Error("could not generate password hash", "error", err)
 	}
 	return string(byt)
 }
@@ -23,10 +22,12 @@ func HashPassword(password string) string {
 func CheckPasswordHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	if err != nil {
-		log.Printf("Error comparing password and hash: %s", err.Error())
+		// Warn, not Error: a mismatch is the expected outcome of a wrong
+		// password attempt, not an internal failure.
+		slog.Warn("password and hash do not match", "error", err)
 		return false
 	}
-	log.Println("Password and hash match.")
+	slog.Debug("password and hash match")
 	return true
 }
 

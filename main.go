@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -61,10 +61,10 @@ func getEnv(key, fallback string) string {
 
 // buildServer registers all routes/handlers and returns the configured HTTP server.
 func buildServer() *http.Server {
-	log.Println("File Servers Started.")
+	slog.Info("file servers started")
 	fileServer := http.FileServer(http.Dir(distDir))
 
-	log.Printf("Handlers Started.")
+	slog.Info("handlers started")
 	// Serves the React app's build output. A request for a real built file
 	// (e.g. /assets/index-abc123.js, /img/favglobe.ico) gets that file
 	// directly, with long-lived caching for content-hashed assets; anything
@@ -72,13 +72,13 @@ func buildServer() *http.Server {
 	// react-router owns client-side routing.
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		url := r.URL.Path
-		log.Printf("Handling request \"%s\"", url)
+		slog.Debug("handling request", "path", url)
 
 		//Check if cookie exists and create if not
 		if utility.CheckCookieExist(w, r) {
-			log.Println("Cookie exists.")
+			slog.Debug("cookie exists")
 		} else {
-			log.Println("Cookie does not exist. Creating cookie.")
+			slog.Debug("cookie does not exist, creating cookie")
 			utility.CreateCookie(w, r)
 		}
 
@@ -226,7 +226,7 @@ func runServer(ctx context.Context) {
 	database.ForumDB = database.OpenDB()
 	defer func() {
 		database.ForumDB.Close()
-		log.Println("Database closed.")
+		slog.Info("database closed")
 	}()
 
 	ser := buildServer()
@@ -239,7 +239,7 @@ func runServer(ctx context.Context) {
 
 	serverErr := make(chan error, 1)
 	go func() {
-		log.Printf("Server Started and listening on port %s.", ser.Addr)
+		slog.Info("server started", "addr", ser.Addr)
 		err := ser.ListenAndServeTLS(tlsCert, tlsKey)
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			serverErr <- err
@@ -251,15 +251,16 @@ func runServer(ctx context.Context) {
 	select {
 	case err := <-serverErr:
 		if err != nil {
-			log.Fatalf("ListenAndServeTLS error: %s", err)
+			slog.Error("listen and serve TLS failed", "error", err)
+			os.Exit(1)
 		}
 	case <-ctx.Done():
 		fmt.Println(Red + "Shutting down server... (Ctrl+C again to force)")
-		log.Println("Shutdown signal received. Shutting down server.")
+		slog.Info("shutdown signal received, shutting down server")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := ser.Shutdown(shutdownCtx); err != nil {
-			log.Printf("Error during server shutdown: %s", err)
+			slog.Error("error during server shutdown", "error", err)
 		}
 		<-serverErr
 	}
@@ -271,18 +272,23 @@ func main() {
 	filename := "forum.log"
 	logfiles.CheckLog(dir, filename)
 
-	// Declare and open the log file for appending, defer close, and set for output, set flags for log file lines.
+	// Declare and open the log file for appending, defer close, and point the
+	// default slog logger at it. Every slog.Info/Warn/Error/Debug call
+	// anywhere in the process (this package and every package it imports)
+	// goes through this one default logger, so pointing it at the file here
+	// is what actually makes the rest of the app's structured logging land
+	// in forum.log instead of stderr.
 	logFile, err := os.OpenFile(dir+filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Fatalf("Log file could not be opened: %s", err)
+		slog.Error("log file could not be opened", "error", err)
+		os.Exit(1)
 	}
 	defer logFile.Close()
-	log.SetOutput(logFile)
-	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+	slog.SetDefault(slog.New(slog.NewTextHandler(logFile, &slog.HandlerOptions{AddSource: true})))
 
 	// Log to the file that new forum server has started with timestamp
-	log.Println("Main begun. Log file checked, opened, and set.")
-	log.Println("New Forum Begun")
+	slog.Info("main begun: log file checked, opened, and set")
+	slog.Info("new forum begun")
 
 	initMessage()
 
@@ -292,5 +298,5 @@ func main() {
 
 	runServer(ctx)
 
-	log.Println("Server stopped.")
+	slog.Info("server stopped")
 }

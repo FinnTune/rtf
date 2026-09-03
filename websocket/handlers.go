@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"rtForum/database"
@@ -30,7 +30,7 @@ var (
 
 func checkOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
-	log.Printf("Checking origin: %s", origin)
+	slog.Debug("checking origin", "origin", origin)
 	allowedOrigin := "https://localhost:8443"
 	if envOrigin := os.Getenv("ALLOWED_ORIGIN"); envOrigin != "" {
 		allowedOrigin = envOrigin
@@ -49,7 +49,7 @@ func authenticatedClientFromRequest(r *http.Request) (*Client, error) {
 	for client := range manager.clients {
 		if client.sessionID == sessionCookie.Value && client.loggedIn {
 			if client.expired() {
-				log.Println("Session expired for client:", client.username)
+				slog.Info("session expired for client", "username", client.username)
 				client.closeConnection()
 				delete(manager.clients, client)
 				break
@@ -185,11 +185,11 @@ func postSortJoinAndOrder(sort string) (join string, order string) {
 
 func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	// Get the session cookie from the request
-	log.Println("Checking login status.")
+	slog.Debug("checking login status")
 	sessionCookie, err := r.Cookie("session_id")
 	if err != nil {
 		// If the cookie is not set, the user is not logged in
-		log.Println("No session cookie found. User not logged in.")
+		slog.Debug("no session cookie found, user not logged in")
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(UserLoginResponse{
 			LoggedIn: false,
@@ -200,11 +200,13 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	// Find the client with the matching session ID
 	m.Lock()
 	defer m.Unlock()
-	log.Println("Manager's clients: ", m.clients)
+	// Never log m.clients directly — each *Client formats with its
+	// sessionID (a live bearer credential) included.
+	slog.Debug("checking login against connected clients", "count", len(m.clients))
 	for client := range m.clients {
 		if client.sessionID == sessionCookie.Value {
 			if client.expired() {
-				log.Println("Session expired for client:", client.username)
+				slog.Info("session expired for client", "username", client.username)
 				client.closeConnection()
 				delete(m.clients, client)
 				utility.ClearCookie(w)
@@ -217,14 +219,14 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 			client.touch()
 			utility.RefreshCookie(w, client.sessionID)
 			if !client.loggedIn {
-				log.Println("Client found.")
+				slog.Debug("client found, not yet logged in", "username", client.username)
 				json.NewEncoder(w).Encode(UserLoginResponse{
 					LoggedIn: client.loggedIn,
 				})
 				return
 			} else if client.loggedIn {
 				// If the client is found, the user is logged in
-				log.Println("Session cookie found. User logged in")
+				slog.Debug("session cookie found, user logged in", "username", client.username)
 				client.loggedIn = true
 				client.closeConnection()
 
@@ -237,7 +239,7 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 				// next checkLogin poll instead of only their next login.
 				var role string
 				if err := database.ForumDB.QueryRow("SELECT role FROM user WHERE id = ?", client.userID).Scan(&role); err != nil {
-					log.Printf("Error looking up role for checkLogin: %s", err)
+					slog.Error("error looking up role for checkLogin", "username", client.username, "error", err)
 				}
 
 				// Send the login status to the client
@@ -250,14 +252,16 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 					OTP:      otp.Key,
 					Role:     role,
 				})
-				log.Println("OTP: ", otp.Key)
+				// The OTP key itself is a live, short-lived credential —
+				// never logged, only that one was minted.
+				slog.Debug("otp minted for checkLogin", "username", client.username)
 				return
 			}
 		}
 	}
 
 	// If no client was found with the matching session ID, the user is not logged in
-	log.Println("No client found with matching session ID. User not logged in.")
+	slog.Debug("no client found with matching session id, user not logged in")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(struct {
 		LoggedIn bool `json:"loggedIn"`
@@ -271,7 +275,7 @@ func CheckLoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
-	log.Println("Login handler reached.")
+	slog.Debug("login handler reached")
 	//Check if user is already logged in
 	// if utility.CheckCookieExist(w, r) {
 	// 	log.Println("User already logged in.")
@@ -287,9 +291,9 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 
 	//Check if request is POST and decode request body into struct above
 	if r.Method == http.MethodPost {
-		log.Println("Login POST request received.")
+		slog.Debug("login POST request received")
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			log.Printf("Error decoding request: %s", err)
+			slog.Warn("error decoding login request", "error", err)
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
@@ -305,15 +309,19 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 		//Query database for user info, scan into struct, and check if password matches
 		err := database.ForumDB.QueryRow("SELECT id, uname, email, pass, created_at, role FROM user WHERE uname = $1 OR email = $1", req.Username).Scan(&userInfo.ID, &userInfo.Username, &userInfo.Email, &userInfo.Password, &userInfo.Joined, &userInfo.Role)
 		if err != nil {
-			log.Printf("Error querying database: %s", err)
+			// Never log userInfo here — never populated on this path, but
+			// this is also the wrong-username/wrong-password failure path in
+			// general, so treat it as an expected auth failure, not an error.
 			if err == sql.ErrNoRows {
-				log.Printf("User not found: %+v\n", userInfo)
+				slog.Warn("login attempt for unknown user", "username", req.Username)
+			} else {
+				slog.Error("error querying database for login", "error", err)
 			}
 		} else if utility.CheckPasswordHash(req.Password, userInfo.Password) {
 
-			log.Printf("User found: %+v\n", userInfo)
-			log.Println("Authentication condition reached.")
-			log.Println("User Login list: ", LoggedInList)
+			// Never log userInfo directly — it carries the user's password
+			// hash (userInfo.Password).
+			slog.Info("user authenticated", "username", userInfo.Username, "user_id", userInfo.ID)
 
 			// Rotate the session cookie on every successful login so a
 			// session_id observed/fixed before authentication can never be
@@ -326,7 +334,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			for client := range m.clients {
 				if userInfo.Username == client.username {
 					if client.loggedIn {
-						log.Println("Client already logged in.")
+						slog.Info("client already logged in, replacing", "username", client.username)
 						client.closeConnection()
 						//Delete client from manage client list
 						delete(m.clients, client)
@@ -362,7 +370,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			// err := json.NewEncoder(w).Encode(resp)
 			data, err := json.Marshal(resp)
 			if err != nil {
-				log.Printf("Error marshalling response: %s", err)
+				slog.Error("error marshalling login response", "error", err)
 				http.Error(w, "Failed to process login", http.StatusInternalServerError)
 				return
 			}
@@ -382,7 +390,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 
 func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
-		log.Println("Logout POST request received.")
+		slog.Debug("logout POST request received")
 		// Always drop the cookie on logout, even if no matching in-memory
 		// client is found below (e.g. it already expired server-side) -
 		// logout must never leave a reusable session_id in the browser.
@@ -391,7 +399,7 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 		sessionCookie, err := r.Cookie("session_id")
 		if err != nil {
 			// If the cookie is not set, the user is not logged in
-			log.Println("No session cookie found. User not logged in.")
+			slog.Debug("no session cookie found, user not logged in")
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(UserLoginResponse{
 				LoggedIn: false,
@@ -423,7 +431,7 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Println("Client found.")
+		slog.Info("logging out client", "username", client.username)
 		// If the client is found, the user is logged in
 		client.loggedIn = false
 		LoggedInList.Remove(client.username)
@@ -431,7 +439,7 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 
 		data, err := json.Marshal(LoggedInList.Snapshot())
 		if err != nil {
-			fmt.Printf("failed to marshal broadcast message error: %s", err)
+			slog.Error("failed to marshal broadcast message", "error", err)
 			// return fmt.Errorf("failed to marshal broadcast message error: %s", err)
 		}
 		outgoingEvent := Event{
@@ -439,7 +447,7 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 			Type:    UsersList,
 		}
 
-		log.Println("Logout and new users list sent")
+		slog.Debug("logout and new users list sent")
 
 		broadcastTo(m.clientsSnapshot(), outgoingEvent)
 
@@ -462,31 +470,29 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	otp := r.URL.Query().Get("otp")
 	if otp == "" {
 		w.WriteHeader(http.StatusUnauthorized)
-		log.Println("OTP is empty.")
+		slog.Warn("websocket upgrade rejected: otp is empty")
 		return
 	}
 
+	// The otp value itself is a live, one-time credential — never logged.
 	if !m.otps.verifyOtp(otp) {
 		w.WriteHeader(http.StatusUnauthorized)
-		log.Println("OTP is invalid.")
+		slog.Warn("websocket upgrade rejected: otp is invalid")
 		return
 	}
 
 	//Upgrade request to websocket if otp is valid
-	log.Println("Serving websocket.")
+	slog.Debug("serving websocket upgrade")
 	conn, err := websocketUpgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err)
+		slog.Error("websocket upgrade failed", "error", err)
 		return
 	}
-
-	//JSON decode r.body into request struct
-	log.Println("Decoding request body.")
 
 	//Get cookie from request
 	cookie, err := r.Cookie("session_id")
 	if err != nil {
-		log.Printf("Error getting cookie: %s", err)
+		slog.Error("error getting session cookie for websocket upgrade", "error", err)
 		// The upgrade already succeeded above, so without this the
 		// connection is left open with nothing ever reading/writing it or
 		// tracking it in m.clients — a leaked socket the client believes is
@@ -497,8 +503,7 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 
 	//Get cookie value and check if client already exists
 	//If client exists, set connection to new connection and start client routines
-	sessionID := cookie.Value
-	log.Println("Session Id in ServeWS: ", sessionID)
+	sessionID := cookie.Value // a live session credential — never logged raw
 
 	// m.clients is shared with every other handler (login, logout,
 	// checkLogin, ...), all of which access it under m.Lock() — this lookup
@@ -510,7 +515,7 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	for c := range m.clients {
 		if c.sessionID == sessionID {
 			if c.expired() {
-				log.Println("Session expired; discarding stale client:", c.username)
+				slog.Info("session expired, discarding stale client", "username", c.username)
 				delete(m.clients, c)
 			} else {
 				existing = c
@@ -521,8 +526,7 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	m.Unlock()
 
 	if existing != nil {
-		log.Println("Client already exists.")
-		log.Println("ClientUName Debug: ", existing.username)
+		slog.Debug("reusing existing client for websocket upgrade", "username", existing.username)
 		LoggedInList.Remove(existing.username)
 		LoggedInList.Add(existing.username)
 		existing.setConnection(conn)
@@ -535,7 +539,7 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	//If client does not exist, create new client,
 	//set loggedIn to true, add client to manager,
 	//and start client routines
-	log.Println("Client does not exist.")
+	slog.Debug("no existing client for session, creating a new one")
 	//Create new client
 	client := newClient(conn, m, sessionID)
 	//Set client loggedIn to true
@@ -563,7 +567,7 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 	//Decode request body to struct
 	var user = RegUser{}
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		log.Printf("Error decoding request body: %s", err)
+		slog.Warn("error decoding registration request body", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -590,7 +594,7 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 		timeReg,
 	)
 	if err != nil {
-		log.Printf("Error executing user query: %s", err)
+		slog.Error("error executing user registration query", "error", err)
 		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.Code == sqlite3.ErrConstraint {
 			http.Error(w, "Username or email already exists", http.StatusConflict)
 			return
@@ -598,7 +602,8 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to register user", http.StatusInternalServerError)
 		return
 	}
-	log.Printf("User registered result: %s", result)
+	newUserID, _ := result.LastInsertId()
+	slog.Info("user registered", "username", user.Uname, "user_id", newUserID)
 
 	//Send message to w that registration was successful
 	w.WriteHeader(http.StatusOK)
@@ -617,7 +622,7 @@ func RegistrationHandler(w http.ResponseWriter, r *http.Request) {
 // Prev/Next controls without a second round trip.
 func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
-		log.Println("AllPostsHandler reached.")
+		slog.Debug("AllPostsHandler reached")
 
 		limit := defaultPostsPageSize
 		if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 {
@@ -640,7 +645,7 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 
 		var total int
 		if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM post").Scan(&total); err != nil {
-			log.Printf("Error counting posts: %s", err)
+			slog.Error("error counting posts", "error", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
@@ -652,7 +657,7 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 		FROM post ` + join + ` ` + order + ` LIMIT ? OFFSET ?;`
 		rows, err := database.ForumDB.Query(query, limit, offset)
 		if err != nil {
-			log.Printf("Error executing query: %s", err)
+			slog.Error("error executing posts query", "error", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
@@ -666,7 +671,7 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 			var post Post
 			err = rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created, &post.ImgURL)
 			if err != nil {
-				log.Printf("Error scanning rows: %s", err)
+				slog.Error("error scanning post row", "error", err)
 				http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 				return
 			}
@@ -674,7 +679,7 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := attachReactionData(posts, currentUserIDOrZero(r)); err != nil {
-			log.Printf("Error attaching reaction data: %s", err)
+			slog.Error("error attaching reaction data", "error", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
@@ -722,7 +727,7 @@ func GetPostsByAuthorHandler(w http.ResponseWriter, r *http.Request) {
 
 	var total int
 	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM post WHERE author = ?", author).Scan(&total); err != nil {
-		log.Printf("Error counting posts by author: %s", err)
+		slog.Error("error counting posts by author", "error", err)
 		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 		return
 	}
@@ -732,7 +737,7 @@ func GetPostsByAuthorHandler(w http.ResponseWriter, r *http.Request) {
 	FROM post ` + join + ` WHERE post.author = ? ` + order + ` LIMIT ? OFFSET ?;`
 	rows, err := database.ForumDB.Query(query, author, limit, offset)
 	if err != nil {
-		log.Printf("Error executing query: %s", err)
+		slog.Error("error executing posts-by-author query", "error", err)
 		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 		return
 	}
@@ -743,7 +748,7 @@ func GetPostsByAuthorHandler(w http.ResponseWriter, r *http.Request) {
 		var post Post
 		err = rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created, &post.ImgURL)
 		if err != nil {
-			log.Printf("Error scanning rows: %s", err)
+			slog.Error("error scanning post row", "error", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
@@ -751,7 +756,7 @@ func GetPostsByAuthorHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := attachReactionData(posts, currentUserIDOrZero(r)); err != nil {
-		log.Printf("Error attaching reaction data: %s", err)
+		slog.Error("error attaching reaction data", "error", err)
 		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 		return
 	}
@@ -782,14 +787,14 @@ func GetPostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	} else if err != nil {
-		log.Printf("Error fetching post: %s", err)
+		slog.Error("error fetching post", "error", err, "post_id", id)
 		http.Error(w, "Failed to load post", http.StatusInternalServerError)
 		return
 	}
 
 	posts := []Post{post}
 	if err := attachReactionData(posts, currentUserIDOrZero(r)); err != nil {
-		log.Printf("Error attaching reaction data: %s", err)
+		slog.Error("error attaching reaction data", "error", err)
 		http.Error(w, "Failed to load post", http.StatusInternalServerError)
 		return
 	}
@@ -829,7 +834,7 @@ func ReactToPostHandler(w http.ResponseWriter, r *http.Request) {
 
 	var postExists int
 	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM post WHERE id = ?", requestBody.PostID).Scan(&postExists); err != nil {
-		log.Printf("failed to check post existence: %s", err)
+		slog.Error("failed to check post existence", "error", err, "post_id", requestBody.PostID)
 		http.Error(w, "Failed to react to post", http.StatusInternalServerError)
 		return
 	}
@@ -855,23 +860,23 @@ func ReactToPostHandler(w http.ResponseWriter, r *http.Request) {
 			"INSERT INTO user_post_reaction (user_id, post_id, is_liked, created_at) VALUES (?, ?, ?, ?)",
 			client.userID, requestBody.PostID, newIsLiked, time.Now().Format("2006-01-02 15:04:05"),
 		); err != nil {
-			log.Printf("failed to insert reaction: %s", err)
+			slog.Error("failed to insert reaction", "error", err, "post_id", requestBody.PostID, "user_id", client.userID)
 			http.Error(w, "Failed to react to post", http.StatusInternalServerError)
 			return
 		}
 	case err != nil:
-		log.Printf("failed to look up existing reaction: %s", err)
+		slog.Error("failed to look up existing reaction", "error", err, "post_id", requestBody.PostID, "user_id", client.userID)
 		http.Error(w, "Failed to react to post", http.StatusInternalServerError)
 		return
 	case existingIsLiked == newIsLiked:
 		if _, err := database.ForumDB.Exec("DELETE FROM user_post_reaction WHERE id = ?", existingID); err != nil {
-			log.Printf("failed to delete reaction: %s", err)
+			slog.Error("failed to delete reaction", "error", err, "reaction_id", existingID)
 			http.Error(w, "Failed to react to post", http.StatusInternalServerError)
 			return
 		}
 	default:
 		if _, err := database.ForumDB.Exec("UPDATE user_post_reaction SET is_liked = ? WHERE id = ?", newIsLiked, existingID); err != nil {
-			log.Printf("failed to update reaction: %s", err)
+			slog.Error("failed to update reaction", "error", err, "reaction_id", existingID)
 			http.Error(w, "Failed to react to post", http.StatusInternalServerError)
 			return
 		}
@@ -879,7 +884,7 @@ func ReactToPostHandler(w http.ResponseWriter, r *http.Request) {
 
 	posts := []Post{{PostId: requestBody.PostID}}
 	if err := attachReactionData(posts, client.userID); err != nil {
-		log.Printf("failed to load updated reaction data: %s", err)
+		slog.Error("failed to load updated reaction data", "error", err, "post_id", requestBody.PostID)
 		http.Error(w, "Failed to react to post", http.StatusInternalServerError)
 		return
 	}
@@ -904,7 +909,7 @@ func GetCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 
 	rows, err := database.ForumDB.Query("SELECT id, category_name FROM category ORDER BY category_name ASC")
 	if err != nil {
-		log.Printf("Error querying categories: %s", err)
+		slog.Error("error querying categories", "error", err)
 		http.Error(w, "Failed to load categories", http.StatusInternalServerError)
 		return
 	}
@@ -914,7 +919,7 @@ func GetCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var c Category
 		if err := rows.Scan(&c.ID, &c.Name); err != nil {
-			log.Printf("Error scanning category: %s", err)
+			slog.Error("error scanning category", "error", err)
 			http.Error(w, "Failed to load categories", http.StatusInternalServerError)
 			return
 		}
@@ -939,7 +944,7 @@ func RequireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		}
 		var role string
 		if err := database.ForumDB.QueryRow("SELECT role FROM user WHERE id = ?", client.userID).Scan(&role); err != nil {
-			log.Printf("failed to look up role for admin check: %s", err)
+			slog.Error("failed to look up role for admin check", "error", err, "user_id", client.userID)
 			http.Error(w, "Failed to verify permissions", http.StatusInternalServerError)
 			return
 		}
@@ -974,7 +979,7 @@ func CreateCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 	var existing int
 	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM category WHERE category_name = ?", name).Scan(&existing); err != nil {
-		log.Printf("failed to check existing category: %s", err)
+		slog.Error("failed to check existing category", "error", err)
 		http.Error(w, "Failed to create category", http.StatusInternalServerError)
 		return
 	}
@@ -985,13 +990,13 @@ func CreateCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 	result, err := database.ForumDB.Exec("INSERT INTO category (category_name) VALUES (?)", name)
 	if err != nil {
-		log.Printf("failed to insert category: %s", err)
+		slog.Error("failed to insert category", "error", err)
 		http.Error(w, "Failed to create category", http.StatusInternalServerError)
 		return
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
-		log.Printf("failed to fetch inserted category id: %s", err)
+		slog.Error("failed to fetch inserted category id", "error", err)
 		http.Error(w, "Failed to create category", http.StatusInternalServerError)
 		return
 	}
@@ -1029,7 +1034,7 @@ func EditCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 	var existing int
 	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM category WHERE category_name = ? AND id != ?", name, requestBody.ID).Scan(&existing); err != nil {
-		log.Printf("failed to check existing category: %s", err)
+		slog.Error("failed to check existing category", "error", err)
 		http.Error(w, "Failed to update category", http.StatusInternalServerError)
 		return
 	}
@@ -1040,13 +1045,13 @@ func EditCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 	result, err := database.ForumDB.Exec("UPDATE category SET category_name = ? WHERE id = ?", name, requestBody.ID)
 	if err != nil {
-		log.Printf("failed to update category: %s", err)
+		slog.Error("failed to update category", "error", err, "category_id", requestBody.ID)
 		http.Error(w, "Failed to update category", http.StatusInternalServerError)
 		return
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Printf("failed to check rows affected: %s", err)
+		slog.Error("failed to check rows affected", "error", err)
 		http.Error(w, "Failed to update category", http.StatusInternalServerError)
 		return
 	}
@@ -1081,26 +1086,26 @@ func DeleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := database.ForumDB.Begin()
 	if err != nil {
-		log.Printf("failed to begin transaction: %s", err)
+		slog.Error("failed to begin category deletion transaction", "error", err)
 		http.Error(w, "Failed to delete category", http.StatusInternalServerError)
 		return
 	}
 	defer tx.Rollback()
 
 	if _, err := tx.Exec("DELETE FROM category_relation WHERE category_id = ?", requestBody.ID); err != nil {
-		log.Printf("failed to delete category relations: %s", err)
+		slog.Error("failed to delete category relations", "error", err, "category_id", requestBody.ID)
 		http.Error(w, "Failed to delete category", http.StatusInternalServerError)
 		return
 	}
 	result, err := tx.Exec("DELETE FROM category WHERE id = ?", requestBody.ID)
 	if err != nil {
-		log.Printf("failed to delete category: %s", err)
+		slog.Error("failed to delete category", "error", err, "category_id", requestBody.ID)
 		http.Error(w, "Failed to delete category", http.StatusInternalServerError)
 		return
 	}
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
-		log.Printf("failed to check rows affected: %s", err)
+		slog.Error("failed to check rows affected", "error", err)
 		http.Error(w, "Failed to delete category", http.StatusInternalServerError)
 		return
 	}
@@ -1109,7 +1114,7 @@ func DeleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := tx.Commit(); err != nil {
-		log.Printf("failed to commit category deletion: %s", err)
+		slog.Error("failed to commit category deletion", "error", err)
 		http.Error(w, "Failed to delete category", http.StatusInternalServerError)
 		return
 	}
@@ -1146,7 +1151,7 @@ func SearchPostsHandler(w http.ResponseWriter, r *http.Request) {
 	FROM post ` + join + ` WHERE post.title LIKE ? ESCAPE '\' OR post.content LIKE ? ESCAPE '\' ` + order + ` LIMIT ?`
 	rows, err := database.ForumDB.Query(searchQuery, likePattern, likePattern, maxSearchResults)
 	if err != nil {
-		log.Printf("Error executing search query: %s", err)
+		slog.Error("error executing post search query", "error", err)
 		http.Error(w, "Failed to search posts", http.StatusInternalServerError)
 		return
 	}
@@ -1156,7 +1161,7 @@ func SearchPostsHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var post Post
 		if err := rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created, &post.ImgURL); err != nil {
-			log.Printf("Error scanning rows: %s", err)
+			slog.Error("error scanning post row", "error", err)
 			http.Error(w, "Failed to search posts", http.StatusInternalServerError)
 			return
 		}
@@ -1164,7 +1169,7 @@ func SearchPostsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := attachReactionData(posts, currentUserIDOrZero(r)); err != nil {
-		log.Printf("Error attaching reaction data: %s", err)
+		slog.Error("error attaching reaction data", "error", err)
 		http.Error(w, "Failed to search posts", http.StatusInternalServerError)
 		return
 	}
@@ -1242,7 +1247,7 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 			categoryIDs[i] = c.ID
 		}
 		if ok, err := allCategoryIDsExist(categoryIDs); err != nil {
-			log.Printf("failed to validate category ids: %s", err)
+			slog.Error("failed to validate category ids", "error", err)
 			http.Error(w, "Failed to create post", http.StatusInternalServerError)
 			return
 		} else if !ok {
@@ -1250,7 +1255,7 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Println("Add Post Request body: ", requestBody)
+		slog.Debug("add post request received", "title", requestBody.Title, "category_count", len(requestBody.Categories))
 
 		// Connect to the database when mySQL!!!
 		// db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@/%s", dbUsername, dbPassword, dbName))
@@ -1284,7 +1289,7 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 		// post existed at all.
 		tx, err := database.ForumDB.Begin()
 		if err != nil {
-			log.Printf("failed to begin transaction: %s", err)
+			slog.Error("failed to begin post creation transaction", "error", err)
 			http.Error(w, "Failed to create post", http.StatusInternalServerError)
 			return
 		}
@@ -1294,7 +1299,7 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 		insertPostQuery := "INSERT INTO post (user_id, title, content, author, created_at) VALUES (?, ?, ?, ?, ?)"
 		result, err := tx.Exec(insertPostQuery, post.UserID, post.Title, post.Content, post.UserName, createdAt)
 		if err != nil {
-			log.Printf("failed to insert post: %s", err)
+			slog.Error("failed to insert post", "error", err)
 			http.Error(w, "Failed to create post", http.StatusInternalServerError)
 			return
 		}
@@ -1302,7 +1307,7 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 		// Get the auto-generated post ID
 		postID, err := result.LastInsertId()
 		if err != nil {
-			log.Printf("failed to fetch inserted post id: %s", err)
+			slog.Error("failed to fetch inserted post id", "error", err)
 			http.Error(w, "Failed to create post", http.StatusInternalServerError)
 			return
 		}
@@ -1312,18 +1317,18 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 		for _, category := range requestBody.Categories {
 			_, err := tx.Exec(insertCategoryQuery, category.ID, postID)
 			if err != nil {
-				log.Printf("failed to insert post category relation: %s", err)
+				slog.Error("failed to insert post category relation", "error", err, "post_id", postID, "category_id", category.ID)
 				http.Error(w, "Failed to assign category", http.StatusInternalServerError)
 				return
 			}
 		}
 
 		if err := tx.Commit(); err != nil {
-			log.Printf("failed to commit post creation: %s", err)
+			slog.Error("failed to commit post creation", "error", err)
 			http.Error(w, "Failed to create post", http.StatusInternalServerError)
 			return
 		}
-		log.Println("Post added successfully: ", post)
+		slog.Info("post added", "post_id", postID, "user_id", post.UserID)
 
 		// The new post's id is returned so the client can immediately attach
 		// an image via /uploadPostImage, which is a separate request since
@@ -1373,7 +1378,7 @@ func EditPostHandler(w http.ResponseWriter, r *http.Request) {
 		editCategoryIDs[i] = c.ID
 	}
 	if ok, err := allCategoryIDsExist(editCategoryIDs); err != nil {
-		log.Printf("failed to validate category ids: %s", err)
+		slog.Error("failed to validate category ids", "error", err)
 		http.Error(w, "Failed to update post", http.StatusInternalServerError)
 		return
 	} else if !ok {
@@ -1394,7 +1399,7 @@ func EditPostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	} else if err != nil {
-		log.Printf("failed to look up post owner: %s", err)
+		slog.Error("failed to look up post owner", "error", err, "post_id", requestBody.ID)
 		http.Error(w, "Failed to update post", http.StatusInternalServerError)
 		return
 	}
@@ -1405,14 +1410,14 @@ func EditPostHandler(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := database.ForumDB.Begin()
 	if err != nil {
-		log.Printf("failed to begin transaction: %s", err)
+		slog.Error("failed to begin post update transaction", "error", err)
 		http.Error(w, "Failed to update post", http.StatusInternalServerError)
 		return
 	}
 	defer tx.Rollback()
 
 	if _, err := tx.Exec("UPDATE post SET title = ?, content = ? WHERE id = ?", title, content, requestBody.ID); err != nil {
-		log.Printf("failed to update post: %s", err)
+		slog.Error("failed to update post", "error", err, "post_id", requestBody.ID)
 		http.Error(w, "Failed to update post", http.StatusInternalServerError)
 		return
 	}
@@ -1420,20 +1425,20 @@ func EditPostHandler(w http.ResponseWriter, r *http.Request) {
 	// Replace the post's category relations wholesale rather than diffing,
 	// mirroring how AddPost assigns them on creation.
 	if _, err := tx.Exec("DELETE FROM category_relation WHERE post_id = ?", requestBody.ID); err != nil {
-		log.Printf("failed to clear post category relations: %s", err)
+		slog.Error("failed to clear post category relations", "error", err, "post_id", requestBody.ID)
 		http.Error(w, "Failed to update post", http.StatusInternalServerError)
 		return
 	}
 	for _, category := range requestBody.Categories {
 		if _, err := tx.Exec("INSERT INTO category_relation (category_id, post_id) VALUES (?, ?)", category.ID, requestBody.ID); err != nil {
-			log.Printf("failed to insert post category relation: %s", err)
+			slog.Error("failed to insert post category relation", "error", err, "post_id", requestBody.ID, "category_id", category.ID)
 			http.Error(w, "Failed to update post", http.StatusInternalServerError)
 			return
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		log.Printf("failed to commit post update: %s", err)
+		slog.Error("failed to commit post update", "error", err)
 		http.Error(w, "Failed to update post", http.StatusInternalServerError)
 		return
 	}
@@ -1464,7 +1469,7 @@ func GetPostCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 	WHERE category_relation.post_id = ?
 	ORDER BY category.category_name ASC`, postId)
 	if err != nil {
-		log.Printf("Error querying post categories: %s", err)
+		slog.Error("error querying post categories", "error", err, "post_id", postId)
 		http.Error(w, "Failed to load categories", http.StatusInternalServerError)
 		return
 	}
@@ -1474,7 +1479,7 @@ func GetPostCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var c Category
 		if err := rows.Scan(&c.ID, &c.Name); err != nil {
-			log.Printf("Error scanning category: %s", err)
+			slog.Error("error scanning category", "error", err)
 			http.Error(w, "Failed to load categories", http.StatusInternalServerError)
 			return
 		}
@@ -1519,7 +1524,7 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	} else if err != nil {
-		log.Printf("failed to look up post owner: %s", err)
+		slog.Error("failed to look up post owner", "error", err, "post_id", requestBody.ID)
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
 		return
 	}
@@ -1530,29 +1535,29 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 
 	tx, err := database.ForumDB.Begin()
 	if err != nil {
-		log.Printf("failed to begin transaction: %s", err)
+		slog.Error("failed to begin post deletion transaction", "error", err)
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
 		return
 	}
 	defer tx.Rollback()
 
 	if _, err := tx.Exec("DELETE FROM comment WHERE post_id = ?", requestBody.ID); err != nil {
-		log.Printf("failed to delete post comments: %s", err)
+		slog.Error("failed to delete post comments", "error", err, "post_id", requestBody.ID)
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
 		return
 	}
 	if _, err := tx.Exec("DELETE FROM category_relation WHERE post_id = ?", requestBody.ID); err != nil {
-		log.Printf("failed to delete post category relations: %s", err)
+		slog.Error("failed to delete post category relations", "error", err, "post_id", requestBody.ID)
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
 		return
 	}
 	if _, err := tx.Exec("DELETE FROM post WHERE id = ?", requestBody.ID); err != nil {
-		log.Printf("failed to delete post: %s", err)
+		slog.Error("failed to delete post", "error", err, "post_id", requestBody.ID)
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
 		return
 	}
 	if err := tx.Commit(); err != nil {
-		log.Printf("failed to commit post deletion: %s", err)
+		slog.Error("failed to commit post deletion", "error", err)
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
 		return
 	}
@@ -1567,8 +1572,6 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 
 func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
-		// Get the category ID from the query string
-		log.Println("GettingPostsByCategory...")
 		var categories Categories
 
 		// Decode the request body into the categories struct
@@ -1578,8 +1581,7 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Println("PostsByCategoryHandler reached.")
-		log.Printf("Categories: %+v", categories)
+		slog.Debug("posts-by-category request received", "categories", categories.Categories)
 
 		if len(categories.Categories) > maxCategoriesPerReq {
 			http.Error(w, fmt.Sprintf("at most %d categories may be requested", maxCategoriesPerReq), http.StatusBadRequest)
@@ -1627,7 +1629,7 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		var total int
 		countQuery := `SELECT COUNT(DISTINCT post.id) FROM post ` + categoryJoin + ` ` + whereClause
 		if err := database.ForumDB.QueryRow(countQuery, args...).Scan(&total); err != nil {
-			log.Printf("Error counting posts by category: %s", err)
+			slog.Error("error counting posts by category", "error", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
@@ -1640,12 +1642,11 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		LIMIT ? OFFSET ?`
 		queryArgs := append(append([]interface{}{}, args...), limit, offset)
 
-		log.Printf("Executing query: %s", query)
-		log.Printf("With arguments: %+v", queryArgs)
+		slog.Debug("executing posts-by-category query", "query", query, "args", queryArgs)
 
 		rows, err := database.ForumDB.Query(query, queryArgs...)
 		if err != nil {
-			log.Printf("Error executing query: %s", err)
+			slog.Error("error executing posts-by-category query", "error", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
@@ -1658,23 +1659,22 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 			var post Post
 			err = rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created, &post.ImgURL)
 			if err != nil {
-				log.Printf("Error scanning rows: %s", err)
+				slog.Error("error scanning post row", "error", err)
 				http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 				return
 			}
-			log.Printf("Scanned post: %+v", post)
 			posts = append(posts, post)
 		}
-		log.Printf("Processed %d posts", postCount)
+		slog.Debug("posts-by-category processed", "count", postCount)
 
 		if err = rows.Err(); err != nil {
-			log.Printf("Rows processing error: %s", err)
+			slog.Error("rows processing error", "error", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
 
 		if err := attachReactionData(posts, currentUserIDOrZero(r)); err != nil {
-			log.Printf("Error attaching reaction data: %s", err)
+			slog.Error("error attaching reaction data", "error", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
@@ -1718,7 +1718,7 @@ func AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Adding comment...", comment)
+	slog.Debug("adding comment", "post_id", comment.PostID, "user_id", client.userID)
 
 	// Use your existing database connection to insert the comment
 	result, err := database.ForumDB.Exec(`
@@ -1733,7 +1733,7 @@ func AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	commentID, err := result.LastInsertId()
 	if err != nil {
-		log.Printf("failed to fetch inserted comment id: %s", err)
+		slog.Error("failed to fetch inserted comment id", "error", err)
 		http.Error(w, "Failed to add comment", http.StatusInternalServerError)
 		return
 	}
@@ -1798,8 +1798,6 @@ func GetCommentsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	log.Println("GetComments Rows: ", rows)
-
 	comments := make([]Comment, 0)
 
 	for rows.Next() {
@@ -1811,7 +1809,7 @@ func GetCommentsHandler(w http.ResponseWriter, r *http.Request) {
 
 		comments = append(comments, comment)
 	}
-	log.Println("Comments sent: ", comments)
+	slog.Debug("comments sent", "post_id", postId, "count", len(comments))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Total-Count", strconv.Itoa(total))
@@ -1854,7 +1852,7 @@ func EditCommentHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Comment not found", http.StatusNotFound)
 		return
 	} else if err != nil {
-		log.Printf("failed to look up comment owner: %s", err)
+		slog.Error("failed to look up comment owner", "error", err, "comment_id", requestBody.ID)
 		http.Error(w, "Failed to update comment", http.StatusInternalServerError)
 		return
 	}
@@ -1864,7 +1862,7 @@ func EditCommentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := database.ForumDB.Exec("UPDATE comment SET content = ? WHERE id = ?", content, requestBody.ID); err != nil {
-		log.Printf("failed to update comment: %s", err)
+		slog.Error("failed to update comment", "error", err, "comment_id", requestBody.ID)
 		http.Error(w, "Failed to update comment", http.StatusInternalServerError)
 		return
 	}
@@ -1907,7 +1905,7 @@ func DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Comment not found", http.StatusNotFound)
 		return
 	} else if err != nil {
-		log.Printf("failed to look up comment owner: %s", err)
+		slog.Error("failed to look up comment owner", "error", err, "comment_id", requestBody.ID)
 		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
 		return
 	}
@@ -1917,7 +1915,7 @@ func DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := database.ForumDB.Exec("DELETE FROM comment WHERE id = ?", requestBody.ID); err != nil {
-		log.Printf("failed to delete comment: %s", err)
+		slog.Error("failed to delete comment", "error", err, "comment_id", requestBody.ID)
 		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
 		return
 	}
