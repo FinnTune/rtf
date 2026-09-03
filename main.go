@@ -123,6 +123,8 @@ func buildServer() *http.Server {
 	http.HandleFunc("/createCategory", writeLimiter.Limit(websocket.CSRFProtect(websocket.RequireAdmin(websocket.CreateCategoryHandler))))
 	http.HandleFunc("/editCategory", writeLimiter.Limit(websocket.CSRFProtect(websocket.RequireAdmin(websocket.EditCategoryHandler))))
 	http.HandleFunc("/deleteCategory", writeLimiter.Limit(websocket.CSRFProtect(websocket.RequireAdmin(websocket.DeleteCategoryHandler))))
+	http.HandleFunc("/listUsers", readLimiter.Limit(websocket.RequireAdmin(websocket.ListUsersHandler)))
+	http.HandleFunc("/setUserBanned", writeLimiter.Limit(websocket.CSRFProtect(websocket.RequireAdmin(websocket.SetUserBannedHandler))))
 	http.HandleFunc("/logout", websocket.CSRFProtect(websocket.LogoutHandler))
 	http.HandleFunc("/register", authLimiter.Limit(websocket.CSRFProtect(websocket.RegistrationHandler)))
 	http.HandleFunc("/login", authLimiter.Limit(websocket.CSRFProtect(websocket.LoginHandler)))

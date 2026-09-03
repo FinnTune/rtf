@@ -530,3 +530,24 @@ func (m *Manager) removeClient(client *Client) {
 		delete(m.clients, client)
 	}
 }
+
+// kickUser force-disconnects every currently-connected client for userID
+// and removes them from the logged-in-users list — used when an admin bans
+// someone, so the ban takes effect immediately rather than waiting for
+// their next checkLogin poll. Collects matches under a read lock and acts
+// on them afterward, since removeClient takes its own write lock.
+func (m *Manager) kickUser(userID int) {
+	m.RLock()
+	var toRemove []*Client
+	for c := range m.clients {
+		if c.userID == userID {
+			toRemove = append(toRemove, c)
+		}
+	}
+	m.RUnlock()
+
+	for _, c := range toRemove {
+		LoggedInList.Remove(c.username)
+		m.removeClient(c)
+	}
+}

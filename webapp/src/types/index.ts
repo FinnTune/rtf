@@ -104,3 +104,12 @@ export interface MessageSearchResult {
   message: string
   created_at: string
 }
+
+// /listUsers's per-user shape (admin-only) — never includes a password field.
+export interface UserSummary {
+  id: number
+  username: string
+  email: string
+  role: string
+  banned: boolean
+}

@@ -37,6 +37,7 @@ type User struct {
 	Joined         string
 	Password       string
 	Role           string
+	Banned         bool
 	Session        string
 	NumberComments int
 	NumberPosts    int

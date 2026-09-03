@@ -18,6 +18,7 @@ export function SidebarLeft() {
   const isAllPostsActive = pathname === '/' && view.type === 'all'
   const isNewPostActive = pathname === '/new-post'
   const isManageCategoriesActive = pathname === '/admin/categories'
+  const isManageUsersActive = pathname === '/admin/users'
 
   return (
     <nav className="sidebar-left">
@@ -28,9 +29,14 @@ export function SidebarLeft() {
         New Post
       </Link>
       {user?.role === 'admin' && (
-        <Link to="/admin/categories" className={navItemClass(isManageCategoriesActive)} id="manage-categories-button">
-          Manage Categories
-        </Link>
+        <>
+          <Link to="/admin/categories" className={navItemClass(isManageCategoriesActive)} id="manage-categories-button">
+            Manage Categories
+          </Link>
+          <Link to="/admin/users" className={navItemClass(isManageUsersActive)} id="manage-users-button">
+            Manage Users
+          </Link>
+        </>
       )}
       <h4 className="sidebar-heading">Categories</h4>
       <div id="category-selection" className="category-nav">

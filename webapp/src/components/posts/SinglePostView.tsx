@@ -65,6 +65,10 @@ export function SinglePostView() {
   }
 
   const isOwn = user?.username === post.Author
+  // Admins can delete (but not silently rewrite) another user's post —
+  // moderation, not impersonation. The backend re-checks this regardless
+  // of what the client claims (see DeletePostHandler's admin check).
+  const canDelete = isOwn || user?.role === 'admin'
 
   return (
     <div id="single-post">
@@ -94,11 +98,13 @@ export function SinglePostView() {
         </Link>
       </p>
       <p>Created: {post.Created}</p>
-      {isOwn && !editing && (
+      {canDelete && !editing && (
         <div id="post-actions">
-          <button type="button" className="btns" onClick={() => setEditing(true)}>
-            Edit
-          </button>
+          {isOwn && (
+            <button type="button" className="btns" onClick={() => setEditing(true)}>
+              Edit
+            </button>
+          )}
           <LoadingButton
             type="button"
             className="btns btn-danger"

@@ -15,19 +15,22 @@ const comment: Comment = {
   created_at: '2026-01-01',
 }
 
-function checkLoginResponse(username: string | null) {
+function checkLoginResponse(username: string | null, role: string = 'user') {
   return new Response(
     JSON.stringify(
       username
-        ? { loggedIn: true, id: 5, username, email: 'a@example.com', joined: '2026-01-01', otp: 'x' }
+        ? { loggedIn: true, id: 5, username, email: 'a@example.com', joined: '2026-01-01', otp: 'x', role }
         : { loggedIn: false },
     ),
     { status: 200 },
   )
 }
 
-function renderCommentItem(loggedInAs: string | null, overrides: Partial<{ onDeleted: () => void; onEdited: (c: string) => void }> = {}) {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(checkLoginResponse(loggedInAs)))
+function renderCommentItem(
+  loggedInAs: string | null,
+  overrides: Partial<{ onDeleted: () => void; onEdited: (c: string) => void; role: string }> = {},
+) {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(checkLoginResponse(loggedInAs, overrides.role)))
   return render(
     <StatusMessageProvider>
       <AuthProvider>
@@ -53,6 +56,13 @@ describe('CommentItem', () => {
   it('shows Edit/Delete controls for the comment’s own author', async () => {
     renderCommentItem('alice')
     expect(await screen.findByRole('button', { name: 'Edit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+  })
+
+  it('shows only Delete (not Edit) for an admin viewing another user’s comment', async () => {
+    renderCommentItem('bob', { role: 'admin' })
+    await waitFor(() => expect(screen.getByText(/alice: Nice post!/)).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
   })
 

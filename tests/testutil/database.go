@@ -22,7 +22,8 @@ CREATE TABLE user (
 	gender VARCHAR(10) NOT NULL,
 	pass TEXT NOT NULL,
 	created_at VARCHAR(30) NOT NULL,
-	role VARCHAR(10) NOT NULL DEFAULT 'user'
+	role VARCHAR(10) NOT NULL DEFAULT 'user',
+	banned TINYINT(1) NOT NULL DEFAULT 0
 );
 
 CREATE TABLE category (

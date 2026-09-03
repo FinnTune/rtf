@@ -272,6 +272,30 @@ func TestDeletePostHandler_RejectsNonOwner(t *testing.T) {
 	}
 }
 
+func TestDeletePostHandler_AllowsAdminToDeleteAnyPost(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	// admin (1) is not the owner of post 2 (also owned by admin, so use
+	// post 1, owned by actual_user, to exercise the non-owner path).
+	websocket.AddAuthenticatedClient("session-admin", "admin", 1)
+
+	body := `{"id":1}`
+	req := httptest.NewRequest(http.MethodPost, "/deletePost", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-admin"})
+	rr := httptest.NewRecorder()
+
+	websocket.DeletePostHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var postCount int
+	db.QueryRow(`SELECT COUNT(*) FROM post WHERE id = 1`).Scan(&postCount)
+	if postCount != 0 {
+		t.Fatalf("expected an admin to be able to delete another user's post, found %d", postCount)
+	}
+}
+
 func TestEditCommentHandler_UpdatesOwnComment(t *testing.T) {
 	websocket.ResetTestState()
 	db := testutil.UseForumDB(t)
@@ -364,6 +388,29 @@ func TestDeleteCommentHandler_RejectsNonOwner(t *testing.T) {
 	db.QueryRow(`SELECT COUNT(*) FROM comment WHERE id = 1`).Scan(&count)
 	if count != 1 {
 		t.Fatalf("comment should not have been deleted")
+	}
+}
+
+func TestDeleteCommentHandler_AllowsAdminToDeleteAnyComment(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	// comment 1 belongs to actual_user (42), not admin (1).
+	websocket.AddAuthenticatedClient("session-admin", "admin", 1)
+
+	body := `{"id":1}`
+	req := httptest.NewRequest(http.MethodPost, "/deleteComment", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-admin"})
+	rr := httptest.NewRecorder()
+
+	websocket.DeleteCommentHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var count int
+	db.QueryRow(`SELECT COUNT(*) FROM comment WHERE id = 1`).Scan(&count)
+	if count != 0 {
+		t.Fatalf("expected an admin to be able to delete another user's comment, found %d", count)
 	}
 }
 

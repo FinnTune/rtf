@@ -20,6 +20,10 @@ export function CommentItem({ comment, onDeleted, onEdited }: CommentItemProps) 
   const [deleting, setDeleting] = useState(false)
 
   const isOwn = user?.username === comment.username
+  // Admins can delete (but not silently rewrite) another user's comment —
+  // moderation, not impersonation. The backend re-checks this regardless
+  // of what the client claims (see DeleteCommentHandler's admin check).
+  const canDelete = isOwn || user?.role === 'admin'
 
   async function handleSave() {
     const trimmed = content.trim()
@@ -86,11 +90,13 @@ export function CommentItem({ comment, onDeleted, onEdited }: CommentItemProps) 
       <span>
         {comment.username}: {comment.content}
       </span>
-      {isOwn && (
+      {canDelete && (
         <>
-          <button type="button" className="btns" onClick={() => setEditing(true)}>
-            Edit
-          </button>
+          {isOwn && (
+            <button type="button" className="btns" onClick={() => setEditing(true)}>
+              Edit
+            </button>
+          )}
           <LoadingButton type="button" className="btns btn-danger" loading={deleting} loadingText="Deleting..." onClick={() => void handleDelete()}>
             Delete
           </LoadingButton>

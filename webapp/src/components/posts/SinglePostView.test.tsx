@@ -12,14 +12,14 @@ function requestUrl(input: string | URL | Request): string {
   return typeof input === 'string' ? input : input.toString()
 }
 
-function mockBackend(loggedInAs: string, postAuthor: string, imgUrl = '') {
+function mockBackend(loggedInAs: string, postAuthor: string, imgUrl = '', role = 'user') {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string | URL | Request) => {
       const url = requestUrl(input)
       if (url.startsWith('/checkLogin')) {
         return new Response(
-          JSON.stringify({ loggedIn: true, id: 1, username: loggedInAs, email: 'a@example.com', joined: '2026-01-01', otp: 'x' }),
+          JSON.stringify({ loggedIn: true, id: 1, username: loggedInAs, email: 'a@example.com', joined: '2026-01-01', otp: 'x', role }),
           { status: 200 },
         )
       }
@@ -101,6 +101,14 @@ describe('SinglePostView', () => {
     mockBackend('admin', 'admin')
     renderPostRoute()
     expect(await screen.findByRole('button', { name: 'Edit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+  })
+
+  it('shows only Delete (not Edit) for an admin viewing another user’s post', async () => {
+    mockBackend('root', 'bob', '', 'admin')
+    renderPostRoute()
+    await screen.findByText('A Post')
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
   })
 
