@@ -113,6 +113,7 @@ func buildServer() *http.Server {
 	// several of these per second.
 	readLimiter := utility.NewIPRateLimiter(rate.Every(200*time.Millisecond), 20)
 
+	http.HandleFunc("/healthz", healthzHandler)
 	http.HandleFunc("/checkLogin", websocket.CheckLoginHandler)
 	http.HandleFunc("/getAllPosts", readLimiter.Limit(websocket.AllPostsHandler))
 	http.HandleFunc("/getPostsByAuthor", readLimiter.Limit(websocket.GetPostsByAuthorHandler))
@@ -144,6 +145,23 @@ func buildServer() *http.Server {
 		Addr:    ":" + port,
 		Handler: securityHeaders(http.DefaultServeMux),
 	}
+}
+
+// healthzHandler backs the Dockerfile's HEALTHCHECK. It pings the database
+// rather than just returning 200 unconditionally, so a wedged/unreachable DB
+// connection (the actual failure mode that would leave the process alive but
+// unable to serve real requests) marks the container unhealthy too.
+func healthzHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := database.ForumDB.Ping(); err != nil {
+		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "ok")
 }
 
 // isRegularFile reports whether path names an existing, non-directory file
