@@ -109,3 +109,56 @@ func TestIPRateLimiter_TreatsMalformedRemoteAddrAsSingleSharedKey(t *testing.T) 
 		t.Fatalf("expected a distinct malformed address to have its own bucket, got %d", code)
 	}
 }
+
+func TestIPRateLimiter_SetsRetryAfterHeaderOnlyWhenBlocked(t *testing.T) {
+	// rate.Every(200ms) makes the expected wait exact and quick to assert on:
+	// Retry-After should round the ~200ms delay up to 1 whole second.
+	rl := utility.NewIPRateLimiter(rate.Every(200*time.Millisecond), 1)
+	handler, _ := newTestLimiterHandler(rl)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "1.2.3.4:5555"
+	rr := httptest.NewRecorder()
+	handler(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected the first request to succeed, got %d", rr.Code)
+	}
+	if got := rr.Header().Get("Retry-After"); got != "" {
+		t.Fatalf("expected no Retry-After header on a successful request, got %q", got)
+	}
+
+	req2 := httptest.NewRequest(http.MethodGet, "/", nil)
+	req2.RemoteAddr = "1.2.3.4:5555"
+	rr2 := httptest.NewRecorder()
+	handler(rr2, req2)
+	if rr2.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected the second request to be rate-limited, got %d", rr2.Code)
+	}
+	if got := rr2.Header().Get("Retry-After"); got != "1" {
+		t.Fatalf("expected Retry-After: 1, got %q", got)
+	}
+}
+
+func TestIPRateLimiter_RetryAfterDoesNotConsumeAnExtraToken(t *testing.T) {
+	// A rejected request's Reserve()+Cancel() must leave the bucket exactly
+	// as an Allow()-based rejection would have. If Cancel() were skipped,
+	// the rejected reservation would itself occupy the next refill slot,
+	// pushing the real next-available time a further refill interval out —
+	// a 600ms-style generous sleep margin (as used elsewhere in this file)
+	// would hide that, since it comfortably outlasts an extra interval too.
+	// This uses a tight window instead: past the correct 1-interval wait,
+	// short of the buggy 2-interval one, so a leaked reservation fails it.
+	rl := utility.NewIPRateLimiter(rate.Every(300*time.Millisecond), 1)
+	handler, _ := newTestLimiterHandler(rl)
+
+	doRequest(handler, "1.2.3.4:5555")             // consumes the single token
+	rejected := doRequest(handler, "1.2.3.4:5555") // rejected, computes Retry-After
+	if rejected != http.StatusTooManyRequests {
+		t.Fatalf("expected the second request to be rejected, got %d", rejected)
+	}
+
+	time.Sleep(350 * time.Millisecond)
+	if code := doRequest(handler, "1.2.3.4:5555"); code != http.StatusOK {
+		t.Fatalf("expected the token to have refilled after exactly one interval, got %d", code)
+	}
+}

@@ -1,8 +1,10 @@
 package utility
 
 import (
+	"math"
 	"net"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -71,10 +73,26 @@ func clientIP(r *http.Request) string {
 }
 
 // Limit wraps an http.HandlerFunc, rejecting requests over the configured
-// per-IP rate with 429 Too Many Requests.
+// per-IP rate with 429 Too Many Requests and a Retry-After header telling a
+// well-behaved client how long to wait before trying again.
 func (rl *IPRateLimiter) Limit(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !rl.getVisitor(clientIP(r)).Allow() {
+		// Reserve()+Cancel() (rather than Allow()) is the standard way to
+		// get a wait-time estimate out of x/time/rate without side effects
+		// when the request turns out to be rejected: a reservation with
+		// delay 0 is exactly what Allow() would have accepted, and
+		// cancelling one that isn't used restores the token it provisionally
+		// took, leaving the bucket exactly as Allow() would have left it.
+		reservation := rl.getVisitor(clientIP(r)).Reserve()
+		if !reservation.OK() {
+			// Only possible with burst 0, which nothing in this codebase
+			// configures — fail closed rather than let it through unbounded.
+			http.Error(w, "Too many requests", http.StatusTooManyRequests)
+			return
+		}
+		if delay := reservation.Delay(); delay > 0 {
+			reservation.Cancel()
+			w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(delay.Seconds()))))
 			http.Error(w, "Too many requests", http.StatusTooManyRequests)
 			return
 		}
