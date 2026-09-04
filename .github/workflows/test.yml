@@ -69,3 +69,63 @@ jobs:
           CGO_ENABLED: 1
           CGO_CFLAGS: -Wno-discarded-qualifiers
         run: govulncheck ./...
+
+  e2e:
+    runs-on: ubuntu-latest
+    # Only worth running against a build that already passed lint/typecheck/
+    # unit tests — and `playwright install --with-deps` is slow and heavy
+    # enough that it shouldn't sit in the fast feedback loop above.
+    needs: test
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            webapp/package-lock.json
+            e2e/package-lock.json
+
+      # sqlite3 (the CLI, not just libsqlite3-dev) is needed by
+      # e2e/setup/run-server.sh to seed the E2E database's schema, the same
+      # way database/createDB.sh and docker-entrypoint.sh do.
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev sqlite3
+
+      - name: Install webapp (React) dependencies
+        working-directory: webapp
+        run: npm ci
+
+      - name: Build webapp
+        working-directory: webapp
+        run: npm run build
+
+      - name: Install E2E dependencies
+        working-directory: e2e
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E suite
+        working-directory: e2e
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7

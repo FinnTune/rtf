@@ -12,13 +12,17 @@ import (
 
 var ForumDB *sql.DB
 
-func OpenDB() *sql.DB {
-	dataBase, err := sql.Open("sqlite3", "./database/forum.db")
+// OpenDB opens (and migrates) the SQLite database at path — normally
+// "./database/forum.db", but overridable (see main.go's DB_PATH env var) so
+// e.g. the E2E test suite can point at a disposable file instead of a
+// developer's real database.
+func OpenDB(path string) *sql.DB {
+	dataBase, err := sql.Open("sqlite3", path)
 	if err != nil {
-		slog.Error("error opening database", "error", err)
+		slog.Error("error opening database", "error", err, "path", path)
 		os.Exit(1)
 	}
-	slog.Info("database opened successfully")
+	slog.Info("database opened successfully", "path", path)
 
 	if err := migrate(dataBase); err != nil {
 		slog.Error("error migrating database", "error", err)

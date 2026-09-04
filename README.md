@@ -26,7 +26,8 @@ This repository runs a forum with posts (categories, reactions, images, search, 
 - `database/`: DB open/init helpers and SQL schema files
 - `webapp/`: React + TypeScript frontend (source in `webapp/src`; `npm run build` produces `webapp/dist`, which the Go binary serves)
 - `utility/`: password hashing, cookie helpers
-- `tests/`: automated test suites and shared test helpers
+- `tests/`: automated Go test suites and shared test helpers
+- `e2e/`: Playwright end-to-end suite (its own `package.json`, separate from `webapp/`'s)
 - `logfiles/`: runtime logs
 
 ## Prerequisites
@@ -227,11 +228,10 @@ CGO_ENABLED=1 CGO_CFLAGS="-Wno-discarded-qualifiers" go test ./...
 
 ## Continuous Integration
 
-GitHub Actions runs on every push and pull request to `master` (see `.github/workflows/test.yml`):
+GitHub Actions runs on every push and pull request to `master` (see `.github/workflows/test.yml`), as two jobs:
 
-- `webapp/`: `npm ci`, then lint, typecheck, test, and build the React frontend
-- `go test ./...` with CGO enabled for SQLite
-- `govulncheck ./...` to catch known-vulnerable Go dependencies
+- `test`: `webapp/`: `npm ci`, then lint, typecheck, test, and build the React frontend; `go test ./...` with CGO enabled for SQLite; `govulncheck ./...` to catch known-vulnerable Go dependencies
+- `e2e` (`needs: test`, so it only runs once the above passes): installs Playwright + Chromium and runs the E2E suite (see [Testing](#testing)) against the actual built app
 
 Dependabot (`.github/dependabot.yml`) opens weekly PRs for Go module, npm, and GitHub Actions updates.
 
@@ -260,6 +260,19 @@ Internal test hooks used by `tests/websocket/` live in `websocket/testhooks.go`.
 - **Real-time**: real WebSocket upgrade handshake and event routing (not just handler functions in isolation), direct/group chat creation (including a concurrency/race-safety test), message send/history/search, typing indicators, read receipts, reconnect backoff (frontend)
 - **Moderation**: delete-any-post/comment, ban/unban and its immediate effect on a live connection
 - **Migrations**: idempotency, and correctness against both a fresh schema and an already-deployed one predating each change
+
+### End-to-end tests (`e2e/`)
+
+A small Playwright suite drives the actual built frontend against the actual running Go server — the one thing the Go/Vitest suites above structurally can't do, since they each only exercise their own layer. Deliberately modest in scope (a smoke suite, not a re-run of what's already covered): register/login, create a post and view it, and two real browser sessions exchanging a chat message in real time over a live WebSocket connection.
+
+It builds its own disposable SQLite database and Go binary and runs them on a dedicated port (`8543`) via `e2e/setup/run-server.sh`, so it never touches a developer's real `database/forum.db` or collides with an already-running dev/Docker instance on `8443`.
+
+```bash
+cd e2e
+npm ci
+npx playwright install --with-deps chromium   # first time only
+npx playwright test
+```
 
 ### Commands
 
@@ -331,7 +344,7 @@ PORT=9443 go run .
 
 - Docker Compose (see [Docker](#docker)) gives a containerized single-instance run, but there's still no reverse proxy/TLS termination, log aggregation, or multi-instance orchestration for actual production deployment
 - No self-service password reset or recovery — there's no email-sending capability in this app, so a lost password currently requires direct database access, the same way promoting an admin does (see [Admin Access](#admin-access))
-- No end-to-end/browser test suite is checked into the repo — the Go integration tests and Vitest/RTL component tests give good coverage of their own layers, but nothing exercises the actual built frontend against the actual running server over real HTTP/WS
+- The E2E suite (see [Testing](#testing)) is intentionally a small smoke suite (auth, posting, one real-time chat exchange) — it isn't a substitute for exhaustive manual/exploratory testing of every feature combination
 
 ## Contributing
 
