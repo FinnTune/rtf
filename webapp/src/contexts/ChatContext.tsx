@@ -354,6 +354,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       })
     })
 
+    // The server never fails a chat action silently — every rejection (an
+    // unresolvable username, a too-long message, ...) comes back as this
+    // event, addressed to just the requesting connection. Previously
+    // nothing listened for it at all, so those rejections had no visible
+    // effect on the client whatsoever.
+    const unsubChatError = subscribe('chat-error', (payload) => {
+      const data = payload as { message: string }
+      showMessage('Err: ' + data.message, 'error')
+    })
+
     return () => {
       unsubUsers()
       unsubChatOpened()
@@ -364,6 +374,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       unsubMessageAck()
       unsubTyping()
       unsubStopTyping()
+      unsubChatError()
     }
   }, [subscribe, myUsername, markUnread, markRead, showMessage])
 

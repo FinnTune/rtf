@@ -203,8 +203,15 @@ func (c *Client) readMessages() {
 		return
 	}
 
-	//Set limit for message size.
-	conn.SetReadLimit(512)
+	// Set limit for message size. Exceeding this doesn't fail the read
+	// gracefully — gorilla closes the connection outright — so it has to
+	// comfortably cover every legitimate event's full JSON-encoded size,
+	// not just the common case: the largest is create-group-chat, whose
+	// payload can carry up to maxGroupMembers (50) usernames plus a name,
+	// and a chat message can be up to maxChatMessageLength (1000) runes,
+	// worst-case 4 bytes each in UTF-8. 8KiB leaves ample headroom above
+	// both without meaningfully weakening the size bound.
+	conn.SetReadLimit(8192)
 
 	//Set pong handler function for connection
 	conn.SetPongHandler(c.pongHandler)
