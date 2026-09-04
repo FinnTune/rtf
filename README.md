@@ -8,9 +8,9 @@ Created by André J. Teetor as a learning project to explore:
 - SQLite persistence
 - basic security and state management patterns
 
-This repository runs a forum with posts/comments plus private chat and online-user presence.
+This repository runs a forum with posts (categories, reactions, images, search, sort) plus real-time private and group chat with online-user presence.
 
-![Screenshot](picture_test.png)
+![Screenshot](screenshot.png)
 
 ## Tech Stack
 
@@ -97,7 +97,7 @@ cd database && ./createDB.sh && cd ..
 
 ## Admin Access
 
-Category management (create/rename/delete) is gated to users whose `user.role` is `'admin'` (see `websocket.RequireAdmin`). There is no signup-time way to become an admin, and the seed data in `createTables.sql` does not insert a real `admin` user account (categories/posts reference `"admin"` only as a plain author string) — so on a fresh database, nobody starts as admin. Grant it manually once you have a real account to promote:
+Admin-gated actions — category management (create/rename/delete), deleting any user's post or comment (not just your own), and user moderation (`GET /listUsers`, `POST /setUserBanned` to ban/unban) — are restricted to users whose `user.role` is `'admin'` (see `websocket.RequireAdmin`, re-checked server-side on every request regardless of what the client claims). There is no signup-time way to become an admin, and the seed data in `createTables.sql` does not insert a real `admin` user account (categories/posts reference `"admin"` only as a plain author string) — so on a fresh database, nobody starts as admin. Grant it manually once you have a real account to promote:
 
 ```bash
 sqlite3 database/forum.db "UPDATE user SET role = 'admin' WHERE uname = '<your-username>';"
@@ -120,29 +120,49 @@ docker compose up --build
 
 ## Core Features
 
-- User registration and login
-- Session cookie auth (`session_id`)
-- Post creation and category filtering
-- Post comments
-- Real-time private chat via WebSocket
-- Live online-user list
-- Typing indicator events
-- Chat history pagination
+- User registration, login, and session cookie auth (`session_id`)
+- Post creation, editing, and deletion, with category tagging
+- Category browsing/filtering (multi-select) and admin category management
+- Post sort/trending (newest, most liked, most commented)
+- Like/dislike reactions on posts
+- Image upload/attachment on posts
+- Post comments, with edit/delete for the comment's own author
+- Full-text search across posts and, separately, across a user's own private messages
+- Real-time private (1:1) and group chat via WebSocket
+- Live online-user list and typing indicators
+- Chat history pagination, read receipts, and unread badges
+- In-app and native browser chat notifications
+- Admin moderation: delete any post/comment, ban/unban users
 
 ## HTTP / WS Endpoints
 
 HTTP:
 
 - `GET /` - serves SPA entrypoint
+- `GET /healthz` - liveness/readiness check (pings the database); backs the Docker `HEALTHCHECK`
 - `POST /register`
 - `POST /login`
 - `POST /logout`
 - `GET /checkLogin`
-- `GET /getAllPosts`
+- `GET /getAllPosts` (`?limit=&offset=&sort=`)
+- `GET /getPostsByAuthor` (`?author=&limit=&offset=&sort=`)
+- `GET /getPost` (`?id=`)
 - `POST /addPost`
-- `POST /getPostsByCategory`
+- `POST /editPost`
+- `POST /deletePost` - own post, or any post if admin
+- `POST /reactToPost`
+- `POST /uploadPostImage`
+- `POST /getPostsByCategory` (`?limit=&offset=&sort=`)
+- `GET /searchPosts` (`?q=&sort=`)
+- `GET /searchMessages` (`?q=`)
+- `GET /getCategories`
+- `GET /getPostCategories` (`?postId=`)
+- `POST /createCategory`, `POST /editCategory`, `POST /deleteCategory` - admin-only
+- `GET /listUsers`, `POST /setUserBanned` - admin-only
 - `POST /addcomment`
-- `GET /comments?postId=<id>`
+- `POST /editComment`
+- `POST /deleteComment` - own comment, or any comment if admin
+- `GET /comments` (`?postId=&limit=&offset=`)
 
 WebSocket:
 
@@ -150,12 +170,13 @@ WebSocket:
 
 Event types include:
 
-- `user-connect`
-- `new-message` / `sent-message`
-- `users-online`
+- `user-connect` / `users-online`
+- `open-direct-chat` / `create-group-chat` / `chat-opened` / `chat-error`
+- `get-conversations` / `conversations-list`
+- `new-message` / `sent-message` / `message-ack`
+- `get-chat-history` / `get-more-chat-history` / `chat_history`
 - `typing` / `stop-typing`
-- `get-chat-history` / `get-more-chat-history`
-- `chat_history`
+- `mark-read` / `read-receipt`
 
 ## Security Notes
 
@@ -165,11 +186,14 @@ Recent hardening includes:
 - multiple frontend user-content render paths were moved from unsafe `innerHTML` usage to safer text-based rendering
 - request-path fatal exits were removed from handlers in favor of safe HTTP error responses
 - origin checks are now configurable through `ALLOWED_ORIGIN`
-- per-IP rate limiting on `/login`, `/register`, `/addPost`, and `/addcomment` (see `utility/ratelimit.go`)
-- input length/format validation on registration, login, posts, comments, and category filters at the API boundary (see `websocket/validate.go`)
+- per-IP rate limiting on every write endpoint plus the read-only listing/search endpoints, each rejecting over-limit requests with `429` and a `Retry-After` header (see `utility/ratelimit.go`)
+- input length/format validation on registration, login, posts, comments, category filters, and chat messages at the API boundary (see `websocket/validate.go`) — a chat message previously had no server-side bound, and an over-sized WebSocket frame would silently kill the whole connection rather than being rejected gracefully
 - session cookie is rotated on login, actively cleared on logout, and expires server-side after 24h of inactivity with a sliding refresh on active use (see `Client.expired`/`Client.touch` in `websocket/ws-client.go` and `utility.RefreshCookie`/`ClearCookie`)
-- state-changing routes (`/register`, `/login`, `/logout`, `/addPost`, `/addcomment`) reject requests whose `Origin` header doesn't match `ALLOWED_ORIGIN`, blocking cross-site CSRF submissions (see `websocket/csrf.go`)
-- every response now carries a strict CSP plus `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and HSTS headers (see `securityHeaders` in `main.go`)
+- state-changing routes reject requests whose `Origin` header doesn't match `ALLOWED_ORIGIN`, blocking cross-site CSRF submissions (see `websocket/csrf.go`)
+- every response carries a strict CSP plus `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and HSTS headers (see `securityHeaders` in `main.go`)
+- admin-gated actions (category management, delete-any-post/comment, user ban) are re-verified server-side on every request, never trusted from client-sent role claims (see `websocket.RequireAdmin`/`isAdmin`)
+- the Docker image runs as a fixed non-root user (uid/gid 1000), not root
+- structured logging (`log/slog`) throughout the backend, with explicit redaction of credentials, session IDs, OTP keys, and private message content from log output
 
 ## Development Workflow
 
@@ -213,35 +237,29 @@ Dependabot (`.github/dependabot.yml`) opens weekly PRs for Go module, npm, and G
 
 ## Testing
 
-The backend has **37 automated tests** under `tests/`. Tests use an in-memory SQLite database so they do not touch `database/forum.db`.
+The backend has **~190 automated tests** across `main_test.go` and `tests/` (Go), and the frontend has **~140 tests** under `webapp/src/**/*.test.{ts,tsx}` (Vitest + React Testing Library). Go tests use an in-memory SQLite database so they do not touch `database/forum.db`.
 
 ### Test layout
 
 ```
+main_test.go            # healthz handler, security headers
 tests/
-├── testutil/          # shared in-memory DB setup
-├── utility/           # password and cookie tests
-└── websocket/         # HTTP handler, OTP, and WS event tests
+├── database/           # schema migrations (fresh DB and already-deployed-DB paths)
+├── testutil/           # shared in-memory DB setup
+├── utility/            # password/cookie helpers, IP rate limiter
+└── websocket/          # HTTP handlers, WS event routing, OTP, real end-to-end WS upgrade tests
 ```
-
-| Location | Files | What is covered |
-|----------|-------|-----------------|
-| `tests/testutil/` | `database.go` | Shared in-memory SQLite schema and seed data |
-| `tests/utility/` | `utility_test.go` | Password hashing/verification, session cookie creation and detection |
-| `tests/websocket/` | `handlers_test.go` | Origin checks, post/comment auth enforcement |
-| `tests/websocket/` | `handlers_auth_test.go` | Registration, login, logout, session status |
-| `tests/websocket/` | `handlers_posts_test.go` | Posts, comments, category filtering |
-| `tests/websocket/` | `otp_test.go` | One-time password creation, verification, expiry |
-| `tests/websocket/` | `ws_events_test.go` | Chat messages, user presence, typing indicators, chat history |
 
 Internal test hooks used by `tests/websocket/` live in `websocket/testhooks.go`.
 
 ### Coverage areas
 
-- **Security**: WebSocket origin validation, session-based identity for writes (client-sent user IDs are ignored)
-- **Auth**: Registration, login (valid/invalid credentials), logout, login status checks
-- **Forum API**: Listing posts, filtering by category, adding posts with categories, reading and adding comments
-- **Real-time**: OTP lifecycle, chat message persistence, online user broadcasts, typing/stop-typing events, chat history pagination
+- **Security**: origin/CSRF validation, session-based identity for writes (client-sent user/role fields are always ignored server-side), admin-gate re-verification, rate limiting (burst/refill/per-IP isolation/`Retry-After`), password hashing, credential redaction in logs
+- **Auth**: registration, login (valid/invalid/banned), logout, session expiry and OTP lifecycle
+- **Forum API**: posts (CRUD, category tagging, sort/trending, search), comments (CRUD), category management, reactions, image upload
+- **Real-time**: real WebSocket upgrade handshake and event routing (not just handler functions in isolation), direct/group chat creation (including a concurrency/race-safety test), message send/history/search, typing indicators, read receipts, reconnect backoff (frontend)
+- **Moderation**: delete-any-post/comment, ban/unban and its immediate effect on a live connection
+- **Migrations**: idempotency, and correctness against both a fresh schema and an already-deployed one predating each change
 
 ### Commands
 
@@ -264,12 +282,14 @@ Run one test by name:
 CGO_ENABLED=1 go test ./tests/websocket -run TestLoginHandler_Success -v
 ```
 
-Current coverage (approximate, measured against source packages):
+Current coverage (`go test ./tests/... -coverpkg=./websocket/...,./utility/...,./database/... -coverprofile=...`, plus `main_test.go`'s own in-package coverage):
 
-- `utility/`: ~93%
-- `websocket/`: ~63%
+- `websocket/`: ~77%
+- `utility/`: ~57%
+- `database/`: ~36%
+- `main` (root package): ~2% — only `healthzHandler` and `securityHeaders` are unit-tested; route registration and TLS server startup are exercised live (Docker + manual/browser verification) but not by `go test`
 
-Not yet covered: full WebSocket upgrade handshake, live connection read/write loops, and the `main`/`database`/`logfiles` packages.
+Lagging areas: `database/` (mostly the historical one-time migration helpers, exercised structurally rather than line-by-line), and anything in `main.go` beyond the two handlers above.
 
 ## Troubleshooting
 
@@ -310,7 +330,8 @@ PORT=9443 go run .
 ## Known Limitations
 
 - Docker Compose (see [Docker](#docker)) gives a containerized single-instance run, but there's still no reverse proxy/TLS termination, log aggregation, or multi-instance orchestration for actual production deployment
-- WebSocket connection lifecycle and server startup code are not yet covered by tests (backend or frontend — the frontend's reconnect logic is deliberately not deep-tested, see `webapp/src/contexts/WebSocketContext.tsx`)
+- No self-service password reset or recovery — there's no email-sending capability in this app, so a lost password currently requires direct database access, the same way promoting an admin does (see [Admin Access](#admin-access))
+- No end-to-end/browser test suite is checked into the repo — the Go integration tests and Vitest/RTL component tests give good coverage of their own layers, but nothing exercises the actual built frontend against the actual running server over real HTTP/WS
 
 ## Contributing
 

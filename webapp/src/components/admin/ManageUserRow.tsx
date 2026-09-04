@@ -43,6 +43,7 @@ export function ManageUserRow({ targetUser, isSelf, onChanged }: ManageUserRowPr
         loading={working}
         loadingText="Saving..."
         disabled={isSelf}
+        title={isSelf ? "You can't ban your own account" : undefined}
         onClick={() => void handleToggleBanned()}
       >
         {targetUser.banned ? 'Unban' : 'Ban'}
