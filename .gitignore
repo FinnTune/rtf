@@ -9,3 +9,13 @@ database/forum.db
 logfiles/*.log
 uploads/
 .VSCodeCounter/
+
+# Playwright E2E suite (e2e/) — disposable test artifacts and the
+# throwaway SQLite database/binary its setup script builds; see
+# e2e/setup/run-server.sh.
+e2e/.tmp/
+e2e/.bin/
+e2e/.auth/
+e2e/test-results/
+e2e/playwright-report/
+e2e/blob-report/

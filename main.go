@@ -225,7 +225,8 @@ func securityHeaders(next http.Handler) http.Handler {
 // is cancelled (SIGINT/SIGTERM), then shuts the server down gracefully.
 func runServer(ctx context.Context) {
 	//Open database
-	database.ForumDB = database.OpenDB()
+	dbPath := getEnv("DB_PATH", "./database/forum.db")
+	database.ForumDB = database.OpenDB(dbPath)
 	defer func() {
 		database.ForumDB.Close()
 		slog.Info("database closed")
