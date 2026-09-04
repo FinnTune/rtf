@@ -121,6 +121,13 @@ func ClientCountForTest() int {
 	return len(manager.clients)
 }
 
+// SweepExpiredClientsForTest runs one pass of the background expired-client
+// eviction synchronously, so a test can assert on its effect without
+// waiting out the real clientSweepInterval.
+func SweepExpiredClientsForTest() {
+	manager.sweepOnce()
+}
+
 // WaitEvent waits for an outbound websocket event up to the given timeout.
 func (h *TestClientHandle) WaitEvent(timeout time.Duration) (eventType string, payload json.RawMessage, ok bool) {
 	select {
