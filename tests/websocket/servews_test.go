@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"rtForum/tests/testutil"
 	"rtForum/websocket"
 
 	gorillaws "github.com/gorilla/websocket"
@@ -252,5 +253,70 @@ func TestServeWS_ExpiredExistingClient_DiscardedAndReplaced(t *testing.T) {
 	}
 	if got := websocket.ClientCountForTest(); got != 1 {
 		t.Fatalf("expected the stale client to be discarded and replaced by exactly 1 new client, got %d", got)
+	}
+}
+
+func TestServeWS_AcceptsChatMessageFrameLargerThanOldReadLimit(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	server := httptest.NewServer(http.HandlerFunc(websocket.WebsocketHandler))
+	defer server.Close()
+
+	sessionID := "large-frame-session"
+	websocket.AddAuthenticatedClient(sessionID, "admin", 1)
+
+	otp := websocket.NewOtpForTest()
+	conn, _, err := dialWS(t, server.URL, otp, sessionID)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+	defer conn.Close()
+
+	deadlineCheck := time.Now().Add(2 * time.Second)
+	for {
+		handle := websocket.FindClientBySessionForTest(sessionID)
+		if handle != nil && handle.HasConnectionForTest() {
+			break
+		}
+		if time.Now().After(deadlineCheck) {
+			t.Fatal("timed out waiting for the client's connection to be set")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// ~700 bytes of message text: comfortably over the old 512-byte frame
+	// read limit — which used to kill the whole connection outright (see
+	// ws-client.go's SetReadLimit) instead of letting sendMessage reject an
+	// over-length message gracefully — but safely under the current one.
+	largeMessage := strings.Repeat("a", 700)
+	event := map[string]any{
+		"type":    "new-message",
+		"payload": map[string]any{"conversation_id": 1, "message": largeMessage},
+	}
+	data, err := json.Marshal(event)
+	if err != nil {
+		t.Fatalf("failed to marshal event: %v", err)
+	}
+	if err := conn.WriteMessage(gorillaws.TextMessage, data); err != nil {
+		t.Fatalf("failed to send large message frame: %v", err)
+	}
+
+	// A message-ack reply proves the connection survived the frame and the
+	// message was processed end-to-end (admin/user 1 is a member of the
+	// seed data's conversation 1) — not just that the socket happened to
+	// stay open.
+	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, reply, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("expected the connection to survive the large frame and reply, got error: %v", err)
+	}
+	var replyEvent struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(reply, &replyEvent); err != nil {
+		t.Fatalf("failed to decode reply: %v", err)
+	}
+	if replyEvent.Type != "message-ack" {
+		t.Fatalf("expected message-ack reply, got %q", replyEvent.Type)
 	}
 }

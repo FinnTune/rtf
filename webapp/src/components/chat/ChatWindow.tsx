@@ -119,6 +119,7 @@ export function ChatWindow({ state }: ChatWindowProps) {
         <textarea
           id={`new-message-${conversationId}`}
           placeholder="Type your message"
+          maxLength={1000}
           value={draft}
           onChange={(event) => handleInput(event.target.value)}
           onKeyDown={handleKeyDown}

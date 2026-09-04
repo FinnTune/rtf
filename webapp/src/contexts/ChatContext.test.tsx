@@ -259,4 +259,13 @@ describe('ChatContext', () => {
     await waitFor(() => expect(result.current.chat.openWindows[convId].messages).toHaveLength(1))
     expect(result.current.status.text).toBe('')
   })
+
+  it('shows a toast for a chat-error event (e.g. an over-length message rejected server-side)', async () => {
+    const { result, socket } = await setupWithStatus()
+
+    act(() => socket.simulateMessage('chat-error', { message: 'message must be 1-1000 characters' }))
+
+    await waitFor(() => expect(result.current.status.text).toBe('Err: message must be 1-1000 characters'))
+    expect(result.current.status.type).toBe('error')
+  })
 })

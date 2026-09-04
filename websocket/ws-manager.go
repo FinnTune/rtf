@@ -71,6 +71,15 @@ func sendMessage(event Event, c *Client) error {
 		return nil
 	}
 
+	message, err := validateChatMessage(chatEvent.Message)
+	if err != nil {
+		// A user-facing rejection, not a server fault — sendChatError always
+		// returns nil, so this never tears down the connection the way an
+		// error return here would (see routeEvent's caller in ws-client.go).
+		return sendChatError(c, err.Error())
+	}
+	chatEvent.Message = message
+
 	sent := time.Now()
 	// Store message in sqlite3 database
 	result, err := database.ForumDB.Exec(

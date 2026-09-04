@@ -45,6 +45,11 @@ const (
 	// this many *other* usernames is still rejected, since the actual group
 	// ends up one larger than what was requested.
 	maxGroupMembers = 50
+
+	// A chat message previously had no server-side length bound at all —
+	// see sendMessage in ws-manager.go and the read-limit comment in
+	// ws-client.go's readMessages.
+	maxChatMessageLength = 1000
 )
 
 var validSortValues = map[string]bool{
@@ -135,6 +140,14 @@ func validateComment(content string) (string, error) {
 	content = strings.TrimSpace(content)
 	if content == "" || len(content) > maxCommentLength {
 		return "", fmt.Errorf("comment must be 1-%d characters", maxCommentLength)
+	}
+	return content, nil
+}
+
+func validateChatMessage(content string) (string, error) {
+	content = strings.TrimSpace(content)
+	if content == "" || len(content) > maxChatMessageLength {
+		return "", fmt.Errorf("message must be 1-%d characters", maxChatMessageLength)
 	}
 	return content, nil
 }

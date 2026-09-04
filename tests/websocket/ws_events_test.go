@@ -2,6 +2,7 @@ package websocket_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -183,6 +184,76 @@ func TestSendMessage_RejectsNonMember(t *testing.T) {
 	}
 	if count != 0 {
 		t.Fatalf("expected no message stored for a non-member, found %d", count)
+	}
+}
+
+func TestSendMessage_RejectsTooLongMessageWithoutKillingConnection(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	sender := websocket.AddTestClient("s1", "admin", 1)
+	info := mustOpenDirectChat(t, sender, "actual_user")
+
+	tooLong := strings.Repeat("a", 1001)
+	if err := websocket.SendMessageForTest(sendMessagePayload(t, info.ConversationID, tooLong), sender); err != nil {
+		t.Fatalf("sendMessage should not error (never fatal to the connection) for an over-length message, got: %v", err)
+	}
+
+	eventType, _, ok := sender.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat-error")
+	}
+	if eventType != websocket.ChatError {
+		t.Fatalf("expected chat-error event, got %q", eventType)
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM message WHERE conversation_id = ?`, info.ConversationID).Scan(&count); err != nil {
+		t.Fatalf("failed to query message count: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected no message stored for an over-length message, found %d", count)
+	}
+}
+
+func TestSendMessage_RejectsBlankMessage(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	sender := websocket.AddTestClient("s1", "admin", 1)
+	info := mustOpenDirectChat(t, sender, "actual_user")
+
+	if err := websocket.SendMessageForTest(sendMessagePayload(t, info.ConversationID, "   "), sender); err != nil {
+		t.Fatalf("sendMessage should not error for a blank message, got: %v", err)
+	}
+
+	eventType, _, ok := sender.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat-error")
+	}
+	if eventType != websocket.ChatError {
+		t.Fatalf("expected chat-error event, got %q", eventType)
+	}
+}
+
+func TestSendMessage_AllowsMessageAtTheLengthLimit(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	sender := websocket.AddTestClient("s1", "admin", 1)
+	info := mustOpenDirectChat(t, sender, "actual_user")
+
+	atLimit := strings.Repeat("a", 1000)
+	if err := websocket.SendMessageForTest(sendMessagePayload(t, info.ConversationID, atLimit), sender); err != nil {
+		t.Fatalf("sendMessage failed: %v", err)
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM message WHERE txt = ?`, atLimit).Scan(&count); err != nil {
+		t.Fatalf("failed to query message count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected the exactly-at-limit message to be stored, found %d", count)
 	}
 }
 
