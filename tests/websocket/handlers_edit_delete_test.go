@@ -222,6 +222,13 @@ func TestDeletePostHandler_DeletesOwnPostAndDependents(t *testing.T) {
 	websocket.AddAuthenticatedClient("session-owner", "actual_user", 42)
 
 	// post id 1 owns comment id 1 and category_relation id 3 in the seed data.
+	if _, err := db.Exec(`
+		INSERT INTO user_post_reaction (id, user_id, post_id, is_liked, created_at) VALUES
+		(1, 2, 1, 1, datetime('now'));
+	`); err != nil {
+		t.Fatalf("failed to seed reaction: %v", err)
+	}
+
 	body := `{"id":1}`
 	req := httptest.NewRequest(http.MethodPost, "/deletePost", bytes.NewBufferString(body))
 	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-owner"})
@@ -233,10 +240,11 @@ func TestDeletePostHandler_DeletesOwnPostAndDependents(t *testing.T) {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
 	}
 
-	var postCount, commentCount, relationCount int
+	var postCount, commentCount, relationCount, reactionCount int
 	db.QueryRow(`SELECT COUNT(*) FROM post WHERE id = 1`).Scan(&postCount)
 	db.QueryRow(`SELECT COUNT(*) FROM comment WHERE post_id = 1`).Scan(&commentCount)
 	db.QueryRow(`SELECT COUNT(*) FROM category_relation WHERE post_id = 1`).Scan(&relationCount)
+	db.QueryRow(`SELECT COUNT(*) FROM user_post_reaction WHERE post_id = 1`).Scan(&reactionCount)
 
 	if postCount != 0 {
 		t.Fatalf("expected post to be deleted, found %d", postCount)
@@ -246,6 +254,60 @@ func TestDeletePostHandler_DeletesOwnPostAndDependents(t *testing.T) {
 	}
 	if relationCount != 0 {
 		t.Fatalf("expected post's category relations to be deleted, found %d", relationCount)
+	}
+	if reactionCount != 0 {
+		t.Fatalf("expected post's reactions to be deleted, found %d", reactionCount)
+	}
+}
+
+// Regression test for a bug where deleting a post left its
+// user_post_reaction rows orphaned. Since post.id has no AUTOINCREMENT,
+// SQLite can reuse a deleted post's rowid for the very next inserted post,
+// which would silently inherit the old post's leftover reactions (phantom
+// like/dislike counts, a false "you already reacted" state) without this
+// cleanup.
+func TestDeletePostHandler_ReusedPostIDHasNoLeftoverReactions(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-admin", "admin", 1)
+
+	// Post 3 is the seed data's highest post id — deleting it (rather than a
+	// lower one) is what makes SQLite reuse its rowid for the next insert.
+	if _, err := db.Exec(`
+		INSERT INTO user_post_reaction (id, user_id, post_id, is_liked, created_at) VALUES
+		(1, 2, 3, 1, datetime('now'));
+	`); err != nil {
+		t.Fatalf("failed to seed reaction: %v", err)
+	}
+
+	deleteBody := `{"id":3}`
+	deleteReq := httptest.NewRequest(http.MethodPost, "/deletePost", bytes.NewBufferString(deleteBody))
+	deleteReq.AddCookie(&http.Cookie{Name: "session_id", Value: "session-admin"})
+	deleteRR := httptest.NewRecorder()
+	websocket.DeletePostHandler(deleteRR, deleteReq)
+	if deleteRR.Code != http.StatusOK {
+		t.Fatalf("expected delete status %d, got %d: %s", http.StatusOK, deleteRR.Code, deleteRR.Body.String())
+	}
+
+	// SQLite reuses the deleted row's rowid here since it was the table max.
+	if _, err := db.Exec(`
+		INSERT INTO post (user_id, title, content, author, created_at) VALUES
+		(42, 'new post', 'new content', 'actual_user', datetime('now'));
+	`); err != nil {
+		t.Fatalf("failed to insert replacement post: %v", err)
+	}
+	var newID int
+	if err := db.QueryRow(`SELECT id FROM post WHERE title = 'new post'`).Scan(&newID); err != nil {
+		t.Fatalf("failed to look up new post id: %v", err)
+	}
+	if newID != 3 {
+		t.Fatalf("expected SQLite to reuse rowid 3, got %d (test assumption invalid)", newID)
+	}
+
+	var reactionCount int
+	db.QueryRow(`SELECT COUNT(*) FROM user_post_reaction WHERE post_id = ?`, newID).Scan(&reactionCount)
+	if reactionCount != 0 {
+		t.Fatalf("new post at reused id %d inherited %d leftover reaction(s)", newID, reactionCount)
 	}
 }
 
