@@ -70,9 +70,12 @@ describe('ManageUsersPage', () => {
 
     expect(await screen.findByText(/bob/)).toBeInTheDocument()
 
-    // The admin's own row has a disabled Ban button.
+    // The admin's own row has a disabled Ban button, with a reason exposed
+    // (not just silently disabled).
     const adminRow = screen.getByText(/admin@example.com/).closest('li')!
-    expect(within(adminRow).getByRole('button', { name: 'Ban' })).toBeDisabled()
+    const ownBanButton = within(adminRow).getByRole('button', { name: 'Ban' })
+    expect(ownBanButton).toBeDisabled()
+    expect(ownBanButton).toHaveAttribute('title', "You can't ban your own account")
 
     // Ban bob.
     vi.spyOn(window, 'confirm').mockReturnValue(true)
