@@ -1687,6 +1687,11 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
 		return
 	}
+	if _, err := tx.Exec("DELETE FROM user_post_reaction WHERE post_id = ?", requestBody.ID); err != nil {
+		slog.Error("failed to delete post reactions", "error", err, "post_id", requestBody.ID)
+		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
+		return
+	}
 	if _, err := tx.Exec("DELETE FROM category_relation WHERE post_id = ?", requestBody.ID); err != nil {
 		slog.Error("failed to delete post category relations", "error", err, "post_id", requestBody.ID)
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
