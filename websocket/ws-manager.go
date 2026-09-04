@@ -18,6 +18,12 @@ type Manager struct {
 	otps          *otpsMap
 }
 
+// clientSweepInterval controls how often sweepExpiredClients runs. It only
+// needs to be frequent enough to bound manager.clients' worst-case size
+// (utility.SessionDuration's worth of abandoned sessions between sweeps),
+// not tight to the second the way the OTP sweep is.
+const clientSweepInterval = 10 * time.Minute
+
 // Factory function for manager
 func newManager(ctx context.Context) *Manager {
 	slog.Info("manager created")
@@ -30,7 +36,46 @@ func newManager(ctx context.Context) *Manager {
 	//Register event handlers
 	m.RegisterEventHandlers()
 
+	go m.sweepExpiredClients(ctx, clientSweepInterval)
+
 	return m
+}
+
+// sweepExpiredClients periodically evicts clients whose session has been
+// idle longer than utility.SessionDuration. Every other place that checks
+// client.expired() (authenticatedClientFromRequest, checkLogin, ServeWS)
+// only evicts a stale client if a request happens to present that exact
+// session_id again - a session that's simply abandoned (browser closed
+// without a clean disconnect) is never revisited, so without this sweep
+// manager.clients grows with total historical logins over server uptime,
+// not with concurrently active users. Mirrors otpsMap.checkOtps and
+// IPRateLimiter.cleanupVisitors, this app's two other self-expiring maps.
+func (m *Manager) sweepExpiredClients(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			m.sweepOnce()
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// sweepOnce runs a single expired-client eviction pass. Split out from
+// sweepExpiredClients' ticker loop so tests can trigger a pass synchronously
+// (see SweepExpiredClientsForTest) instead of waiting out a real interval.
+func (m *Manager) sweepOnce() {
+	m.Lock()
+	defer m.Unlock()
+	for client := range m.clients {
+		if client.expired() {
+			client.closeConnection()
+			delete(m.clients, client)
+		}
+	}
 }
 
 // clientsSnapshot returns a point-in-time copy of the connected clients,
