@@ -553,6 +553,17 @@ func (m *Manager) RegisterEventHandlers() {
 }
 
 func (m *Manager) routeEvent(event Event, c *Client) error {
+	if !c.limiter.Allow() {
+		// Not a hard error - a client that transiently bursts past its
+		// budget (e.g. a fast typist firing several Typing events at once)
+		// should just have this one event dropped, not have its connection
+		// torn down (returning an error here kills the connection - see
+		// readMessages' caller in ws-client.go). Sustained flooding still
+		// gets nothing but silently dropped events, which is exactly the
+		// point.
+		slog.Warn("dropping event: client exceeded its event rate limit", "username", c.username, "event_type", event.Type)
+		return nil
+	}
 	if handler, ok := m.eventHandlers[event.Type]; ok {
 		if err := handler(event, c); err != nil {
 			return err

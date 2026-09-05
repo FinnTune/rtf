@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"rtForum/utility"
 	"time"
+
+	"golang.org/x/time/rate"
 )
 
 // ResetTestState clears websocket manager and session state between tests.
@@ -23,6 +25,16 @@ func SetSendTimeoutForTest(d time.Duration) (restore func()) {
 	previous := sendTimeout
 	sendTimeout = d
 	return func() { sendTimeout = previous }
+}
+
+// SetEventRateLimitForTest temporarily shrinks the per-client WS event rate
+// limit so a test can prove it trips without sending thousands of real
+// events. Only affects clients created after this is called - see
+// newEventLimiter. Returns a restore func; callers should defer it.
+func SetEventRateLimitForTest(r rate.Limit, burst int) (restore func()) {
+	prevRate, prevBurst := wsEventRate, wsEventBurst
+	wsEventRate, wsEventBurst = r, burst
+	return func() { wsEventRate, wsEventBurst = prevRate, prevBurst }
 }
 
 // CheckOriginForTest exposes origin validation for external test packages.
@@ -45,6 +57,7 @@ func AddTestClient(sessionID, username string, userID int) *TestClientHandle {
 		loggedIn:  true,
 		egress:    make(chan Event, 4),
 		lastSeen:  time.Now(),
+		limiter:   newEventLimiter(),
 	}
 	manager.clients[client] = true
 	return &TestClientHandle{client: client}
