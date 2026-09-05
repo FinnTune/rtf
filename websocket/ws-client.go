@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"golang.org/x/time/rate"
 )
 
 type ClientsMapList map[*Client]bool
@@ -38,6 +39,16 @@ type Client struct {
 	// a leaked/replayed session_id can't be used indefinitely regardless of
 	// what the browser does with its own copy of the cookie.
 	lastSeen time.Time
+	// limiter bounds how many events (of any type - chat messages, typing
+	// indicators, history requests, ...) this connection may dispatch per
+	// second. Every REST write endpoint is already behind an IPRateLimiter
+	// (see main.go) specifically to guard against automated abuse; the
+	// persistent WS connection - which lets one client fire an unbounded
+	// number of DB-writing, broadcast-fanning-out events with no request
+	// round-trip in between - had no equivalent until this. Owned per-Client
+	// rather than keyed by IP/map, since a Client already lives exactly as
+	// long as the connection it bounds.
+	limiter *rate.Limiter
 	// type UserSession struct {
 	// 	Username string `json:"username"`
 	// 	UserID   int    `json:"id"`
@@ -54,6 +65,25 @@ var (
 	pingInterval = (pongWait * 9) / 10
 )
 
+// wsEventRate/wsEventBurst configure every Client's per-second event
+// budget. Generous relative to main.go's writeLimiter (10 req/2s) since a
+// single WS connection legitimately multiplexes several low-stakes event
+// types at once - e.g. the frontend fires a Typing event on every keystroke,
+// not just once per debounce window - so this exists to catch genuine
+// flooding (thousands of events/sec from a malicious or runaway client)
+// rather than to throttle normal chat use.
+//
+// Vars, not consts, so tests can shrink them (see SetEventRateLimitForTest)
+// instead of needing thousands of real events to prove the limit trips.
+var (
+	wsEventRate  rate.Limit = 20
+	wsEventBurst            = 30
+)
+
+func newEventLimiter() *rate.Limiter {
+	return rate.NewLimiter(wsEventRate, wsEventBurst)
+}
+
 // Factory function for client
 func newClient(conn *websocket.Conn, manager *Manager, session_id string) *Client {
 	slog.Debug("new client struct created")
@@ -64,6 +94,7 @@ func newClient(conn *websocket.Conn, manager *Manager, session_id string) *Clien
 		egress:     make(chan Event),
 		loggedIn:   false,
 		lastSeen:   time.Now(),
+		limiter:    newEventLimiter(),
 	}
 }
 
@@ -85,6 +116,7 @@ func newAuthenticatedClient(manager *Manager, sessionID string, userID int, user
 		email:     email,
 		joined:    joined,
 		lastSeen:  time.Now(),
+		limiter:   newEventLimiter(),
 	}
 }
 
