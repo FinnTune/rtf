@@ -61,6 +61,14 @@ func UploadPostImageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "image too large or malformed upload", http.StatusBadRequest)
 		return
 	}
+	// ParseMultipartForm spills any part exceeding its maxMemory argument
+	// (maxPostImageBytes here) to an on-disk temp file, which the caller is
+	// responsible for removing — Go's own docs for MultipartForm call this
+	// out. Uploads at or near the size limit routinely trigger the spill
+	// (the field/boundary overhead alone can push a same-sized image past
+	// the in-memory threshold), so without this every such upload leaked a
+	// temp file with nothing to ever clean it up.
+	defer r.MultipartForm.RemoveAll()
 
 	postID, err := strconv.Atoi(r.FormValue("post_id"))
 	if err != nil || postID <= 0 {

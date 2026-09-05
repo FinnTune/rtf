@@ -210,6 +210,43 @@ func TestUploadPostImageHandler_RejectsMissingFile(t *testing.T) {
 	}
 }
 
+// TestUploadPostImageHandler_CleansUpMultipartTempFiles exercises the exact
+// condition that triggers Go's multipart reader to spill a form part to an
+// on-disk temp file: total form data exceeding ParseMultipartForm's
+// maxMemory argument (maxPostImageBytes, 5MiB). Without the handler calling
+// r.MultipartForm.RemoveAll() afterward, such a temp file is never cleaned
+// up.
+func TestUploadPostImageHandler_CleansUpMultipartTempFiles(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	cleanUploads(t)
+	websocket.AddAuthenticatedClient("session-actual", "actual_user", 42)
+
+	before, err := filepath.Glob(filepath.Join(os.TempDir(), "multipart-*"))
+	if err != nil {
+		t.Fatalf("failed to glob temp dir before upload: %v", err)
+	}
+
+	content := append([]byte{}, pngSignature...)
+	content = append(content, make([]byte, 5*1024*1024+512*1024)...)
+
+	req := newImageUploadRequest(t, "session-actual", 1, "big.png", content)
+	rr := httptest.NewRecorder()
+	websocket.UploadPostImageHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	after, err := filepath.Glob(filepath.Join(os.TempDir(), "multipart-*"))
+	if err != nil {
+		t.Fatalf("failed to glob temp dir after upload: %v", err)
+	}
+	if len(after) > len(before) {
+		t.Fatalf("expected no leftover multipart temp files after upload, before=%d after=%d (%v)", len(before), len(after), after)
+	}
+}
+
 func TestAllPostsHandler_IncludesImgURL(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
