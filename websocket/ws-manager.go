@@ -235,6 +235,24 @@ func getChatHistory(event Event, c *Client) error {
 	if err := json.Unmarshal(event.Payload, &req); err != nil {
 		return fmt.Errorf("event unmarshalling error: %s", err)
 	}
+
+	// Unlike every REST pagination endpoint (AllPostsHandler,
+	// GetCommentsHandler, ...), limit/offset here come from an
+	// already-established WS connection with no equivalent clamp - an
+	// unbounded or negative Limit reaches SQLite's LIMIT clause directly
+	// below, and SQLite treats a negative LIMIT as "no limit", so a client
+	// could dump an entire (potentially very large, long-lived group) chat
+	// history in one request instead of paging through it.
+	if req.Limit <= 0 {
+		req.Limit = defaultChatHistoryPageSize
+	}
+	if req.Limit > maxChatHistoryPageSize {
+		req.Limit = maxChatHistoryPageSize
+	}
+	if req.Offset < 0 {
+		req.Offset = 0
+	}
+
 	slog.Debug("chat history requested", "username", c.username, "conversation_id", req.ConversationID, "limit", req.Limit, "offset", req.Offset)
 
 	messages := []ChatHistoryMessage{}

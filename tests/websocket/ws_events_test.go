@@ -1,7 +1,9 @@
 package websocket_test
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -385,6 +387,106 @@ func TestGetChatHistory_ReturnsMessages(t *testing.T) {
 	}
 	if messages[0].From != "admin" || messages[1].From != "alice" {
 		t.Fatalf("unexpected sender attribution: %+v", messages)
+	}
+}
+
+// seedBulkMessages inserts n additional messages into conversationID, well
+// beyond the chat history page-size cap, so tests can tell an unclamped
+// "everything" response apart from a properly paged one.
+func seedBulkMessages(t *testing.T, db *sql.DB, conversationID, senderID, n int) {
+	t.Helper()
+	for i := 0; i < n; i++ {
+		if _, err := db.Exec(
+			`INSERT INTO message (conversation_id, sender_id, txt, created_at) VALUES (?, ?, ?, datetime('now'))`,
+			conversationID, senderID, fmt.Sprintf("msg-%d", i),
+		); err != nil {
+			t.Fatalf("failed to seed message %d: %v", i, err)
+		}
+	}
+}
+
+// TestGetChatHistory_NegativeLimitFallsBackToDefault covers SQLite's
+// "negative LIMIT means no limit" behavior: a negative Limit must not reach
+// the query unclamped (which would dump the entire conversation), and since
+// the frontend never legitimately sends a non-positive Limit, falling back
+// to the same small default REST pagination uses (rather than the larger
+// max page size) is the safer choice.
+func TestGetChatHistory_NegativeLimitFallsBackToDefault(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	requester := websocket.AddTestClient("s1", "admin", 1)
+	seedBulkMessages(t, db, 1, 1, 150)
+
+	payload, _ := json.Marshal(websocket.GetHistoryRequest{ConversationID: 1, Limit: -1, Offset: 0})
+	if err := websocket.GetChatHistoryForTest(payload, requester); err != nil {
+		t.Fatalf("getChatHistory failed: %v", err)
+	}
+
+	_, eventPayload, ok := requester.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat history")
+	}
+	var messages []websocket.ChatHistoryMessage
+	if err := json.Unmarshal(eventPayload, &messages); err != nil {
+		t.Fatalf("failed to decode chat history: %v", err)
+	}
+	if len(messages) != 10 {
+		t.Fatalf("expected a non-positive limit to fall back to the default page size (10), got %d messages", len(messages))
+	}
+}
+
+// TestGetChatHistory_CapsExcessiveLimitAtMax covers the other direction: a
+// huge but positive Limit must still be capped, rather than letting a
+// client dump an entire large/long-lived conversation in one response.
+func TestGetChatHistory_CapsExcessiveLimitAtMax(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	requester := websocket.AddTestClient("s1", "admin", 1)
+	seedBulkMessages(t, db, 1, 1, 150)
+
+	payload, _ := json.Marshal(websocket.GetHistoryRequest{ConversationID: 1, Limit: 99999, Offset: 0})
+	if err := websocket.GetChatHistoryForTest(payload, requester); err != nil {
+		t.Fatalf("getChatHistory failed: %v", err)
+	}
+
+	_, eventPayload, ok := requester.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat history")
+	}
+	var messages []websocket.ChatHistoryMessage
+	if err := json.Unmarshal(eventPayload, &messages); err != nil {
+		t.Fatalf("failed to decode chat history: %v", err)
+	}
+	if len(messages) != 100 {
+		t.Fatalf("expected an excessive limit to be capped at the max page size (100), got %d messages", len(messages))
+	}
+}
+
+func TestGetChatHistory_ClampsNegativeOffsetToZero(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	// Uses the base seed's direct conversation between admin (1) and alice
+	// (2) (conversation id 1), which already has two messages.
+	requester := websocket.AddTestClient("s1", "admin", 1)
+
+	payload, _ := json.Marshal(websocket.GetHistoryRequest{ConversationID: 1, Limit: 10, Offset: -5})
+	if err := websocket.GetChatHistoryForTest(payload, requester); err != nil {
+		t.Fatalf("getChatHistory failed: %v", err)
+	}
+
+	_, eventPayload, ok := requester.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat history")
+	}
+	var messages []websocket.ChatHistoryMessage
+	if err := json.Unmarshal(eventPayload, &messages); err != nil {
+		t.Fatalf("failed to decode chat history: %v", err)
+	}
+	if len(messages) != 2 {
+		t.Fatalf("expected a negative offset to be clamped to 0, got %d messages", len(messages))
 	}
 }
 
