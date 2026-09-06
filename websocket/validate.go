@@ -40,6 +40,11 @@ const (
 	defaultCommentsPageSize = 20
 	maxCommentsPageSize     = 100
 
+	// The frontend always requests HISTORY_PAGE_SIZE (10) at a time; the max
+	// is generous headroom for that, not a normal request size.
+	defaultChatHistoryPageSize = 10
+	maxChatHistoryPageSize     = 100
+
 	maxGroupNameLength = 50
 	// Includes the creator, who's added automatically — a request naming
 	// this many *other* usernames is still rejected, since the actual group
