@@ -1864,6 +1864,26 @@ func AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Unlike ReactToPostHandler/UploadPostImageHandler, this never checked
+	// the post actually exists. Foreign keys aren't enforced on this
+	// connection, so the INSERT below would otherwise silently succeed for
+	// any post_id, real or not — and since post.id/comment.id are rowid
+	// PRIMARY KEYs with no AUTOINCREMENT, a deleted post's id can be reused
+	// by a later post (the same mechanics already fixed for
+	// user_post_reaction on post delete), so a comment attached to a
+	// nonexistent post_id could later resurface as attached to an unrelated
+	// future post.
+	var postExists int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM post WHERE id = ?", comment.PostID).Scan(&postExists); err != nil {
+		slog.Error("failed to check post existence", "error", err, "post_id", comment.PostID)
+		http.Error(w, "Failed to add comment", http.StatusInternalServerError)
+		return
+	}
+	if postExists == 0 {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+
 	slog.Debug("adding comment", "post_id", comment.PostID, "user_id", client.userID)
 
 	// Use your existing database connection to insert the comment

@@ -155,3 +155,81 @@ func TestAddComment_RejectsNonPostMethod(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
 	}
 }
+
+func TestAddComment_RejectsNonexistentPost(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-abc", "actual_user", 42)
+
+	body := `{"post_id":99999,"content":"comment body"}`
+	req := httptest.NewRequest(http.MethodPost, "/addcomment", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-abc"})
+	rr := httptest.NewRecorder()
+
+	websocket.AddCommentHandler(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusNotFound, rr.Code, rr.Body.String())
+	}
+}
+
+// TestAddComment_ReusedPostIDHasNoLeftoverComment covers the same rowid-
+// reuse mechanics already fixed for user_post_reaction on post delete
+// (TestDeletePostHandler_ReusedPostIDHasNoLeftoverReactions): post.id has no
+// AUTOINCREMENT, so once the seed data's highest post id is deleted, the
+// next inserted post reuses that exact id. This test's own DB (via
+// testutil, which enables PRAGMA foreign_keys) would merely fail the INSERT
+// with a constraint error if the existence check were missing here — but
+// OpenDB's production connection does not enable foreign keys, where the
+// same insert would succeed silently and the comment would later resurface
+// attached to whatever unrelated post next reuses this id. Either way, the
+// handler must reject this outright itself rather than depend on which
+// environment's FK enforcement happens to be running.
+func TestAddComment_ReusedPostIDHasNoLeftoverComment(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-admin", "admin", 1)
+
+	// Post 3 is the seed data's highest post id — deleting it (rather than a
+	// lower one) is what makes SQLite reuse its rowid for the next insert.
+	deleteBody := `{"id":3}`
+	deleteReq := httptest.NewRequest(http.MethodPost, "/deletePost", bytes.NewBufferString(deleteBody))
+	deleteReq.AddCookie(&http.Cookie{Name: "session_id", Value: "session-admin"})
+	deleteRR := httptest.NewRecorder()
+	websocket.DeletePostHandler(deleteRR, deleteReq)
+	if deleteRR.Code != http.StatusOK {
+		t.Fatalf("expected delete status %d, got %d: %s", http.StatusOK, deleteRR.Code, deleteRR.Body.String())
+	}
+
+	// Attempting to comment on the now-deleted post id must be rejected
+	// outright, not silently stored.
+	commentBody := `{"post_id":3,"content":"comment on a gone post"}`
+	commentReq := httptest.NewRequest(http.MethodPost, "/addcomment", bytes.NewBufferString(commentBody))
+	commentReq.AddCookie(&http.Cookie{Name: "session_id", Value: "session-admin"})
+	commentRR := httptest.NewRecorder()
+	websocket.AddCommentHandler(commentRR, commentReq)
+	if commentRR.Code != http.StatusNotFound {
+		t.Fatalf("expected comment on deleted post to be rejected with status %d, got %d: %s", http.StatusNotFound, commentRR.Code, commentRR.Body.String())
+	}
+
+	// SQLite reuses the deleted row's rowid here since it was the table max.
+	if _, err := db.Exec(`
+		INSERT INTO post (user_id, title, content, author, created_at) VALUES
+		(42, 'new post', 'new content', 'actual_user', datetime('now'));
+	`); err != nil {
+		t.Fatalf("failed to insert replacement post: %v", err)
+	}
+	var newID int
+	if err := db.QueryRow(`SELECT id FROM post WHERE title = 'new post'`).Scan(&newID); err != nil {
+		t.Fatalf("failed to look up new post id: %v", err)
+	}
+	if newID != 3 {
+		t.Fatalf("expected SQLite to reuse rowid 3, got %d (test assumption invalid)", newID)
+	}
+
+	var commentCount int
+	db.QueryRow(`SELECT COUNT(*) FROM comment WHERE post_id = ?`, newID).Scan(&commentCount)
+	if commentCount != 0 {
+		t.Fatalf("new post at reused id %d inherited %d leftover comment(s)", newID, commentCount)
+	}
+}
