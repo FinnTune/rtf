@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -409,6 +410,71 @@ func TestServeWS_ExistingClient_ClosesPreviousConnectionBeforeReplacing(t *testi
 	handle := websocket.FindClientBySessionForTest(sessionID)
 	if handle == nil || !handle.HasConnectionForTest() {
 		t.Fatal("expected the session's client to have the second connection set")
+	}
+}
+
+// TestServeWS_ConcurrentNewSessionDials_RegisterExactlyOneClient covers a
+// gap the sequential-replacement tests above can't reach: two genuinely
+// concurrent ServeWS calls for the same, brand-new session_id (e.g. two
+// browser tabs opening within the same instant — nothing ties an OTP to a
+// single tab, so both independently minting and using their own valid OTP
+// is normal). Before ServeWS held m.Lock() across the whole lookup-or-create
+// decision, both goroutines could concurrently find "no existing client"
+// and each create and register a separate *Client for the same session_id,
+// leaving manager.clients with two entries other handlers could
+// inconsistently pick between.
+func TestServeWS_ConcurrentNewSessionDials_RegisterExactlyOneClient(t *testing.T) {
+	websocket.ResetTestState()
+	server := httptest.NewServer(http.HandlerFunc(websocket.WebsocketHandler))
+	defer server.Close()
+
+	sessionID := "concurrent-new-session"
+	// More than 2 concurrent dials, released together via a start barrier
+	// (rather than just launched in a loop), to maximize how many of them
+	// actually overlap inside ServeWS instead of happening to serialize —
+	// this is what makes the test a reliable regression guard rather than a
+	// low-probability reproduction (an earlier 2-dial version of this test
+	// only caught the pre-fix bug roughly 1 run in 15).
+	const n = 20
+	otps := make([]string, n)
+	for i := range otps {
+		otps[i] = websocket.NewOtpForTest()
+	}
+
+	var start sync.WaitGroup
+	start.Add(1)
+	var wg sync.WaitGroup
+	conns := make([]*gorillaws.Conn, n)
+	errs := make([]error, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			start.Wait()
+			conns[i], _, errs[i] = dialWS(t, server.URL, otps[i], sessionID)
+		}(i)
+	}
+	start.Done() // release all n goroutines at once
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("dial %d failed: %v", i, err)
+		}
+		defer conns[i].Close()
+	}
+
+	deadlineCheck := time.Now().Add(2 * time.Second)
+	for websocket.ClientCountForTest() == 0 && time.Now().Before(deadlineCheck) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	// A grace window for further, possibly-buggy registrations to also
+	// land — without this, a fast-but-wrong run (only one goroutine has
+	// registered so far) would look identical to a correct one.
+	time.Sleep(200 * time.Millisecond)
+
+	if got := websocket.ClientCountForTest(); got != 1 {
+		t.Fatalf("expected exactly 1 registered client for one session_id even under %d concurrent dials, got %d", n, got)
 	}
 }
 
