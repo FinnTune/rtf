@@ -412,6 +412,125 @@ func TestServeWS_ExistingClient_ClosesPreviousConnectionBeforeReplacing(t *testi
 	}
 }
 
+// TestServeWS_Reconnect_KeepsUserOnlineInLoggedInList covers the same bug
+// class as TestServeWS_ExistingClient_ClosesPreviousConnectionBeforeReplacing,
+// just on LoggedInList instead of Client.connection: ServeWS's existing-
+// client branch re-adds the user to LoggedInList before closing the old
+// connection and starting the new one, but the old connection's own
+// readMessages/writeMesssage goroutines unblock (with a read/write error)
+// once that close happens and, without a currentness guard, would
+// unconditionally remove the user again — racing ahead of (and undoing) the
+// re-add, since the old goroutine's local error handling needs no network
+// round trip while the new connection's own eventual re-add (a real
+// user-connect from the frontend) does.
+func TestServeWS_Reconnect_KeepsUserOnlineInLoggedInList(t *testing.T) {
+	websocket.ResetTestState()
+	server := httptest.NewServer(http.HandlerFunc(websocket.WebsocketHandler))
+	defer server.Close()
+
+	sessionID := "reconnect-session"
+	username := "reconnectuser"
+	websocket.AddAuthenticatedClient(sessionID, username, 55)
+
+	firstOTP := websocket.NewOtpForTest()
+	firstConn, _, err := dialWS(t, server.URL, firstOTP, sessionID)
+	if err != nil {
+		t.Fatalf("first dial failed: %v", err)
+	}
+	defer firstConn.Close()
+
+	deadlineCheck := time.Now().Add(2 * time.Second)
+	for {
+		handle := websocket.FindClientBySessionForTest(sessionID)
+		if handle != nil && handle.HasConnectionForTest() {
+			break
+		}
+		if time.Now().After(deadlineCheck) {
+			t.Fatal("timed out waiting for the first connection to be set")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Mirrors the frontend sending user-connect right after the first
+	// socket opens — establishes the "currently online" state a real
+	// reconnect race actually starts from.
+	websocket.SetLoggedInList(username)
+
+	secondOTP := websocket.NewOtpForTest()
+	secondConn, _, err := dialWS(t, server.URL, secondOTP, sessionID)
+	if err != nil {
+		t.Fatalf("second dial failed: %v", err)
+	}
+	defer secondConn.Close()
+
+	// Wait for the first connection to actually be closed by the server —
+	// the same synchronization point TestServeWS_ExistingClient_Closes...
+	// uses — proving ServeWS's existing-client branch (Remove+Add, then
+	// close/replace) has fully run.
+	firstConn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, _, err := firstConn.ReadMessage(); err == nil {
+		t.Fatal("expected the first connection to be closed once the second replaced it")
+	}
+
+	// Give the first connection's own read/write goroutines a moment to run
+	// their deferred cleanup — near-instantaneous in practice, since
+	// detecting an already-closed connection needs no further I/O. This is
+	// exactly the window in which the bug being tested would incorrectly
+	// remove the user.
+	time.Sleep(200 * time.Millisecond)
+
+	if !websocket.IsInLoggedInList(username) {
+		t.Fatal("expected the user to remain in LoggedInList after a reconnect settles, not be removed by the stale connection's own cleanup")
+	}
+}
+
+// TestClient_GenuineDisconnect_RemovesFromLoggedInList confirms the fix
+// above doesn't over-correct into never removing anyone: when a connection
+// closes with nothing replacing it, the user must still come off
+// LoggedInList.
+func TestClient_GenuineDisconnect_RemovesFromLoggedInList(t *testing.T) {
+	websocket.ResetTestState()
+	server := httptest.NewServer(http.HandlerFunc(websocket.WebsocketHandler))
+	defer server.Close()
+
+	sessionID := "genuine-disconnect-session"
+	username := "solouser"
+	// AddAuthenticatedClient (rather than a bare new connection) ensures the
+	// dial below goes through ServeWS's existing-client branch, so c.username
+	// is actually set — a brand-new connection has no identity until a real
+	// user-connect event runs, which this test never sends.
+	websocket.AddAuthenticatedClient(sessionID, username, 77)
+
+	otp := websocket.NewOtpForTest()
+	conn, _, err := dialWS(t, server.URL, otp, sessionID)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+
+	deadlineCheck := time.Now().Add(2 * time.Second)
+	for {
+		handle := websocket.FindClientBySessionForTest(sessionID)
+		if handle != nil && handle.HasConnectionForTest() {
+			break
+		}
+		if time.Now().After(deadlineCheck) {
+			t.Fatal("timed out waiting for the connection to be set")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	websocket.SetLoggedInList(username)
+
+	conn.Close() // genuine client-side disconnect — nothing replaces it
+
+	deadlineCheck = time.Now().Add(2 * time.Second)
+	for websocket.IsInLoggedInList(username) {
+		if time.Now().After(deadlineCheck) {
+			t.Fatal("timed out waiting for a genuine disconnect to remove the user from LoggedInList")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
 func TestServeWS_AcceptsChatMessageFrameLargerThanOldReadLimit(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)

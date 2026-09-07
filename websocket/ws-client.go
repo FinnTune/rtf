@@ -207,23 +207,33 @@ func (c *Client) closeConnection() {
 }
 
 // closeConnectionIfCurrent closes and clears c.connection only if it is
-// still exactly conn. A connection's own readMessages/writeMesssage
-// goroutines use this for their cleanup (instead of the unconditional
-// closeConnection) so that a goroutine winding down because ITS connection
-// was just replaced by a newer one (see ServeWS's existing-client branch)
-// can never close/clear that newer connection out from under it — without
-// this, the old goroutine's cleanup and the new connection being set up race
-// with no ordering guarantee between them.
-func (c *Client) closeConnectionIfCurrent(conn *websocket.Conn) {
+// still exactly conn, reporting whether it did. A connection's own
+// readMessages/writeMesssage goroutines use this for their cleanup (instead
+// of the unconditional closeConnection) so that a goroutine winding down
+// because ITS connection was just replaced by a newer one (see ServeWS's
+// existing-client branch) can never close/clear that newer connection out
+// from under it — without this, the old goroutine's cleanup and the new
+// connection being set up race with no ordering guarantee between them.
+//
+// The returned bool additionally tells the caller whether this goroutine's
+// exit represents a genuine disconnect (true: this really was the client's
+// live connection, so global state like LoggedInList should reflect them
+// going offline) versus a stale goroutine noticing its connection is gone
+// only because something newer already replaced it (false: that newer
+// connection now owns the client's online status, so this goroutine must
+// leave it alone).
+func (c *Client) closeConnectionIfCurrent(conn *websocket.Conn) bool {
 	if conn == nil {
-		return
+		return false
 	}
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
 	if c.connection == conn {
 		c.connection.Close()
 		c.connection = nil
+		return true
 	}
+	return false
 }
 
 // Function to reset timer after pong is received.
@@ -244,9 +254,14 @@ func (c *Client) readMessages() {
 	}
 	slog.Info("client read loop starting", "remote_addr", conn.RemoteAddr())
 	defer func() {
-		//connection clean up - close connection and remove client from manager
-		c.closeConnectionIfCurrent(conn)
-		LoggedInList.Remove(c.username)
+		// Only remove from LoggedInList if this goroutine's connection was
+		// still the live one — otherwise a newer connection (reconnect,
+		// another tab) already replaced it and owns this client's online
+		// status now; removing here would incorrectly mark a still-online
+		// user offline out from under it (see closeConnectionIfCurrent).
+		if c.closeConnectionIfCurrent(conn) {
+			LoggedInList.Remove(c.username)
+		}
 	}()
 
 	//Set read deadline for pong wait.
@@ -272,7 +287,11 @@ func (c *Client) readMessages() {
 	for {
 		_, msg, err := conn.ReadMessage()
 		if err != nil {
-			LoggedInList.Remove(c.username)
+			// LoggedInList removal is handled by this function's deferred
+			// cleanup (guarded by closeConnectionIfCurrent) rather than
+			// here, so a stale connection replaced by a newer one doesn't
+			// incorrectly mark a still-online client offline.
+			//
 			// Fires on every disconnect, including an ordinary tab close —
 			// Debug rather than Warn since that's the routine case; the
 			// IsUnexpectedCloseError branch below re-logs the genuinely
@@ -280,8 +299,13 @@ func (c *Client) readMessages() {
 			slog.Debug("client read loop ended", "username", c.username, "error", err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				slog.Warn("unexpected websocket close", "username", c.username, "error", err)
-				c.closeConnectionIfCurrent(conn)
 			}
+			// The actual close (and LoggedInList decision) happens once,
+			// in this function's deferred cleanup below, right after break
+			// — closing here too would let the deferred cleanup's own
+			// closeConnectionIfCurrent(conn) see it as already-cleared and
+			// wrongly conclude a newer connection replaced this one, even
+			// for a perfectly ordinary disconnect.
 			//Break scope and html for submission note.
 			//Problem with page refresh upon form submission in html which causes the the connection to close and websocket to resart.
 			//Client is closed then the connection ReadMessage function is called for the non-existent client connection and causes panic.
@@ -324,8 +348,11 @@ func (c *Client) writeMesssage() {
 	// c.getConnection() fresh on every iteration below, unchanged.
 	conn := c.getConnection()
 	defer func() {
-		c.closeConnectionIfCurrent(conn)
-		LoggedInList.Remove(c.username)
+		// See readMessages' identical guard: only a goroutine whose
+		// connection is still current represents a genuine disconnect.
+		if c.closeConnectionIfCurrent(conn) {
+			LoggedInList.Remove(c.username)
+		}
 	}()
 
 	//Declare new ticker channel with pingInterval
