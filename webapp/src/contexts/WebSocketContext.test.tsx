@@ -77,6 +77,33 @@ describe('WebSocketContext', () => {
     expect(ControllableFakeWebSocket.instances).toHaveLength(1)
   })
 
+  it('unmounting while a reconnect backoff is already pending cancels it', async () => {
+    // Distinct from the case above: here a reconnect has already been
+    // scheduled (an unexpected close happened first) before the teardown —
+    // exercising the actual bug, where a pending backoff timer outlived the
+    // session that scheduled it and later fired against a torn-down
+    // context, either popping a stray "session ended" toast after an
+    // ordinary logout or opening an untracked second socket.
+    const { result, socket, unmount } = await setup()
+
+    vi.useFakeTimers()
+    act(() => socket.close())
+    expect(result.current.ws.status).toBe('reconnecting')
+
+    // Unmount (e.g. logout) before the pending backoff (1000ms) fires.
+    unmount()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000)
+    })
+
+    // No reconnect attempt should have gone through: no second socket, and
+    // no "Reconnected."/"session has ended" message from the cancelled
+    // attempt's continuation.
+    expect(ControllableFakeWebSocket.instances).toHaveLength(1)
+    expect(result.current.status.text).toBe('Connection lost. Reconnecting...')
+  })
+
   it('gives up after the reconnect attempt budget and tells the user to refresh', async () => {
     const { result } = await setup()
 
