@@ -83,4 +83,43 @@ describe('usePaginatedPosts', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.posts).toEqual([])
   })
+
+  it('ignores a stale response that resolves after a newer request has started', async () => {
+    // Neither promise resolves until the test tells it to — this lets both
+    // the initial mount fetch and the deps-change fetch be genuinely in
+    // flight at once, the exact condition (rapid category/sort/search
+    // changes) where responses can land out of the order they were issued.
+    let resolveFirst!: (value: { posts: Post[]; total: number }) => void
+    let resolveSecond!: (value: { posts: Post[]; total: number }) => void
+    const fetcher = vi
+      .fn()
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveFirst = resolve)))
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveSecond = resolve)))
+
+    const { result, rerender } = renderHook(({ dep }: { dep: string }) => usePaginatedPosts(fetcher, [dep], 10), {
+      wrapper: StatusMessageProvider,
+      initialProps: { dep: 'a' },
+    })
+
+    rerender({ dep: 'b' })
+    expect(fetcher).toHaveBeenCalledTimes(2)
+
+    // Resolve the newer (second) request first, then the stale (first) one
+    // — mirroring a slow first response landing after a faster second one.
+    // Each resolution is awaited inside an async act() (rather than a fixed
+    // setTimeout) so the promise's .then microtask is guaranteed to have
+    // run and its state update applied before the next assertion.
+    await act(async () => {
+      resolveSecond({ posts: [makePost(9)], total: 1 })
+    })
+    expect(result.current.posts.map((p) => p.PostId)).toEqual([9])
+
+    await act(async () => {
+      resolveFirst({ posts: [makePost(1), makePost(2)], total: 2 })
+    })
+
+    expect(result.current.posts.map((p) => p.PostId)).toEqual([9])
+    expect(result.current.total).toBe(1)
+    expect(result.current.loading).toBe(false)
+  })
 })
