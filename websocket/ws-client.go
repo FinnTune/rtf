@@ -16,13 +16,26 @@ type ClientsMapList map[*Client]bool
 
 type Client struct {
 	connection *websocket.Conn
-	// connMu guards connection. readMessages and writeMesssage are two
-	// independent goroutines per client, each with its own check-then-close
-	// cleanup path on this field — a connection drop naturally fails both
-	// sides' I/O around the same time, so without this they can race: one
-	// goroutine's nil check can pass right before the other goroutine nils
-	// the field, and the first goroutine then calls a method on nil.
-	// HTTP handlers (checkLogin, serveLogin, ServeWS, ...) touch it too.
+	// connDone is closed exactly once, whenever `connection` is torn down
+	// (closeConnection/closeConnectionIfCurrent) or superseded by a newer
+	// one (setConnection). writeMesssage selects on it alongside c.egress
+	// so a goroutine whose connection has been superseded stops competing
+	// for egress sends the moment that happens, rather than only
+	// discovering its connection is dead after it happens to win that race
+	// and its write fails — by then the message it just received off
+	// egress, meant for the client's new live connection, is already lost
+	// (egress is unbuffered and shared across every connection generation
+	// this Client ever has, so exactly one goroutine ever receives a given
+	// send). Always read/written together with `connection` under connMu.
+	connDone chan struct{}
+	// connMu guards connection and connDone. readMessages and writeMesssage
+	// are two independent goroutines per client, each with its own
+	// check-then-close cleanup path on this field — a connection drop
+	// naturally fails both sides' I/O around the same time, so without
+	// this they can race: one goroutine's nil check can pass right before
+	// the other goroutine nils the field, and the first goroutine then
+	// calls a method on nil. HTTP handlers (checkLogin, serveLogin,
+	// ServeWS, ...) touch it too.
 	connMu    sync.Mutex
 	manager   *Manager
 	sessionID string
@@ -89,6 +102,7 @@ func newClient(conn *websocket.Conn, manager *Manager, session_id string) *Clien
 	slog.Debug("new client struct created")
 	return &Client{
 		connection: conn,
+		connDone:   make(chan struct{}),
 		manager:    manager,
 		sessionID:  session_id,
 		egress:     make(chan Event),
@@ -188,21 +202,32 @@ func (c *Client) getConnection() *websocket.Conn {
 	return c.connection
 }
 
-// setConnection safely assigns a (re)connected websocket.
-func (c *Client) setConnection(conn *websocket.Conn) {
+// setConnection safely assigns a (re)connected websocket, establishing a
+// fresh connDone for it, and returns that new channel so the caller (always
+// ServeWS) can hand it to the writeMesssage goroutine it's about to spawn
+// for this connection.
+func (c *Client) setConnection(conn *websocket.Conn) <-chan struct{} {
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
+	done := make(chan struct{})
 	c.connection = conn
+	c.connDone = done
+	return done
 }
 
-// closeConnection closes and clears the connection if one is set. Safe to
-// call concurrently and repeatedly — see the connMu doc comment above.
+// closeConnection closes and clears the connection if one is set, and closes
+// connDone to signal any goroutine still bound to it. Safe to call
+// concurrently and repeatedly — see the connMu doc comment above.
 func (c *Client) closeConnection() {
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
 	if c.connection != nil {
 		c.connection.Close()
 		c.connection = nil
+	}
+	if c.connDone != nil {
+		close(c.connDone)
+		c.connDone = nil
 	}
 }
 
@@ -231,24 +256,28 @@ func (c *Client) closeConnectionIfCurrent(conn *websocket.Conn) bool {
 	if c.connection == conn {
 		c.connection.Close()
 		c.connection = nil
+		if c.connDone != nil {
+			close(c.connDone)
+			c.connDone = nil
+		}
 		return true
 	}
 	return false
 }
 
-// Function to reset timer after pong is received.
-func (c *Client) pongHandler(string) error {
-	conn := c.getConnection()
-	if conn == nil {
-		slog.Warn("no pong received: client connection is nil")
-		return nil
-	}
-	// log.Println("Pong received, handler called, timer reset.")
-	return conn.SetReadDeadline(time.Now().Add(pongWait))
-}
-
-func (c *Client) readMessages() {
-	conn := c.getConnection()
+// readMessages runs this connection's read loop. conn is passed explicitly
+// (captured by the caller — ServeWS — at the moment it was set as this
+// Client's connection) rather than fetched via c.getConnection() here: this
+// goroutine doesn't actually start running the instant `go` schedules it,
+// and under concurrent reconnects for the same session, c.connection can
+// already have been swapped again by the time it does. Re-fetching here
+// would let this goroutine end up operating on a connection some *other*
+// goroutine (spawned for that later swap) is also reading/writing —
+// gorilla/websocket allows at most one concurrent reader and one
+// concurrent writer per connection, so that was a genuine data race, not
+// just a logical one (confirmed via go test -race under a concurrent-dial
+// stress test).
+func (c *Client) readMessages(conn *websocket.Conn) {
 	if conn == nil {
 		return
 	}
@@ -280,8 +309,15 @@ func (c *Client) readMessages() {
 	// both without meaningfully weakening the size bound.
 	conn.SetReadLimit(8192)
 
-	//Set pong handler function for connection
-	conn.SetPongHandler(c.pongHandler)
+	// Set pong handler function for connection — a closure over the
+	// captured conn (not a c.pongHandler method re-fetching
+	// c.getConnection()) for the same reason as the parameter above: gorilla
+	// invokes this against this specific connection, so it must act on this
+	// specific connection too, not whatever c.connection happens to be by
+	// the time a pong arrives.
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(pongWait))
+	})
 
 	//Go routine for server to read incoming messages from client.
 	for {
@@ -341,12 +377,22 @@ func (c *Client) readMessages() {
 	}
 }
 
-func (c *Client) writeMesssage() {
-	// Captured once, purely so the deferred cleanup below closes only the
-	// connection this goroutine instance was started for — see
-	// closeConnectionIfCurrent. The loop itself still re-fetches
-	// c.getConnection() fresh on every iteration below, unchanged.
-	conn := c.getConnection()
+// writeMesssage runs this connection's write loop. conn and done are passed
+// explicitly for the same reason as readMessages' conn parameter: this
+// goroutine must only ever write the specific connection it was spawned
+// for, not whatever c.connection happens to be by the time it actually runs
+// or iterates its loop.
+//
+// done (from setConnection/closeConnection[IfCurrent]) closes the instant
+// this specific connection is torn down or superseded, and is selected on
+// alongside c.egress so this goroutine stops competing for egress sends the
+// moment that happens — c.egress is unbuffered and shared across every
+// connection generation this Client ever has, so exactly one goroutine ever
+// receives a given send, and only discovering a dead connection via a
+// failed write (after already having won that receive) would mean the
+// message it just took, meant for whichever connection is live now, is
+// simply lost.
+func (c *Client) writeMesssage(conn *websocket.Conn, done <-chan struct{}) {
 	defer func() {
 		// See readMessages' identical guard: only a goroutine whose
 		// connection is still current represents a genuine disconnect.
@@ -362,13 +408,10 @@ func (c *Client) writeMesssage() {
 	//Go routine for server select case action for incoming channels (msg, ticker...???)
 	for {
 		select {
+		case <-done:
+			slog.Debug("connection superseded or closed elsewhere, stopping writer", "username", c.username)
+			return
 		case msg, ok := <-c.egress:
-			//Check if channel is closed
-			conn := c.getConnection()
-			if conn == nil {
-				slog.Warn("client connection is nil, stopping writer", "username", c.username)
-				return
-			}
 			if !ok {
 				if err := conn.WriteMessage(websocket.CloseMessage, nil); err != nil {
 					slog.Warn("failed to write close message", "username", c.username, "error", err)
@@ -388,17 +431,26 @@ func (c *Client) writeMesssage() {
 			}
 
 			if err := conn.WriteMessage(websocket.TextMessage, data); err != nil {
+				// Must return (not just log and keep looping) now that this
+				// goroutine is permanently bound to conn: previously, the
+				// next loop iteration's c.getConnection() re-fetch would
+				// transparently pick up a newer connection after a
+				// reconnect and keep delivering there — accidentally
+				// "healing" past a dead conn, but only by risking two
+				// goroutines both writing that same newer connection (the
+				// data race this whole change fixes). Now a write failure
+				// means this conn is truly dead for good, so this goroutine
+				// must stop competing for c.egress sends — leaving it
+				// running would let it keep winning the race to receive
+				// from that channel against the new connection's own
+				// writeMesssage goroutine, silently dropping messages meant
+				// for the live connection.
 				slog.Error("failed to write message payload to client", "username", c.username, "event_type", msg.Type, "error", err)
+				return
 			}
 			slog.Debug("message sent to client", "username", c.username, "event_type", msg.Type, "bytes", len(data))
 
 		case <-ticker.C:
-			//Check if channel is closed
-			conn := c.getConnection()
-			if conn == nil {
-				slog.Warn("client connection is nil, stopping writer", "username", c.username)
-				return
-			}
 			if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				slog.Warn("failed to write ping message", "username", c.username, "error", err)
 				return

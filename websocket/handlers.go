@@ -549,16 +549,24 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	// browser tabs opening within the same instant, each with their own
 	// valid OTP — nothing ties an OTP to a single tab) would otherwise both
 	// be able to reach the same decision concurrently and race each other —
-	// either both finding the same existing client and racing its
-	// close/swap (each spawning its own readMessages/writeMesssage against
-	// what could end up being the same final connection, which
-	// gorilla/websocket does not allow to be read/written concurrently), or
 	// both finding no existing client and each creating and registering a
 	// separate *Client for the same session_id, leaving m.clients with two
 	// entries other handlers could inconsistently pick between. Holding the
 	// lock across the whole decision serializes concurrent reconnects for
 	// one session into the already-correct sequential-replacement path
 	// instead. Only the (non-blocking) `go` spawns happen after unlocking.
+	//
+	// This lock alone doesn't prevent two concurrently-running
+	// readMessages/writeMesssage goroutines from ending up on the same
+	// connection, though — that's what passing conn explicitly into them
+	// guards against (see their doc comments): under enough concurrent
+	// reconnects, a goroutine spawned here might not actually start running
+	// until well after a *later* call has already replaced c.connection
+	// again, and re-fetching it at that point (rather than using the value
+	// captured here) would hand two goroutines the same connection to
+	// read/write concurrently, which gorilla/websocket does not allow —
+	// confirmed as a real, reproducible data race via go test -race under a
+	// concurrent-dial stress test, not just a theoretical concern.
 	m.Lock()
 	var existing *Client
 	for c := range m.clients {
@@ -582,19 +590,21 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 		// before swapping in the new one rather than just overwriting the
 		// field: setConnection alone would leave the old connection's
 		// readMessages/writeMesssage goroutines running against a socket
-		// nothing else references, and since writeMesssage re-fetches
-		// existing.getConnection() on every loop iteration rather than
-		// caching it, that old goroutine would start writing to the *new*
-		// connection the moment it next iterates — two goroutines racing
-		// to write the same socket. closeConnection() here makes the old
-		// goroutines observe a closed connection and exit on their own
-		// next I/O attempt, same as any other disconnect.
+		// nothing else references. closeConnection() here makes the old
+		// goroutines observe a closed connection and exit on their own next
+		// I/O attempt, same as any other disconnect. readMessages/
+		// writeMesssage take conn explicitly (rather than looking it up via
+		// existing.getConnection() once they actually start running) so
+		// each spawned goroutine pair is permanently bound to the exact
+		// connection it was started for, even if this session reconnects
+		// again before they get scheduled — see the doc comments on those
+		// methods.
 		existing.closeConnection()
-		existing.setConnection(conn)
+		done := existing.setConnection(conn)
 		existing.touch()
 		m.Unlock()
-		go existing.readMessages()
-		go existing.writeMesssage()
+		go existing.readMessages(conn)
+		go existing.writeMesssage(conn, done)
 		return
 	}
 
@@ -607,6 +617,13 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	//Set client loggedIn to true
 	client.loggedIn = true
 	client.cookie = cookie
+	// Captured now, while client is still exclusively owned by this
+	// goroutine (nothing else can see it until it's published into
+	// m.clients just below) — reading client.connDone directly after that
+	// point, once other goroutines can concurrently touch this same client
+	// (checkLogin, another reconnect), would itself be an unguarded access
+	// to a connMu-protected field.
+	connDone := client.connDone
 
 	// Inlined rather than calling the old addClient helper, which took its
 	// own m.Lock() — this whole branch must stay under the single lock
@@ -618,8 +635,8 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	m.Unlock()
 
 	//Start client routines for reading and writing messages
-	go client.readMessages()
-	go client.writeMesssage()
+	go client.readMessages(conn)
+	go client.writeMesssage(conn, connDone)
 }
 
 // Catch manager and send to ServeWS
