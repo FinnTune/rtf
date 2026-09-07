@@ -29,6 +29,19 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
   // dropped connection and doesn't trigger a reconnect attempt.
   const expectedCloseRef = useRef(false)
   const reconnectAttemptsRef = useRef(0)
+  // Tracks attemptReconnect's pending backoff timer so the connect effect's
+  // cleanup (logout, switching accounts, or unmount) can cancel it — without
+  // this, a reconnect scheduled for a session that's since ended still
+  // fires later, either popping a spurious "Your session has ended" toast
+  // after an ordinary logout, or opening a genuinely new, untracked
+  // WebSocket that races the next session's own connection.
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Belt-and-suspenders alongside reconnectTimeoutRef: clearing the timeout
+  // only stops an attempt that hasn't fired yet. If cleanup runs while
+  // refresh() is already in flight (the timer fired, its network request is
+  // pending), this flag stops that request's .then() continuation from
+  // acting once it resolves.
+  const reconnectCancelledRef = useRef(false)
   // openConnection's onclose handler needs to call attemptReconnect, but
   // attemptReconnect (below) also calls openConnection — a real mutual
   // reference, not one that's safe to statically verify. Route the call
@@ -115,8 +128,9 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }
     reconnectAttemptsRef.current += 1
     const attempt = reconnectAttemptsRef.current
-    setTimeout(() => {
+    reconnectTimeoutRef.current = setTimeout(() => {
       void refresh().then((freshUser) => {
+        if (reconnectCancelledRef.current) return
         if (freshUser) {
           showMessage('Reconnected.', 'success')
           openConnection(freshUser.otp)
@@ -138,6 +152,7 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
     }
 
     let cancelled = false
+    reconnectCancelledRef.current = false
     setStatus('connecting')
 
     // Always mint a fresh OTP right before connecting, rather than reusing
@@ -151,6 +166,11 @@ export function WebSocketProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true
+      reconnectCancelledRef.current = true
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
+      }
       if (socketRef.current) {
         expectedCloseRef.current = true
         socketRef.current.close()
