@@ -8,6 +8,7 @@ import (
 	"os"
 	"rtForum/tests/testutil"
 	"rtForum/websocket"
+	"strings"
 	"testing"
 )
 
@@ -85,6 +86,45 @@ func TestAddPost_UsesAuthenticatedSessionIdentity(t *testing.T) {
 	}
 	if userID != 42 || author != "actual_user" {
 		t.Fatalf("expected session identity (42, actual_user), got (%d, %s)", userID, author)
+	}
+}
+
+// TestAddPost_AllowsNonASCIIContentAtTheRuneLengthLimit guards against the
+// same byte-vs-rune length bug fixed for chat messages: validatePost must
+// measure length in characters (utf8.RuneCountInString), not bytes (len()),
+// or non-ASCII content well within the advertised character limit gets
+// wrongly rejected as over-length.
+func TestAddPost_AllowsNonASCIIContentAtTheRuneLengthLimit(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	websocket.AddAuthenticatedClient("session-123", "actual_user", 42)
+
+	// Cyrillic а (U+0430) is 2 bytes in UTF-8 — 2000 of them is 2000
+	// characters (the advertised limit) but 4000 bytes.
+	content := strings.Repeat("а", 2000)
+	payload := map[string]any{
+		"title":   "Non-ASCII content",
+		"content": content,
+		"author":  "actual_user",
+	}
+	data, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPost, "/addPost", bytes.NewBuffer(data))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-123"})
+	rr := httptest.NewRecorder()
+
+	websocket.AddPost(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var storedContent string
+	if err := db.QueryRow(`SELECT content FROM post WHERE title = ?`, "Non-ASCII content").Scan(&storedContent); err != nil {
+		t.Fatalf("failed to fetch inserted post: %v", err)
+	}
+	if storedContent != content {
+		t.Fatalf("expected the exactly-at-limit non-ASCII content (2000 characters, 4000 bytes) to be stored unmodified")
 	}
 }
 
