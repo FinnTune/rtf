@@ -594,16 +594,6 @@ func (m *Manager) routeEvent(event Event, c *Client) error {
 	}
 }
 
-func (m *Manager) addClient(client *Client) {
-	m.Lock()
-	defer m.Unlock()
-
-	m.clients[client] = true //Add client to manager
-	if conn := client.getConnection(); conn != nil {
-		slog.Info("client added to manager", "remote_addr", conn.RemoteAddr())
-	}
-}
-
 func (m *Manager) removeClient(client *Client) {
 	m.Lock()
 	defer m.Unlock()

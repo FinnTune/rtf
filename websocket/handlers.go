@@ -540,9 +540,25 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 
 	// m.clients is shared with every other handler (login, logout,
 	// checkLogin, ...), all of which access it under m.Lock() — this lookup
-	// must too, or it's an unsynchronized concurrent map access. The lock is
-	// released before starting the client's goroutines / falling through to
-	// m.addClient below, both of which acquire it themselves.
+	// must too, or it's an unsynchronized concurrent map access.
+	//
+	// The whole lookup-through-close/swap/spawn (existing session) or
+	// lookup-through-create/add (brand-new session) decision stays under
+	// this single m.Lock() rather than releasing it right after the lookup:
+	// two truly concurrent ServeWS calls for the same session (e.g. two
+	// browser tabs opening within the same instant, each with their own
+	// valid OTP — nothing ties an OTP to a single tab) would otherwise both
+	// be able to reach the same decision concurrently and race each other —
+	// either both finding the same existing client and racing its
+	// close/swap (each spawning its own readMessages/writeMesssage against
+	// what could end up being the same final connection, which
+	// gorilla/websocket does not allow to be read/written concurrently), or
+	// both finding no existing client and each creating and registering a
+	// separate *Client for the same session_id, leaving m.clients with two
+	// entries other handlers could inconsistently pick between. Holding the
+	// lock across the whole decision serializes concurrent reconnects for
+	// one session into the already-correct sequential-replacement path
+	// instead. Only the (non-blocking) `go` spawns happen after unlocking.
 	m.Lock()
 	var existing *Client
 	for c := range m.clients {
@@ -556,7 +572,6 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	m.Unlock()
 
 	if existing != nil {
 		slog.Debug("reusing existing client for websocket upgrade", "username", existing.username)
@@ -577,6 +592,7 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 		existing.closeConnection()
 		existing.setConnection(conn)
 		existing.touch()
+		m.Unlock()
 		go existing.readMessages()
 		go existing.writeMesssage()
 		return
@@ -592,12 +608,14 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	client.loggedIn = true
 	client.cookie = cookie
 
-	//Add client to manager
-	m.addClient(client)
-
-	//Add user to LoggedInUsers struct
-	// LoggedInUsers[client.username] = client
-	//Add user to LoggedInList struct
+	// Inlined rather than calling the old addClient helper, which took its
+	// own m.Lock() — this whole branch must stay under the single lock
+	// acquired above (see the comment there) rather than release and
+	// re-acquire, or the same concurrent-brand-new-session race it exists
+	// to close would just reopen in the gap between them.
+	m.clients[client] = true
+	slog.Info("client added to manager", "remote_addr", conn.RemoteAddr())
+	m.Unlock()
 
 	//Start client routines for reading and writing messages
 	go client.readMessages()
