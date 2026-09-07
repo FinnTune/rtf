@@ -5,12 +5,31 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 var (
 	usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]{3,30}$`)
 	emailRegex    = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 )
+
+// Every "must be 1-N characters" bound in this file that limits free-form
+// user-typed text (post titles/content, comments, chat messages, category
+// and group names, search queries, first/last name, gender) is checked with
+// utf8.RuneCountInString rather than len(), which counts bytes. A string
+// full of non-ASCII text (Cyrillic, Arabic, CJK, emoji, ...) can be 2-4x
+// more bytes than runes, so a byte-based check silently accepted far fewer
+// actual characters than advertised for non-ASCII input — and, for chat
+// messages specifically, could reject a message the frontend's own matching
+// maxLength (which counts JS string length, i.e. UTF-16 code units, equal
+// to rune count for every non-astral character) had already accepted as
+// within bounds, corrupting the client's optimistic-message reconciliation
+// (see sendChatError's caller in ws-manager.go).
+//
+// Deliberately NOT applied to password (bcrypt truncates/fails past 72
+// *bytes*, not characters — see maxPasswordLen) or to email/username
+// (already ASCII-only in practice, and email's 254 comes from an
+// inherently byte-oriented RFC convention).
 
 const (
 	maxNameLength   = 50
@@ -84,10 +103,10 @@ func validateRegistration(user *RegUser) error {
 	user.Email = strings.TrimSpace(user.Email)
 	user.Gender = strings.TrimSpace(user.Gender)
 
-	if user.Fname == "" || len(user.Fname) > maxNameLength {
+	if user.Fname == "" || utf8.RuneCountInString(user.Fname) > maxNameLength {
 		return fmt.Errorf("first name must be 1-%d characters", maxNameLength)
 	}
-	if user.Lname == "" || len(user.Lname) > maxNameLength {
+	if user.Lname == "" || utf8.RuneCountInString(user.Lname) > maxNameLength {
 		return fmt.Errorf("last name must be 1-%d characters", maxNameLength)
 	}
 	if !usernameRegex.MatchString(user.Uname) {
@@ -100,7 +119,7 @@ func validateRegistration(user *RegUser) error {
 	if err != nil || age < minAge || age > maxAge {
 		return fmt.Errorf("age must be a number between %d and %d", minAge, maxAge)
 	}
-	if user.Gender == "" || len(user.Gender) > maxGenderLength {
+	if user.Gender == "" || utf8.RuneCountInString(user.Gender) > maxGenderLength {
 		return fmt.Errorf("gender must be 1-%d characters", maxGenderLength)
 	}
 	if len(user.Pass) < minPasswordLen || len(user.Pass) > maxPasswordLen {
@@ -124,10 +143,10 @@ func validateLogin(username, password string) error {
 func validatePost(title, content string) (string, string, error) {
 	title = strings.TrimSpace(title)
 	content = strings.TrimSpace(content)
-	if title == "" || len(title) > maxPostTitleLength {
+	if title == "" || utf8.RuneCountInString(title) > maxPostTitleLength {
 		return "", "", fmt.Errorf("title must be 1-%d characters", maxPostTitleLength)
 	}
-	if content == "" || len(content) > maxPostContentLength {
+	if content == "" || utf8.RuneCountInString(content) > maxPostContentLength {
 		return "", "", fmt.Errorf("content must be 1-%d characters", maxPostContentLength)
 	}
 	return title, content, nil
@@ -135,7 +154,7 @@ func validatePost(title, content string) (string, string, error) {
 
 func validateCategoryName(name string) (string, error) {
 	name = strings.TrimSpace(name)
-	if name == "" || len(name) > maxCategoryNameLength {
+	if name == "" || utf8.RuneCountInString(name) > maxCategoryNameLength {
 		return "", fmt.Errorf("category name must be 1-%d characters", maxCategoryNameLength)
 	}
 	return name, nil
@@ -143,7 +162,7 @@ func validateCategoryName(name string) (string, error) {
 
 func validateComment(content string) (string, error) {
 	content = strings.TrimSpace(content)
-	if content == "" || len(content) > maxCommentLength {
+	if content == "" || utf8.RuneCountInString(content) > maxCommentLength {
 		return "", fmt.Errorf("comment must be 1-%d characters", maxCommentLength)
 	}
 	return content, nil
@@ -151,7 +170,7 @@ func validateComment(content string) (string, error) {
 
 func validateChatMessage(content string) (string, error) {
 	content = strings.TrimSpace(content)
-	if content == "" || len(content) > maxChatMessageLength {
+	if content == "" || utf8.RuneCountInString(content) > maxChatMessageLength {
 		return "", fmt.Errorf("message must be 1-%d characters", maxChatMessageLength)
 	}
 	return content, nil
@@ -159,7 +178,7 @@ func validateChatMessage(content string) (string, error) {
 
 func validateSearchQuery(q string) (string, error) {
 	q = strings.TrimSpace(q)
-	if q == "" || len(q) > maxSearchQueryLength {
+	if q == "" || utf8.RuneCountInString(q) > maxSearchQueryLength {
 		return "", fmt.Errorf("search query must be 1-%d characters", maxSearchQueryLength)
 	}
 	return q, nil
@@ -190,7 +209,7 @@ func escapeLikePattern(s string) string {
 // knows the request shape itself is sane.
 func validateGroupChat(name string, usernames []string) (string, []string, error) {
 	name = strings.TrimSpace(name)
-	if name == "" || len(name) > maxGroupNameLength {
+	if name == "" || utf8.RuneCountInString(name) > maxGroupNameLength {
 		return "", nil, fmt.Errorf("group name must be 1-%d characters", maxGroupNameLength)
 	}
 

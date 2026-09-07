@@ -259,6 +259,35 @@ func TestSendMessage_AllowsMessageAtTheLengthLimit(t *testing.T) {
 	}
 }
 
+// TestSendMessage_AllowsNonASCIIMessageAtTheRuneLengthLimit guards against
+// validateChatMessage measuring length in bytes (len()) instead of
+// characters (utf8.RuneCountInString): a Cyrillic character is 2 bytes in
+// UTF-8, so 1000 of them is 1000 characters (matching both the "1000
+// characters" advertised in the error message and the frontend's own
+// maxLength={1000}, which counts JS string length — equal to rune count for
+// any non-astral character) but 2000 bytes, which a byte-based check would
+// have wrongly rejected as over-length.
+func TestSendMessage_AllowsNonASCIIMessageAtTheRuneLengthLimit(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	sender := websocket.AddTestClient("s1", "admin", 1)
+	info := mustOpenDirectChat(t, sender, "actual_user")
+
+	atLimit := strings.Repeat("а", 1000) // Cyrillic а (U+0430), 2 bytes each in UTF-8
+	if err := websocket.SendMessageForTest(sendMessagePayload(t, info.ConversationID, atLimit), sender); err != nil {
+		t.Fatalf("sendMessage failed: %v", err)
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM message WHERE txt = ?`, atLimit).Scan(&count); err != nil {
+		t.Fatalf("failed to query message count: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected the exactly-at-limit non-ASCII message (1000 characters, 2000 bytes) to be stored, found %d", count)
+	}
+}
+
 func TestSendMessage_BroadcastsToOtherMemberNotSender(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
