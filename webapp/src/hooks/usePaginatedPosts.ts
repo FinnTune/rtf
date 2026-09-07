@@ -30,11 +30,23 @@ export function usePaginatedPosts(fetcher: Fetcher, deps: DependencyList, pageSi
   // safe to statically verify — go through a ref instead.
   const loadRef = useRef<(targetOffset: number) => void>(() => {})
 
+  // Nothing here cancels the underlying fetch or guarantees responses land
+  // in request order — a category/sort/search change (deps) or a fast
+  // double pagination click can have two requests in flight at once, and
+  // whichever HTTP response arrives last wins regardless of which was
+  // issued last. requestIdRef lets each call recognize when it's been
+  // superseded so a stale response can't overwrite newer state (and, as a
+  // side effect, so a superseded call's own `finally` can't flash `loading`
+  // back to false while the snap-back re-fetch below is still in flight).
+  const requestIdRef = useRef(0)
+
   const load = useCallback(
     (targetOffset: number) => {
+      const requestId = ++requestIdRef.current
       setLoading(true)
       fetcher(targetOffset, pageSize)
         .then((result) => {
+          if (requestId !== requestIdRef.current) return
           if (targetOffset > 0 && result.posts.length === 0) {
             // The page we asked for is now empty (e.g. its last post was
             // deleted elsewhere) — snap back a page instead of a dead end.
@@ -46,9 +58,13 @@ export function usePaginatedPosts(fetcher: Fetcher, deps: DependencyList, pageSi
           setOffset(targetOffset)
         })
         .catch((error: unknown) => {
+          if (requestId !== requestIdRef.current) return
           showMessage('Err: ' + (error instanceof Error ? error.message : String(error)), 'error')
         })
-        .finally(() => setLoading(false))
+        .finally(() => {
+          if (requestId !== requestIdRef.current) return
+          setLoading(false)
+        })
     },
     [fetcher, pageSize, showMessage],
   )
