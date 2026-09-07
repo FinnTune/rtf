@@ -251,8 +251,21 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 				}
 
 				client.loggedIn = true
-				client.closeConnection()
 
+				// checkLogin used to unconditionally closeConnection() here.
+				// It fires on every mount/reconnect attempt of every tab
+				// sharing this session's cookie (AuthContext and
+				// WebSocketContext each call it), so with multiple tabs
+				// open it would force-close a perfectly healthy, unrelated
+				// tab's live connection just because a status check ran —
+				// e.g. opening tab B silently killed tab A's socket, whose
+				// own reconnect then called checkLogin again and killed
+				// tab B's, flapping indefinitely. checkLogin only needs to
+				// report status and mint an OTP; the one place a stale
+				// connection should actually be torn down is ServeWS,
+				// right before a new connection really does replace it
+				// (see the existing-client branch there).
+				//
 				// Otp
 				//Create new OTP and store in manager otps map
 				otp := m.otps.newOtp()
@@ -549,6 +562,19 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 		slog.Debug("reusing existing client for websocket upgrade", "username", existing.username)
 		LoggedInList.Remove(existing.username)
 		LoggedInList.Add(existing.username)
+		// If this session already had a live connection (e.g. another tab,
+		// or a genuine reconnect racing its own old socket), close it
+		// before swapping in the new one rather than just overwriting the
+		// field: setConnection alone would leave the old connection's
+		// readMessages/writeMesssage goroutines running against a socket
+		// nothing else references, and since writeMesssage re-fetches
+		// existing.getConnection() on every loop iteration rather than
+		// caching it, that old goroutine would start writing to the *new*
+		// connection the moment it next iterates — two goroutines racing
+		// to write the same socket. closeConnection() here makes the old
+		// goroutines observe a closed connection and exit on their own
+		// next I/O attempt, same as any other disconnect.
+		existing.closeConnection()
 		existing.setConnection(conn)
 		existing.touch()
 		go existing.readMessages()

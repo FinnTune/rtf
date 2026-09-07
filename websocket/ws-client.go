@@ -206,6 +206,26 @@ func (c *Client) closeConnection() {
 	}
 }
 
+// closeConnectionIfCurrent closes and clears c.connection only if it is
+// still exactly conn. A connection's own readMessages/writeMesssage
+// goroutines use this for their cleanup (instead of the unconditional
+// closeConnection) so that a goroutine winding down because ITS connection
+// was just replaced by a newer one (see ServeWS's existing-client branch)
+// can never close/clear that newer connection out from under it — without
+// this, the old goroutine's cleanup and the new connection being set up race
+// with no ordering guarantee between them.
+func (c *Client) closeConnectionIfCurrent(conn *websocket.Conn) {
+	if conn == nil {
+		return
+	}
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	if c.connection == conn {
+		c.connection.Close()
+		c.connection = nil
+	}
+}
+
 // Function to reset timer after pong is received.
 func (c *Client) pongHandler(string) error {
 	conn := c.getConnection()
@@ -225,7 +245,7 @@ func (c *Client) readMessages() {
 	slog.Info("client read loop starting", "remote_addr", conn.RemoteAddr())
 	defer func() {
 		//connection clean up - close connection and remove client from manager
-		c.closeConnection()
+		c.closeConnectionIfCurrent(conn)
 		LoggedInList.Remove(c.username)
 	}()
 
@@ -260,7 +280,7 @@ func (c *Client) readMessages() {
 			slog.Debug("client read loop ended", "username", c.username, "error", err)
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				slog.Warn("unexpected websocket close", "username", c.username, "error", err)
-				c.closeConnection()
+				c.closeConnectionIfCurrent(conn)
 			}
 			//Break scope and html for submission note.
 			//Problem with page refresh upon form submission in html which causes the the connection to close and websocket to resart.
@@ -298,8 +318,13 @@ func (c *Client) readMessages() {
 }
 
 func (c *Client) writeMesssage() {
+	// Captured once, purely so the deferred cleanup below closes only the
+	// connection this goroutine instance was started for — see
+	// closeConnectionIfCurrent. The loop itself still re-fetches
+	// c.getConnection() fresh on every iteration below, unchanged.
+	conn := c.getConnection()
 	defer func() {
-		c.closeConnection()
+		c.closeConnectionIfCurrent(conn)
 		LoggedInList.Remove(c.username)
 	}()
 

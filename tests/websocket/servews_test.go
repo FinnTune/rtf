@@ -256,6 +256,162 @@ func TestServeWS_ExpiredExistingClient_DiscardedAndReplaced(t *testing.T) {
 	}
 }
 
+// TestCheckLogin_DoesNotCloseExistingConnection covers the multi-tab
+// scenario: browser tabs on the same domain share one session_id cookie, so
+// a second tab's checkLogin call (fired on every mount by both AuthContext
+// and WebSocketContext, before it opens its own socket) looks up the exact
+// same Client as an already-connected first tab. checkLogin previously
+// force-closed that connection unconditionally, which meant merely opening
+// (or even just loading, without ever completing its own connection) a
+// second tab would kill an unrelated, healthy first tab's live socket.
+func TestCheckLogin_DoesNotCloseExistingConnection(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	server := httptest.NewServer(http.HandlerFunc(websocket.WebsocketHandler))
+	defer server.Close()
+
+	sessionID := "shared-session"
+	// checkLogin looks up role/banned status by user id — user 42
+	// ("actual_user") is real seed data.
+	websocket.AddAuthenticatedClient(sessionID, "actual_user", 42)
+
+	otp := websocket.NewOtpForTest()
+	conn, _, err := dialWS(t, server.URL, otp, sessionID)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+	defer conn.Close()
+
+	var handle *websocket.TestClientHandle
+	deadlineCheck := time.Now().Add(2 * time.Second)
+	for {
+		handle = websocket.FindClientBySessionForTest(sessionID)
+		if handle != nil && handle.HasConnectionForTest() {
+			break
+		}
+		if time.Now().After(deadlineCheck) {
+			t.Fatal("timed out waiting for the client's connection to be set")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// Simulate a second tab (same shared cookie) polling status/minting its
+	// own OTP before it has opened any socket of its own.
+	req := httptest.NewRequest(http.MethodGet, "/checkLogin", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: sessionID})
+	rr := httptest.NewRecorder()
+	websocket.CheckLoginHandler(rr, req)
+
+	var resp websocket.UserLoginResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode checkLogin response: %v", err)
+	}
+	if !resp.LoggedIn || resp.OTP == "" {
+		t.Fatalf("expected checkLogin to report logged in with a fresh OTP, got %+v", resp)
+	}
+
+	if !handle.HasConnectionForTest() {
+		t.Fatal("expected the first tab's live connection to survive a second tab's checkLogin call")
+	}
+
+	// Confirm the connection is genuinely still usable end-to-end, not just
+	// non-nil on the server struct.
+	userConnectEvent := map[string]any{
+		"type":    "user-connect",
+		"payload": map[string]any{"username": "actual_user", "id": 42},
+	}
+	data, _ := json.Marshal(userConnectEvent)
+	if err := conn.WriteMessage(gorillaws.TextMessage, data); err != nil {
+		t.Fatalf("expected the surviving connection to still accept writes: %v", err)
+	}
+	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, _, err := conn.ReadMessage(); err != nil {
+		t.Fatalf("expected the surviving connection to still receive a reply: %v", err)
+	}
+}
+
+// TestServeWS_ExistingClient_ClosesPreviousConnectionBeforeReplacing covers
+// the other half of the same fix: when a genuinely new connection *does*
+// attach for a session that already has a live one (a real second tab, not
+// just a checkLogin poll), the old connection must be closed rather than
+// silently orphaned — otherwise its still-running writeMesssage goroutine
+// (which re-fetches the current connection every loop iteration rather than
+// caching it) would start writing to the new connection alongside the new
+// goroutine ServeWS starts for it.
+func TestServeWS_ExistingClient_ClosesPreviousConnectionBeforeReplacing(t *testing.T) {
+	websocket.ResetTestState()
+	server := httptest.NewServer(http.HandlerFunc(websocket.WebsocketHandler))
+	defer server.Close()
+
+	sessionID := "two-tabs-session"
+	firstOTP := websocket.NewOtpForTest()
+	firstConn, _, err := dialWS(t, server.URL, firstOTP, sessionID)
+	if err != nil {
+		t.Fatalf("first dial failed: %v", err)
+	}
+	defer firstConn.Close()
+
+	deadlineCheck := time.Now().Add(2 * time.Second)
+	for {
+		handle := websocket.FindClientBySessionForTest(sessionID)
+		if handle != nil && handle.HasConnectionForTest() {
+			break
+		}
+		if time.Now().After(deadlineCheck) {
+			t.Fatal("timed out waiting for the first connection to be set")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	secondOTP := websocket.NewOtpForTest()
+	secondConn, _, err := dialWS(t, server.URL, secondOTP, sessionID)
+	if err != nil {
+		t.Fatalf("second dial failed: %v", err)
+	}
+	defer secondConn.Close()
+
+	// The first tab's underlying socket must actually be closed by the
+	// server, not left dangling. closeConnection() runs strictly before
+	// setConnection(secondConn) in ServeWS's existing-client branch, but
+	// that doesn't mean the peer observes the close only after the rest of
+	// that branch has run too — the two happen on different ends of the
+	// connection, so this read returning is not itself proof the second
+	// connection is registered yet; poll for that separately below.
+	firstConn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, _, err := firstConn.ReadMessage(); err == nil {
+		t.Fatal("expected the first connection to be closed once a second connection replaced it")
+	}
+
+	if got := websocket.ClientCountForTest(); got != 1 {
+		t.Fatalf("expected still exactly 1 client (same session, reused), got %d", got)
+	}
+
+	// Confirm the second connection actually gets registered — send a real
+	// frame over it and expect a reply. The write itself succeeds as soon
+	// as the TCP-level upgrade completes regardless of server-side
+	// progress, but the reply can only arrive once ServeWS's
+	// existing-client branch has finished setConnection/touch and started
+	// this connection's own readMessages/writeMesssage goroutines, so the
+	// blocking read below is what actually waits out that async handoff.
+	userConnectEvent := map[string]any{
+		"type":    "user-connect",
+		"payload": map[string]any{"username": "tabuser2", "id": 12},
+	}
+	data, _ := json.Marshal(userConnectEvent)
+	if err := secondConn.WriteMessage(gorillaws.TextMessage, data); err != nil {
+		t.Fatalf("failed to write on the second connection: %v", err)
+	}
+	secondConn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if _, _, err := secondConn.ReadMessage(); err != nil {
+		t.Fatalf("expected the second connection to be live end-to-end: %v", err)
+	}
+
+	handle := websocket.FindClientBySessionForTest(sessionID)
+	if handle == nil || !handle.HasConnectionForTest() {
+		t.Fatal("expected the session's client to have the second connection set")
+	}
+}
+
 func TestServeWS_AcceptsChatMessageFrameLargerThanOldReadLimit(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
