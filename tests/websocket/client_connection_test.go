@@ -32,3 +32,25 @@ func TestClientConnection_ConcurrentAccess(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// TestClientLastSeen_ConcurrentAccess exercises touch()/expired() from many
+// goroutines at once — the same shape of access authenticatedClientFromRequest
+// has in production now that it only takes a read lock (RLock) on the
+// manager for the common case: touch() itself has to be safe to call
+// concurrently with no lock of its own, relying entirely on lastSeen's
+// atomic.Int64 storage. Only useful run with -race.
+func TestClientLastSeen_ConcurrentAccess(t *testing.T) {
+	websocket.ResetTestState()
+	client := websocket.AddTestClient("s1", "admin", 1)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			client.TouchForTest()
+			client.IsExpiredForTest()
+		}()
+	}
+	wg.Wait()
+}

@@ -38,26 +38,54 @@ func checkOrigin(r *http.Request) bool {
 	return origin == allowedOrigin
 }
 
+// authenticatedClientFromRequest is on the hot path for every authenticated
+// REST call (14+ handlers). The common case — an existing, non-expired
+// session — only needs to find the client (a read of the map) and touch()
+// it (lock-free, see Client.lastSeen's doc comment), so it scans under
+// RLock() rather than the full write Lock() this used to take
+// unconditionally, which serialized all authenticated traffic globally
+// regardless of which session each request was for.
+//
+// The rare expired-session cleanup path still needs the write lock to
+// delete from the map, acquired only once that case is actually hit. There's
+// a re-check after acquiring it, since another goroutine (a concurrent
+// request on this same session, or the periodic sweep in ws-manager.go)
+// could have already deleted this exact client in the gap between releasing
+// RLock and acquiring Lock — deleting it again would just be a harmless
+// no-op, but checking first keeps the intent explicit rather than relying
+// on delete's silent no-op-on-missing-key behavior.
 func authenticatedClientFromRequest(r *http.Request) (*Client, error) {
 	sessionCookie, err := r.Cookie("session_id")
 	if err != nil {
 		return nil, err
 	}
 
-	manager.Lock()
-	defer manager.Unlock()
+	manager.RLock()
+	var found *Client
 	for client := range manager.clients {
 		if client.sessionID == sessionCookie.Value && client.loggedIn {
-			if client.expired() {
-				slog.Info("session expired for client", "username", client.username)
-				client.closeConnection()
-				delete(manager.clients, client)
-				break
-			}
-			client.touch()
-			return client, nil
+			found = client
+			break
 		}
 	}
+	manager.RUnlock()
+
+	if found == nil {
+		return nil, fmt.Errorf("no authenticated client found")
+	}
+
+	if !found.expired() {
+		found.touch()
+		return found, nil
+	}
+
+	manager.Lock()
+	if _, ok := manager.clients[found]; ok && found.expired() {
+		slog.Info("session expired for client", "username", found.username)
+		found.closeConnection()
+		delete(manager.clients, found)
+	}
+	manager.Unlock()
 	return nil, fmt.Errorf("no authenticated client found")
 }
 

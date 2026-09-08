@@ -56,9 +56,11 @@ func AddTestClient(sessionID, username string, userID int) *TestClientHandle {
 		userID:    userID,
 		loggedIn:  true,
 		egress:    make(chan Event, 4),
-		lastSeen:  time.Now(),
 		limiter:   newEventLimiter(),
 	}
+	// atomic.Int64 can't be set via the struct literal above (its fields
+	// are unexported) — must Store after construction.
+	client.touch()
 	manager.clients[client] = true
 	return &TestClientHandle{client: client}
 }
@@ -75,8 +77,15 @@ func (h *TestClientHandle) UserID() int      { return h.client.userID }
 // true, for testing stale-session cleanup paths without waiting out the
 // real SessionDuration.
 func (h *TestClientHandle) ExpireForTest() {
-	h.client.lastSeen = time.Now().Add(-utility.SessionDuration - time.Minute)
+	h.client.lastSeen.Store(time.Now().Add(-utility.SessionDuration - time.Minute).UnixNano())
 }
+
+// TouchForTest and IsExpiredForTest expose Client.touch()/expired()
+// directly — used to stress-test their lock-free synchronization (see
+// lastSeen's doc comment) without the overhead/incidental serialization of
+// routing through a full HTTP handler and its own DB calls.
+func (h *TestClientHandle) TouchForTest()          { h.client.touch() }
+func (h *TestClientHandle) IsExpiredForTest() bool { return h.client.expired() }
 
 // CloseConnectionForTest exercises the connection-close path for tests.
 func (h *TestClientHandle) CloseConnectionForTest() { h.client.closeConnection() }
