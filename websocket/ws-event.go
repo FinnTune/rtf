@@ -39,9 +39,20 @@ const (
 // a given user has to be resolved/created first via "open-direct-chat" (and
 // a group via "create-group-chat"), which is what hands the client the
 // conversation_id it sends from here on.
+//
+// ClientMsgID is an opaque token the client generates and this server never
+// interprets — it's echoed back verbatim in the resulting message-ack (on
+// success) or chat-error (on a validation failure) so the client can
+// reconcile its own optimistic local echo of this specific message, rather
+// than guessing "the oldest still-unconfirmed one", which breaks the moment
+// more than one send is outstanding at once (e.g. an earlier send silently
+// dropped - see sendMessage's membership/rate-limit checks - leaves a
+// permanently-unconfirmed local echo that the next real ack would
+// otherwise misattach itself to).
 type ReceiveMessageEvent struct {
 	ConversationID int    `json:"conversation_id"`
 	Message        string `json:"message"`
+	ClientMsgID    string `json:"client_msg_id,omitempty"`
 }
 
 // SendMessageEvent is the server->client "sent-message" broadcast, sent
@@ -124,8 +135,14 @@ type ReadState struct {
 // ChatErrorEvent is sent back to a single requesting client (never
 // broadcast) when a chat action can't be completed — e.g. a group chat
 // created with an unresolvable username.
+//
+// ClientMsgID is only ever set when this error is rejecting a specific
+// "new-message" send (echoing that request's ClientMsgID) — every other
+// sendChatError call site (open-direct-chat, create-group-chat, ...) has no
+// particular message to correlate to, so it's left empty there.
 type ChatErrorEvent struct {
-	Message string `json:"message"`
+	Message     string `json:"message"`
+	ClientMsgID string `json:"client_msg_id,omitempty"`
 }
 
 // MarkReadRequest is the "mark-read" client->server payload — the client
@@ -150,7 +167,13 @@ type ReadReceiptEvent struct {
 // without this the sender would never learn their own message's real,
 // database-assigned id and could never see a "seen by" indicator advance
 // past their own latest message.
+//
+// ClientMsgID echoes the originating ReceiveMessageEvent's token, so the
+// client can reconcile the specific local echo this ack confirms rather
+// than assuming "the oldest unconfirmed one" (see ReceiveMessageEvent's doc
+// comment).
 type MessageAckEvent struct {
-	ConversationID int `json:"conversation_id"`
-	Id             int `json:"id"`
+	ConversationID int    `json:"conversation_id"`
+	Id             int    `json:"id"`
+	ClientMsgID    string `json:"client_msg_id,omitempty"`
 }
