@@ -183,9 +183,20 @@ describe('ChatContext', () => {
     expect(result.current.openWindows[convId].messages).toHaveLength(1)
     // id: 0 marks it unconfirmed — the server never echoes a sent message
     // back to its own sender, so this client never learns its real id.
+    // clientMsgId is the correlation token generated for this send (see
+    // ChatContext.tsx's sendMessage) — asserted present, not pinned to a
+    // specific value, which would just test the counter's implementation.
     expect(result.current.openWindows[convId].messages[0]).toMatchObject({ id: 0, from: 'alice', message: 'hello there' })
-    const sentFrame = JSON.parse(socket.sent[socket.sent.length - 1]) as { type: string; payload: unknown }
-    expect(sentFrame).toEqual({ type: 'new-message', payload: { conversation_id: convId, message: 'hello there' } })
+    const clientMsgId = result.current.openWindows[convId].messages[0].clientMsgId
+    expect(clientMsgId).toEqual(expect.any(String))
+    const sentFrame = JSON.parse(socket.sent[socket.sent.length - 1]) as {
+      type: string
+      payload: { conversation_id: number; message: string; client_msg_id: string }
+    }
+    expect(sentFrame).toEqual({
+      type: 'new-message',
+      payload: { conversation_id: convId, message: 'hello there', client_msg_id: clientMsgId },
+    })
   })
 
   it('a message-ack reconciles the sender\'s own optimistic message with its real id', async () => {
@@ -195,9 +206,90 @@ describe('ChatContext', () => {
 
     act(() => result.current.sendMessage(convId, 'hello there'))
     expect(result.current.openWindows[convId].messages[0].id).toBe(0)
+    const clientMsgId = result.current.openWindows[convId].messages[0].clientMsgId
 
-    act(() => socket.simulateMessage('message-ack', { conversation_id: convId, id: 99 }))
+    act(() => socket.simulateMessage('message-ack', { conversation_id: convId, id: 99, client_msg_id: clientMsgId }))
     await waitFor(() => expect(result.current.openWindows[convId].messages[0].id).toBe(99))
+  })
+
+  // Guards the actual bug this correlation-by-token design fixes: with two
+  // sends outstanding at once, an ack must reconcile the specific local
+  // echo it belongs to — matching "the oldest unconfirmed (id: 0) entry"
+  // (the old approach) would attach the second ack to the first message
+  // whenever they don't resolve in send order.
+  it('two outstanding sends reconcile independently, even acked out of order', async () => {
+    const { result, socket } = await setup()
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
+
+    act(() => result.current.sendMessage(convId, 'first'))
+    act(() => result.current.sendMessage(convId, 'second'))
+    const [firstId, secondId] = result.current.openWindows[convId].messages.map((m) => m.clientMsgId)
+    expect(firstId).not.toBe(secondId)
+
+    // Acked out of order: the second send's ack arrives first.
+    act(() => socket.simulateMessage('message-ack', { conversation_id: convId, id: 202, client_msg_id: secondId }))
+    act(() => socket.simulateMessage('message-ack', { conversation_id: convId, id: 101, client_msg_id: firstId }))
+
+    await waitFor(() => {
+      const messages = result.current.openWindows[convId].messages
+      expect(messages.find((m) => m.message === 'first')?.id).toBe(101)
+      expect(messages.find((m) => m.message === 'second')?.id).toBe(202)
+    })
+  })
+
+  it('a chat-error correlated to a send marks that specific message failed', async () => {
+    const { result, socket } = await setupWithStatus()
+    const convId = openBobConversation(socket, { current: result.current.chat })
+    await waitFor(() => expect(result.current.chat.openWindows[convId]).toBeDefined())
+
+    act(() => result.current.chat.sendMessage(convId, 'x'.repeat(1001)))
+    const clientMsgId = result.current.chat.openWindows[convId].messages[0].clientMsgId
+
+    act(() => socket.simulateMessage('chat-error', { message: 'message must be 1-1000 characters', client_msg_id: clientMsgId }))
+
+    await waitFor(() => expect(result.current.chat.openWindows[convId].messages[0].failed).toBe(true))
+    expect(result.current.status.text).toContain('message must be 1-1000 characters')
+  })
+
+  it('a send with no ack or chat-error within the timeout is marked failed', async () => {
+    const { result, socket } = await setup()
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
+
+    vi.useFakeTimers()
+    act(() => result.current.sendMessage(convId, 'into the void'))
+    expect(result.current.openWindows[convId].messages[0].failed).toBeUndefined()
+
+    // Simulates the server's two genuinely silent drop paths (a stale
+    // conversation_id the sender isn't a member of, or the per-connection
+    // rate limit — see ws-manager.go) by simply never responding at all.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000)
+    })
+
+    expect(result.current.openWindows[convId].messages[0].failed).toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('a timely ack cancels the failure timeout — no false positive on a normal round trip', async () => {
+    const { result, socket } = await setup()
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
+
+    vi.useFakeTimers()
+    act(() => result.current.sendMessage(convId, 'hi'))
+    const clientMsgId = result.current.openWindows[convId].messages[0].clientMsgId
+
+    act(() => socket.simulateMessage('message-ack', { conversation_id: convId, id: 7, client_msg_id: clientMsgId }))
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000)
+    })
+
+    expect(result.current.openWindows[convId].messages[0].failed).toBeUndefined()
+    expect(result.current.openWindows[convId].messages[0].id).toBe(7)
+    vi.useRealTimers()
   })
 
   it('closeChat removes the window', async () => {

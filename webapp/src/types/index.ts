@@ -72,6 +72,20 @@ export interface ChatMessageVM {
   from: string
   message: string
   timestamp: string | number
+  // Present only while id is still 0 — the token this client generated when
+  // sending, used to find and reconcile this specific local echo against
+  // its message-ack or chat-error (see ChatContext.tsx's sendMessage),
+  // rather than assuming "the oldest unconfirmed message is the one being
+  // acked/rejected", which breaks once more than one send is outstanding.
+  clientMsgId?: string
+  // Set once this send is known to have failed — either the server
+  // rejected it (chat-error correlated via clientMsgId) or no ack/error
+  // arrived at all within a reasonable window (the server silently drops a
+  // send from a stale conversation_id or one over the per-connection rate
+  // limit — see sendMessage/routeEvent in ws-manager.go — so a timeout is
+  // the only way those become visible). Never set on a message with a real
+  // (id > 0) id.
+  failed?: boolean
 }
 
 // Matches websocket/ws-event.go's ConversationMember/ConversationInfo JSON

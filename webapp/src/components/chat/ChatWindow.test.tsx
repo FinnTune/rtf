@@ -75,7 +75,15 @@ describe('ChatWindow', () => {
     await waitFor(() => {
       const sendFrame = socket.sent.find((f) => (JSON.parse(f) as { type: string }).type === 'new-message')
       expect(sendFrame).toBeDefined()
-      expect((JSON.parse(sendFrame!) as { payload: unknown }).payload).toEqual({ conversation_id: 5, message: 'hello there' })
+      const payload = (JSON.parse(sendFrame!) as { payload: { conversation_id: number; message: string; client_msg_id: string } })
+        .payload
+      // client_msg_id is a per-send correlation token generated internally
+      // (see ChatContext.tsx's sendMessage) — asserted present rather than
+      // pinned to a specific value, which would just be testing an
+      // implementation detail of the counter that generates it.
+      expect(payload).toMatchObject({ conversation_id: 5, message: 'hello there' })
+      expect(payload.client_msg_id).toEqual(expect.any(String))
+      expect(payload.client_msg_id.length).toBeGreaterThan(0)
     })
     expect(textarea).toHaveValue('')
   })

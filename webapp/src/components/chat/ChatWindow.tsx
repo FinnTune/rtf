@@ -134,11 +134,12 @@ export function ChatWindow({ state }: ChatWindowProps) {
 
 function ChatMessageRow({ message }: { message: ChatMessageVM }) {
   return (
-    <p>
+    <p className={message.failed ? 'message-failed' : undefined}>
       <strong>
         {message.from} ({formatTimestamp(message.timestamp)}):{' '}
       </strong>
       {message.message}
+      {message.failed && <span className="message-failed-label"> — failed to send</span>}
     </p>
   )
 }

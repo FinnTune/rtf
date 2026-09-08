@@ -793,6 +793,15 @@ font-size: 11px;
 color: var(--text-muted);
 }
 
+.message-failed {
+opacity: 0.7;
+}
+
+.message-failed-label {
+color: var(--danger);
+font-size: 11px;
+}
+
 .msg-alert {
 display: inline-flex;
 align-items: center;

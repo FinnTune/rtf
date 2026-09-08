@@ -84,7 +84,16 @@ interface RawReadReceipt {
 interface RawMessageAck {
   conversation_id: number
   id: number
+  client_msg_id?: string
 }
+
+// How long to wait for a message-ack or chat-error before assuming a send
+// silently failed. Generous relative to a normal round trip since this is
+// specifically the fallback for the failure paths that give no explicit
+// response at all (see ChatMessageVM.failed's doc comment) — better to
+// occasionally wait a bit longer on a slow connection than to flag a
+// message as failed while it's still legitimately in flight.
+const SEND_ACK_TIMEOUT_MS = 10_000
 
 function otherMember(info: ConversationInfo, myUsername: string): string {
   return info.members.find((m) => m.username !== myUsername)?.username ?? info.name ?? 'Unknown'
@@ -137,6 +146,47 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   // id in this WS protocol. Requests are sent and answered in order over a
   // single connection, so a queue is a safe enough correlation mechanism.
   const pendingHistoryRef = useRef<number[]>([])
+  // Generates each send's clientMsgId — just needs to be unique within this
+  // session, not globally, so a simple counter is enough.
+  const nextClientMsgIdRef = useRef(0)
+  // One SEND_ACK_TIMEOUT_MS fallback timer per outstanding send, keyed by
+  // its clientMsgId — cleared as soon as that send's message-ack or
+  // chat-error arrives (see markSendFailed's callers below).
+  const pendingSendTimeoutsRef = useRef(new Map<string, ReturnType<typeof window.setTimeout>>())
+  useEffect(() => {
+    const timeouts = pendingSendTimeoutsRef.current
+    return () => {
+      for (const id of timeouts.values()) window.clearTimeout(id)
+      timeouts.clear()
+    }
+  }, [])
+
+  const clearPendingSendTimeout = useCallback((clientMsgId: string | undefined) => {
+    if (!clientMsgId) return
+    const timeoutId = pendingSendTimeoutsRef.current.get(clientMsgId)
+    if (timeoutId !== undefined) {
+      window.clearTimeout(timeoutId)
+      pendingSendTimeoutsRef.current.delete(clientMsgId)
+    }
+  }, [])
+
+  // Marks the specific pending local echo identified by clientMsgId as
+  // failed, wherever it is — chat-error carries no conversation_id (it's a
+  // generic "something this connection asked for failed" event, not
+  // specific to new-message), so which window's messages to search has to
+  // be discovered rather than looked up directly.
+  const markSendFailed = useCallback((clientMsgId: string) => {
+    setOpenWindows((prev) => {
+      for (const [convId, win] of Object.entries(prev)) {
+        const index = win.messages.findIndex((m) => m.clientMsgId === clientMsgId)
+        if (index === -1) continue
+        const messages = [...win.messages]
+        messages[index] = { ...messages[index], failed: true }
+        return { ...prev, [Number(convId)]: { ...win, messages } }
+      }
+      return prev
+    })
+  }, [])
 
   const directConversationIdByUsername = useMemo(() => {
     const map: Record<string, number> = {}
@@ -317,16 +367,21 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     const unsubMessageAck = subscribe('message-ack', (payload) => {
       const data = payload as RawMessageAck
+      clearPendingSendTimeout(data.client_msg_id)
       // Reconciles this client's own just-sent message with its real,
       // database-assigned id — the server never echoes "sent-message" back
       // to its own sender, so without this the sender's own latest message
       // would carry id 0 forever and could never show a "seen by" state.
-      // Matches the oldest unconfirmed (id: 0) entry, since sends from a
-      // single client are acked in the order they were made.
+      // Matched by clientMsgId (echoed back in data.client_msg_id) rather
+      // than "the oldest unconfirmed (id: 0) entry": that assumption breaks
+      // the moment more than one send is outstanding at once, e.g. an
+      // earlier send that was silently dropped (see ws-manager.go's
+      // membership/rate-limit checks) leaves a permanently-unconfirmed
+      // local echo the next real ack would otherwise misattach itself to.
       setOpenWindows((prev) => {
         const existing = prev[data.conversation_id]
         if (!existing) return prev
-        const index = existing.messages.findIndex((m) => m.id === 0)
+        const index = existing.messages.findIndex((m) => m.clientMsgId === data.client_msg_id)
         if (index === -1) return prev
         const messages = [...existing.messages]
         messages[index] = { ...messages[index], id: data.id }
@@ -356,12 +411,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     // The server never fails a chat action silently — every rejection (an
     // unresolvable username, a too-long message, ...) comes back as this
-    // event, addressed to just the requesting connection. Previously
-    // nothing listened for it at all, so those rejections had no visible
-    // effect on the client whatsoever.
+    // event, addressed to just the requesting connection. When it's
+    // rejecting a specific send (client_msg_id present), also mark that
+    // exact local echo failed rather than leaving it looking sent forever.
     const unsubChatError = subscribe('chat-error', (payload) => {
-      const data = payload as { message: string }
+      const data = payload as { message: string; client_msg_id?: string }
       showMessage('Err: ' + data.message, 'error')
+      if (data.client_msg_id) {
+        clearPendingSendTimeout(data.client_msg_id)
+        markSendFailed(data.client_msg_id)
+      }
     })
 
     return () => {
@@ -376,7 +435,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       unsubStopTyping()
       unsubChatError()
     }
-  }, [subscribe, myUsername, markUnread, markRead, showMessage])
+  }, [subscribe, myUsername, markUnread, markRead, showMessage, clearPendingSendTimeout, markSendFailed])
 
   const openDirectChat = useCallback(
     (username: string) => {
@@ -418,16 +477,30 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       // echoes a sent message back to its own sender, so this client never
       // learns this particular message's real id (its read watermark was
       // already auto-advanced server-side regardless, see sendMessage in
-      // ws-manager.go).
-      const vm: ChatMessageVM = { id: 0, from: myUsername, message: text, timestamp: Date.now() }
+      // ws-manager.go). clientMsgId is this send's own correlation token —
+      // see ChatMessageVM's doc comment.
+      const clientMsgId = String(++nextClientMsgIdRef.current)
+      const vm: ChatMessageVM = { id: 0, from: myUsername, message: text, timestamp: Date.now(), clientMsgId }
       setOpenWindows((prev) => {
         const existing = prev[conversationId]
         if (!existing) return prev
         return { ...prev, [conversationId]: { ...existing, messages: [...existing.messages, vm] } }
       })
-      send('new-message', { conversation_id: conversationId, message: text })
+      send('new-message', { conversation_id: conversationId, message: text, client_msg_id: clientMsgId })
+
+      // Neither a message-ack nor a chat-error is guaranteed: the server
+      // silently drops a send from a stale conversation_id or one over the
+      // per-connection rate limit (both deliberately — see ws-manager.go's
+      // sendMessage/routeEvent). This timeout is the only way those
+      // specific failures ever become visible, not just the ones the
+      // server can name a reason for via chat-error.
+      const timeoutId = window.setTimeout(() => {
+        pendingSendTimeoutsRef.current.delete(clientMsgId)
+        markSendFailed(clientMsgId)
+      }, SEND_ACK_TIMEOUT_MS)
+      pendingSendTimeoutsRef.current.set(clientMsgId, timeoutId)
     },
-    [send, myUsername],
+    [send, myUsername, markSendFailed],
   )
 
   const loadMoreHistory = useCallback(

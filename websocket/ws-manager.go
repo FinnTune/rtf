@@ -121,7 +121,7 @@ func sendMessage(event Event, c *Client) error {
 		// A user-facing rejection, not a server fault — sendChatError always
 		// returns nil, so this never tears down the connection the way an
 		// error return here would (see routeEvent's caller in ws-client.go).
-		return sendChatError(c, err.Error())
+		return sendChatError(c, err.Error(), chatEvent.ClientMsgID)
 	}
 	chatEvent.Message = message
 
@@ -171,7 +171,7 @@ func sendMessage(event Event, c *Client) error {
 	// back to the sender's own connection, they'd never learn their own
 	// message's real database id and could never see a "seen by" indicator
 	// advance past their own latest message.
-	ackData, err := json.Marshal(MessageAckEvent{ConversationID: chatEvent.ConversationID, Id: int(messageID)})
+	ackData, err := json.Marshal(MessageAckEvent{ConversationID: chatEvent.ConversationID, Id: int(messageID), ClientMsgID: chatEvent.ClientMsgID})
 	if err != nil {
 		return fmt.Errorf("failed to marshal message-ack event: %s", err)
 	}
@@ -388,10 +388,10 @@ func openDirectChat(event Event, c *Client) error {
 
 	otherUserID, err := lookupUserIDByUsername(req.Username)
 	if err != nil {
-		return sendChatError(c, fmt.Sprintf("user %q not found", req.Username))
+		return sendChatError(c, fmt.Sprintf("user %q not found", req.Username), "")
 	}
 	if otherUserID == c.userID {
-		return sendChatError(c, "cannot open a chat with yourself")
+		return sendChatError(c, "cannot open a chat with yourself", "")
 	}
 
 	convID, err := resolveOrCreateDirectConversation(c.userID, otherUserID)
@@ -423,14 +423,14 @@ func createGroupChat(event Event, c *Client) error {
 
 	name, usernames, err := validateGroupChat(req.Name, req.Usernames)
 	if err != nil {
-		return sendChatError(c, err.Error())
+		return sendChatError(c, err.Error(), "")
 	}
 
 	memberIDs := []int{c.userID}
 	for _, username := range usernames {
 		userID, err := lookupUserIDByUsername(username)
 		if err != nil {
-			return sendChatError(c, fmt.Sprintf("user %q not found", username))
+			return sendChatError(c, fmt.Sprintf("user %q not found", username), "")
 		}
 		if userID != c.userID {
 			memberIDs = append(memberIDs, userID)
@@ -546,9 +546,13 @@ func sendChatOpened(c *Client, info ConversationInfo) error {
 // sendChatError delivers a user-facing error to just the requesting
 // connection — never broadcast, and never fatal to the connection itself
 // (routeEvent only kills the connection on a non-nil Go error, and this
-// always returns nil after sending).
-func sendChatError(c *Client, message string) error {
-	data, err := json.Marshal(ChatErrorEvent{Message: message})
+// always returns nil after sending). clientMsgID is the originating
+// ReceiveMessageEvent's token when this error is rejecting a "new-message"
+// send (so the client can reconcile its specific local echo), or "" for
+// every other chat action this also reports errors for (open-direct-chat,
+// create-group-chat, ...), which have no particular message to correlate.
+func sendChatError(c *Client, message, clientMsgID string) error {
+	data, err := json.Marshal(ChatErrorEvent{Message: message, ClientMsgID: clientMsgID})
 	if err != nil {
 		return fmt.Errorf("failed to marshal chat-error event: %s", err)
 	}

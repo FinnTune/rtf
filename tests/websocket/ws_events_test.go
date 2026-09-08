@@ -218,6 +218,47 @@ func TestSendMessage_RejectsTooLongMessageWithoutKillingConnection(t *testing.T)
 	}
 }
 
+// TestSendMessage_EchoesClientMsgIDInChatError guards the correlation this
+// session's fix relies on: without it, the frontend can only guess which of
+// its own optimistically-echoed pending messages a chat-error rejection
+// belongs to (previously "the oldest unconfirmed one" — see
+// ChatContext.tsx's message-ack handler before this fix), which breaks the
+// moment more than one send is outstanding at once.
+func TestSendMessage_EchoesClientMsgIDInChatError(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	sender := websocket.AddTestClient("s1", "admin", 1)
+	info := mustOpenDirectChat(t, sender, "actual_user")
+
+	payload, err := json.Marshal(websocket.ReceiveMessageEvent{
+		ConversationID: info.ConversationID,
+		Message:        strings.Repeat("a", 1001),
+		ClientMsgID:    "client-token-123",
+	})
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+	if err := websocket.SendMessageForTest(payload, sender); err != nil {
+		t.Fatalf("sendMessage should not error for an over-length message, got: %v", err)
+	}
+
+	eventType, eventPayload, ok := sender.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat-error")
+	}
+	if eventType != websocket.ChatError {
+		t.Fatalf("expected chat-error event, got %q", eventType)
+	}
+	var chatErr websocket.ChatErrorEvent
+	if err := json.Unmarshal(eventPayload, &chatErr); err != nil {
+		t.Fatalf("failed to decode chat-error payload: %v", err)
+	}
+	if chatErr.ClientMsgID != "client-token-123" {
+		t.Fatalf("expected chat-error to echo the client_msg_id, got %q", chatErr.ClientMsgID)
+	}
+}
+
 func TestSendMessage_RejectsBlankMessage(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
@@ -285,6 +326,49 @@ func TestSendMessage_AllowsNonASCIIMessageAtTheRuneLengthLimit(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("expected the exactly-at-limit non-ASCII message (1000 characters, 2000 bytes) to be stored, found %d", count)
+	}
+}
+
+// TestSendMessage_EchoesClientMsgIDInAck is the success-path counterpart to
+// TestSendMessage_EchoesClientMsgIDInChatError: the message-ack a sender
+// gets back for their own message must carry the same client_msg_id it was
+// sent with, so the frontend can reconcile the specific local echo it's
+// confirming rather than assuming "the oldest unconfirmed one".
+func TestSendMessage_EchoesClientMsgIDInAck(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	sender := websocket.AddTestClient("s1", "admin", 1)
+	info := mustOpenDirectChat(t, sender, "actual_user")
+
+	payload, err := json.Marshal(websocket.ReceiveMessageEvent{
+		ConversationID: info.ConversationID,
+		Message:        "hello",
+		ClientMsgID:    "client-token-456",
+	})
+	if err != nil {
+		t.Fatalf("failed to marshal payload: %v", err)
+	}
+	if err := websocket.SendMessageForTest(payload, sender); err != nil {
+		t.Fatalf("sendMessage failed: %v", err)
+	}
+
+	eventType, eventPayload, ok := sender.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for message-ack")
+	}
+	if eventType != websocket.MessageAck {
+		t.Fatalf("expected message-ack event, got %q", eventType)
+	}
+	var ack websocket.MessageAckEvent
+	if err := json.Unmarshal(eventPayload, &ack); err != nil {
+		t.Fatalf("failed to decode message-ack payload: %v", err)
+	}
+	if ack.ClientMsgID != "client-token-456" {
+		t.Fatalf("expected message-ack to echo the client_msg_id, got %q", ack.ClientMsgID)
+	}
+	if ack.Id == 0 {
+		t.Fatal("expected message-ack to carry a non-zero real message id")
 	}
 }
 
