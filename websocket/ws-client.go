@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"rtForum/utility"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -51,7 +52,16 @@ type Client struct {
 	// authenticated request and checked against utility.SessionDuration so
 	// a leaked/replayed session_id can't be used indefinitely regardless of
 	// what the browser does with its own copy of the cookie.
-	lastSeen time.Time
+	//
+	// Stored as unix nanoseconds in an atomic.Int64, not a plain time.Time,
+	// so touch()/expired() need no lock of their own — every one of
+	// authenticatedClientFromRequest's 14+ REST call sites (plus checkLogin,
+	// ServeWS, sweepOnce) used to take manager's full write Lock() just to
+	// call touch() safely, serializing all authenticated traffic globally
+	// even though touching one client's timestamp has nothing to do with
+	// any other client. This lets the common (non-expired) lookup path use
+	// only a read lock on the map itself.
+	lastSeen atomic.Int64
 	// limiter bounds how many events (of any type - chat messages, typing
 	// indicators, history requests, ...) this connection may dispatch per
 	// second. Every REST write endpoint is already behind an IPRateLimiter
@@ -100,16 +110,19 @@ func newEventLimiter() *rate.Limiter {
 // Factory function for client
 func newClient(conn *websocket.Conn, manager *Manager, session_id string) *Client {
 	slog.Debug("new client struct created")
-	return &Client{
+	c := &Client{
 		connection: conn,
 		connDone:   make(chan struct{}),
 		manager:    manager,
 		sessionID:  session_id,
 		egress:     make(chan Event),
 		loggedIn:   false,
-		lastSeen:   time.Now(),
 		limiter:    newEventLimiter(),
 	}
+	// atomic.Int64 can't be set via the struct literal above (its fields
+	// are unexported) — must Store after construction.
+	c.touch()
+	return c
 }
 
 // newAuthenticatedClient creates a Client at the moment a password login
@@ -120,7 +133,7 @@ func newClient(conn *websocket.Conn, manager *Manager, session_id string) *Clien
 // change them from client-supplied data, or any authenticated session could
 // declare itself to be any other user.
 func newAuthenticatedClient(manager *Manager, sessionID string, userID int, username, email, joined string) *Client {
-	return &Client{
+	c := &Client{
 		manager:   manager,
 		sessionID: sessionID,
 		egress:    make(chan Event),
@@ -129,14 +142,18 @@ func newAuthenticatedClient(manager *Manager, sessionID string, userID int, user
 		username:  username,
 		email:     email,
 		joined:    joined,
-		lastSeen:  time.Now(),
 		limiter:   newEventLimiter(),
 	}
+	// atomic.Int64 can't be set via the struct literal above (its fields
+	// are unexported) — must Store after construction.
+	c.touch()
+	return c
 }
 
-// touch refreshes the session's sliding expiry.
+// touch refreshes the session's sliding expiry. Lock-free — see lastSeen's
+// doc comment.
 func (c *Client) touch() {
-	c.lastSeen = time.Now()
+	c.lastSeen.Store(time.Now().UnixNano())
 }
 
 // sendTimeout bounds how long send() blocks on a client's egress channel.
@@ -190,9 +207,9 @@ func broadcastTo(recipients []*Client, event Event) {
 }
 
 // expired reports whether the session has been idle longer than
-// utility.SessionDuration.
+// utility.SessionDuration. Lock-free — see lastSeen's doc comment.
 func (c *Client) expired() bool {
-	return time.Since(c.lastSeen) > utility.SessionDuration
+	return time.Since(time.Unix(0, c.lastSeen.Load())) > utility.SessionDuration
 }
 
 // getConnection safely reads the current connection (nil if none/closed).
