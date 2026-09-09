@@ -1,6 +1,6 @@
 module rtForum
 
-go 1.25.13
+go 1.26.0
 
 require (
 	github.com/gofrs/uuid v4.4.0+incompatible
@@ -10,4 +10,4 @@ require (
 	golang.org/x/crypto v0.55.0
 )
 
-require golang.org/x/time v0.15.0
+require golang.org/x/time v0.16.0
