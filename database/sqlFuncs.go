@@ -141,6 +141,59 @@ func migrate(db *sql.DB) error {
 		}
 	}
 
+	if err := addCategoryNameUniqueIndex(db); err != nil {
+		return fmt.Errorf("adding category_name unique index: %w", err)
+	}
+
+	return nil
+}
+
+// addCategoryNameUniqueIndex closes the same TOCTOU gap already fixed for
+// CreateCategoryHandler/EditCategoryHandler at the DB layer (see
+// createTables.sql's idx_category_name_unique, which a brand-new database
+// already gets). Unlike the CREATE INDEX IF NOT EXISTS statements above, a
+// UNIQUE index can't just be added unconditionally to an already-deployed
+// database: if the missing constraint has ever actually let duplicate
+// category names through, creating it here would fail outright and, since
+// migrate() failing is fatal (see OpenDB), take the whole server down on
+// every future start until someone manually de-duplicates. Checking first
+// and only skipping (loudly) in that case keeps this migration as safe as
+// every other one here — a database that's never hit the race this fixes
+// picks up the constraint exactly like a fresh one would.
+func addCategoryNameUniqueIndex(db *sql.DB) error {
+	// category is one of this app's original tables in every real
+	// deployment, but migrate() also runs against deliberately minimal
+	// synthetic schemas in tests (simulating a database old enough to
+	// predate later columns) that don't necessarily include it — skip
+	// rather than error in that case, the same way the rest of migrate()
+	// only acts on tables/columns it confirms exist first.
+	var hasCategoryTable int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'category'`).Scan(&hasCategoryTable); err != nil {
+		return fmt.Errorf("checking for category table: %w", err)
+	}
+	if hasCategoryTable == 0 {
+		return nil
+	}
+
+	// CREATE UNIQUE INDEX IF NOT EXISTS would still fail outright (not
+	// silently skip) if duplicate category names already exist and the
+	// index doesn't — this check-first is what CREATE INDEX IF NOT EXISTS
+	// alone can't provide for a UNIQUE index specifically.
+	var dupes int
+	if err := db.QueryRow(`
+		SELECT COUNT(*) FROM (
+			SELECT category_name FROM category GROUP BY category_name HAVING COUNT(*) > 1
+		)`).Scan(&dupes); err != nil {
+		return fmt.Errorf("checking for duplicate category names: %w", err)
+	}
+	if dupes > 0 {
+		slog.Warn("skipping category_name unique index: duplicate category names already exist in this database", "distinct_duplicated_names", dupes)
+		return nil
+	}
+
+	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_category_name_unique ON category(category_name)`); err != nil {
+		return fmt.Errorf("creating unique index on category_name: %w", err)
+	}
 	return nil
 }
 

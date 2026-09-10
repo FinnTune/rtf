@@ -1111,6 +1111,17 @@ func CreateCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 	result, err := database.ForumDB.Exec("INSERT INTO category (category_name) VALUES (?)", name)
 	if err != nil {
+		// The COUNT(*) check above is a TOCTOU race — a concurrent request
+		// (two admin tabs, or a retry) can pass it for the same name before
+		// either INSERT commits. idx_category_name_unique (see the migrate()
+		// backstop in sqlFuncs.go) is what actually prevents the duplicate;
+		// this mirrors RegistrationHandler's identical username/email
+		// constraint handling, translating the resulting DB error into the
+		// same friendly response the upfront check gives the common case.
+		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.Code == sqlite3.ErrConstraint {
+			http.Error(w, "A category with that name already exists", http.StatusConflict)
+			return
+		}
 		slog.Error("failed to insert category", "error", err)
 		http.Error(w, "Failed to create category", http.StatusInternalServerError)
 		return
@@ -1166,6 +1177,13 @@ func EditCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 	result, err := database.ForumDB.Exec("UPDATE category SET category_name = ? WHERE id = ?", name, requestBody.ID)
 	if err != nil {
+		// See CreateCategoryHandler's identical comment: the COUNT(*) check
+		// above is a TOCTOU race, and idx_category_name_unique is the actual
+		// backstop.
+		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.Code == sqlite3.ErrConstraint {
+			http.Error(w, "A category with that name already exists", http.StatusConflict)
+			return
+		}
 		slog.Error("failed to update category", "error", err, "category_id", requestBody.ID)
 		http.Error(w, "Failed to update category", http.StatusInternalServerError)
 		return
