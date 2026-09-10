@@ -28,7 +28,7 @@ CREATE TABLE user (
 
 CREATE TABLE category (
 	id INTEGER NOT NULL PRIMARY KEY,
-	category_name VARCHAR(30) NOT NULL
+	category_name VARCHAR(30) NOT NULL UNIQUE
 );
 
 CREATE TABLE post (

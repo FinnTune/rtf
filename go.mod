@@ -1,13 +1,13 @@
 module rtForum
 
-go 1.25.13
+go 1.26.6
 
 require (
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/mattn/go-sqlite3 v1.14.50
-	golang.org/x/crypto v0.55.0
+	github.com/mattn/go-sqlite3 v1.14.52
+	golang.org/x/crypto v0.56.0
 )
 
 require golang.org/x/time v0.15.0
