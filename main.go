@@ -114,7 +114,20 @@ func buildServer() *http.Server {
 	readLimiter := utility.NewIPRateLimiter(rate.Every(200*time.Millisecond), 20)
 
 	http.HandleFunc("/healthz", healthzHandler)
-	http.HandleFunc("/checkLogin", websocket.CheckLoginHandler)
+	// checkLogin needs no authentication to reach — any request carrying a
+	// session_id cookie (even a garbage value) passes the only early-return
+	// check (an absent cookie) — and, unlike every other handler here, was
+	// the sole endpoint with no rate limiter at all. That matters more than
+	// for a typical read endpoint: checkLogin takes the manager's full write
+	// lock for its whole body and does an O(n) scan of every connected
+	// client (see (*Manager).checkLogin in handlers.go) — the same lock
+	// that also serializes every WebSocket connect/disconnect and the
+	// periodic session sweep. An unauthenticated flood of this one endpoint
+	// could queue up all of that. readLimiter is generous enough that
+	// legitimate use (mount, plus up to a few WebSocket reconnect attempts
+	// in quick succession — see WebSocketContext.tsx) never comes close to
+	// it.
+	http.HandleFunc("/checkLogin", readLimiter.Limit(websocket.CheckLoginHandler))
 	http.HandleFunc("/getAllPosts", readLimiter.Limit(websocket.AllPostsHandler))
 	http.HandleFunc("/getPostsByAuthor", readLimiter.Limit(websocket.GetPostsByAuthorHandler))
 	http.HandleFunc("/getPost", readLimiter.Limit(websocket.GetPostHandler))
