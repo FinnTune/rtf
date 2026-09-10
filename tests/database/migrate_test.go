@@ -177,3 +177,66 @@ func TestMigrate_IsIdempotent(t *testing.T) {
 		t.Fatalf("second MigrateForTest (idempotency check): %v", err)
 	}
 }
+
+// openCategoryOnlyDB builds on the same pre-role schema every other test in
+// this file uses (so migrate()'s earlier, unconditional steps — e.g.
+// ALTER TABLE user ADD COLUMN — don't fail on a table that isn't there) and
+// adds an un-migrated category table (no unique constraint on
+// category_name) — the shape needed to test addCategoryNameUniqueIndex.
+func openCategoryOnlyDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db := openPreRoleDB(t)
+	if _, err := db.Exec(`CREATE TABLE category (id INTEGER NOT NULL PRIMARY KEY, category_name VARCHAR(30) NOT NULL)`); err != nil {
+		t.Fatalf("failed to create category table: %v", err)
+	}
+	return db
+}
+
+// TestMigrate_AddsCategoryNameUniqueIndex covers the actual fix: an
+// already-deployed database with CreateCategoryHandler/EditCategoryHandler's
+// old check-then-act as the only thing preventing duplicate category names
+// must pick up idx_category_name_unique on its next start, closing that
+// TOCTOU gap at the DB layer for good.
+func TestMigrate_AddsCategoryNameUniqueIndex(t *testing.T) {
+	db := openCategoryOnlyDB(t)
+	if _, err := db.Exec(`INSERT INTO category (category_name) VALUES ('Cuisine'), ('Places')`); err != nil {
+		t.Fatalf("failed to seed categories: %v", err)
+	}
+
+	if err := database.MigrateForTest(db); err != nil {
+		t.Fatalf("MigrateForTest: %v", err)
+	}
+
+	if _, err := db.Exec(`INSERT INTO category (category_name) VALUES ('Cuisine')`); err == nil {
+		t.Fatal("expected the unique index to reject a duplicate category name after migration")
+	}
+	// A genuinely new name must still be free to insert — the migration
+	// shouldn't have broken normal category creation.
+	if _, err := db.Exec(`INSERT INTO category (category_name) VALUES ('Music')`); err != nil {
+		t.Fatalf("expected a new category name to still be insertable: %v", err)
+	}
+}
+
+// TestMigrate_SkipsCategoryNameUniqueIndexWhenDuplicatesAlreadyExist covers
+// the safety net: migrate() is fatal to server startup on error (see
+// OpenDB), so a database that already has duplicate category names (from
+// hitting the exact race this migration closes, before ever restarting)
+// must not be permanently unable to start — it should skip adding the
+// constraint (loudly) rather than failing outright.
+func TestMigrate_SkipsCategoryNameUniqueIndexWhenDuplicatesAlreadyExist(t *testing.T) {
+	db := openCategoryOnlyDB(t)
+	if _, err := db.Exec(`INSERT INTO category (category_name) VALUES ('Cuisine'), ('Cuisine')`); err != nil {
+		t.Fatalf("failed to seed duplicate categories: %v", err)
+	}
+
+	if err := database.MigrateForTest(db); err != nil {
+		t.Fatalf("expected MigrateForTest to skip rather than fail on pre-existing duplicates, got: %v", err)
+	}
+
+	// Confirms the index genuinely wasn't created (rather than having
+	// silently succeeded some other way) — a third 'Cuisine' must still be
+	// insertable.
+	if _, err := db.Exec(`INSERT INTO category (category_name) VALUES ('Cuisine')`); err != nil {
+		t.Fatalf("expected no unique constraint to have been added, but insert failed: %v", err)
+	}
+}

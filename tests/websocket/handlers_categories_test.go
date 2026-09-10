@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"rtForum/tests/testutil"
 	"rtForum/websocket"
+	"sync"
 	"testing"
 )
 
@@ -89,6 +90,73 @@ func TestCreateCategoryHandler_RejectsDuplicateName(t *testing.T) {
 
 	if rr.Code != http.StatusConflict {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, rr.Code, rr.Body.String())
+	}
+}
+
+// TestCreateCategoryHandler_ConcurrentCreatesSameName_OnlyOneSucceeds covers
+// the actual bug: CreateCategoryHandler's COUNT(*)-then-INSERT is a TOCTOU
+// race, so two concurrent requests for the same brand-new name could both
+// pass the upfront check before either INSERT commits. What actually
+// prevents the duplicate is idx_category_name_unique (see the migrate()
+// backstop in database/sqlFuncs.go) plus this handler translating the
+// resulting constraint error into the same 409 the sequential check gives —
+// exactly one of these concurrent requests must succeed, the rest must see
+// a clean 409, never a 500.
+func TestCreateCategoryHandler_ConcurrentCreatesSameName_OnlyOneSucceeds(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	// database/sql's default unlimited pool would hand concurrent goroutines
+	// separate connections — and a bare ":memory:" DSN (no shared cache)
+	// gives each connection its own isolated database, silently defeating
+	// this test (every goroutine would race against its own empty schema
+	// instead of one shared one). Forcing a single shared connection is what
+	// actually lets the goroutines below interleave against one real
+	// database, the way concurrent requests through the production
+	// connection pool do.
+	db.SetMaxOpenConns(1)
+	websocket.AddAuthenticatedClient("session-admin", "admin", 1)
+
+	const n = 10
+	var wg sync.WaitGroup
+	codes := make([]int, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			body := `{"name":"Astronomy"}`
+			req := httptest.NewRequest(http.MethodPost, "/createCategory", bytes.NewBufferString(body))
+			req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-admin"})
+			rr := httptest.NewRecorder()
+			websocket.RequireAdmin(websocket.CreateCategoryHandler)(rr, req)
+			codes[i] = rr.Code
+		}(i)
+	}
+	wg.Wait()
+
+	var created, conflicted int
+	for i, code := range codes {
+		switch code {
+		case http.StatusCreated:
+			created++
+		case http.StatusConflict:
+			conflicted++
+		default:
+			t.Fatalf("request %d: unexpected status %d (want 201 or 409)", i, code)
+		}
+	}
+	if created != 1 {
+		t.Fatalf("expected exactly 1 request to succeed, got %d (of %d)", created, n)
+	}
+	if conflicted != n-1 {
+		t.Fatalf("expected the other %d requests to see 409, got %d", n-1, conflicted)
+	}
+
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM category WHERE category_name = 'Astronomy'`).Scan(&count); err != nil {
+		t.Fatalf("failed to query category: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("expected exactly 1 stored category row, got %d", count)
 	}
 }
 

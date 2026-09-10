@@ -139,6 +139,14 @@ CREATE INDEX idx_user_post_reaction_post_id ON user_post_reaction(post_id);
 CREATE INDEX idx_conversation_member_user_id ON conversation_member(user_id);
 CREATE INDEX idx_post_author ON post(author);
 
+-- CreateCategoryHandler/EditCategoryHandler only ever checked-then-acted
+-- ("does a category with this name already exist?" then INSERT/UPDATE) with
+-- no DB constraint backing that check up — two concurrent requests (two
+-- admin tabs, or a retry) could both pass the check and create/rename to
+-- the same name. Unlike user.uname/user.email, category_name had no UNIQUE
+-- constraint at all until this.
+CREATE UNIQUE INDEX idx_category_name_unique ON category(category_name);
+
 -- Insert in user table for testing
 -- INSERT INTO user ( id, fname, lname, uname, email, age, gender, pass, created_at) VALUES (1, admin, admin, admin, admin@example.com, 1, male, passHash!!!,  DateTime('now', 'localtime'))
 
