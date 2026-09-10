@@ -1,6 +1,6 @@
 module rtForum
 
-go 1.25.13
+go 1.26.6
 
 require (
 	github.com/gofrs/uuid v4.4.0+incompatible
