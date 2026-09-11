@@ -921,6 +921,68 @@ func GetPostHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(posts[0])
 }
 
+// applyReactionToExistingRow reconciles an already-existing user_post_reaction
+// row with the newly requested is_liked value: an identical value toggles
+// the reaction off (delete), a different value switches it (update).
+func applyReactionToExistingRow(id, existingIsLiked, newIsLiked int) error {
+	if existingIsLiked == newIsLiked {
+		_, err := database.ForumDB.Exec("DELETE FROM user_post_reaction WHERE id = ?", id)
+		return err
+	}
+	_, err := database.ForumDB.Exec("UPDATE user_post_reaction SET is_liked = ? WHERE id = ?", newIsLiked, id)
+	return err
+}
+
+// reactionInsertRaceRetries bounds how many times insertOrReconcileReaction
+// retries the whole insert-or-reconcile cycle. Two or three overlapping
+// requests for the same reaction (the realistic case — the same post open
+// in two tabs, or a retried submit) resolve within one retry; this exists
+// only to give up rather than loop forever in a pathological case.
+const reactionInsertRaceRetries = 5
+
+// insertOrReconcileReaction inserts a fresh user_post_reaction row for
+// userID/postID, or reconciles with whatever a concurrent request already
+// did if it loses that race. ReactToPostHandler's own SELECT already found
+// no existing row, so it calls this expecting a plain INSERT — but that can
+// still hit the UNIQUE(user_id, post_id) constraint if another concurrent
+// request for the same user+post won the race in between. When that
+// happens, re-read the row the winner inserted and apply the same
+// toggle/switch logic applyReactionToExistingRow uses instead of erroring
+// out on a reaction that, from this caller's perspective, already exists.
+// That re-read can itself find no row (a third overlapping request already
+// deleted what the winner inserted) — retrying the whole cycle from the
+// top handles that rather than treating it as a hard failure.
+func insertOrReconcileReaction(userID, postID, newIsLiked int) error {
+	for attempt := 0; attempt < reactionInsertRaceRetries; attempt++ {
+		_, err := database.ForumDB.Exec(
+			"INSERT INTO user_post_reaction (user_id, post_id, is_liked, created_at) VALUES (?, ?, ?, ?)",
+			userID, postID, newIsLiked, time.Now().Format("2006-01-02 15:04:05"),
+		)
+		if err == nil {
+			return nil
+		}
+		sqliteErr, isConstraintErr := err.(sqlite3.Error)
+		if !isConstraintErr || sqliteErr.Code != sqlite3.ErrConstraint {
+			return err
+		}
+
+		var existingID, existingIsLiked int
+		selectErr := database.ForumDB.QueryRow(
+			"SELECT id, is_liked FROM user_post_reaction WHERE user_id = ? AND post_id = ?",
+			userID, postID,
+		).Scan(&existingID, &existingIsLiked)
+		switch {
+		case selectErr == sql.ErrNoRows:
+			continue // the row we lost the race to has since been deleted; retry from the top
+		case selectErr != nil:
+			return selectErr
+		default:
+			return applyReactionToExistingRow(existingID, existingIsLiked, newIsLiked)
+		}
+	}
+	return fmt.Errorf("gave up reconciling reaction for user %d post %d after %d attempts", userID, postID, reactionInsertRaceRetries)
+}
+
 // ReactToPostHandler lets an authenticated user like or dislike a post.
 // Submitting the same reaction again removes it (a toggle); submitting the
 // opposite reaction switches it. One reaction per user per post is enforced
@@ -974,11 +1036,8 @@ func ReactToPostHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case err == sql.ErrNoRows:
-		if _, err := database.ForumDB.Exec(
-			"INSERT INTO user_post_reaction (user_id, post_id, is_liked, created_at) VALUES (?, ?, ?, ?)",
-			client.userID, requestBody.PostID, newIsLiked, time.Now().Format("2006-01-02 15:04:05"),
-		); err != nil {
-			slog.Error("failed to insert reaction", "error", err, "post_id", requestBody.PostID, "user_id", client.userID)
+		if err := insertOrReconcileReaction(client.userID, requestBody.PostID, newIsLiked); err != nil {
+			slog.Error("failed to react to post", "error", err, "post_id", requestBody.PostID, "user_id", client.userID)
 			http.Error(w, "Failed to react to post", http.StatusInternalServerError)
 			return
 		}
@@ -986,14 +1045,8 @@ func ReactToPostHandler(w http.ResponseWriter, r *http.Request) {
 		slog.Error("failed to look up existing reaction", "error", err, "post_id", requestBody.PostID, "user_id", client.userID)
 		http.Error(w, "Failed to react to post", http.StatusInternalServerError)
 		return
-	case existingIsLiked == newIsLiked:
-		if _, err := database.ForumDB.Exec("DELETE FROM user_post_reaction WHERE id = ?", existingID); err != nil {
-			slog.Error("failed to delete reaction", "error", err, "reaction_id", existingID)
-			http.Error(w, "Failed to react to post", http.StatusInternalServerError)
-			return
-		}
 	default:
-		if _, err := database.ForumDB.Exec("UPDATE user_post_reaction SET is_liked = ? WHERE id = ?", newIsLiked, existingID); err != nil {
+		if err := applyReactionToExistingRow(existingID, existingIsLiked, newIsLiked); err != nil {
 			slog.Error("failed to update reaction", "error", err, "reaction_id", existingID)
 			http.Error(w, "Failed to react to post", http.StatusInternalServerError)
 			return
