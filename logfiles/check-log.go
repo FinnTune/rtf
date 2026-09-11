@@ -3,8 +3,21 @@ package logfiles
 import (
 	"log/slog"
 	"os"
+	"path/filepath"
+	"sort"
 	"time"
 )
+
+// maxRotatedLogs bounds how many rotated forum_*.log files accumulate in a
+// log directory. Without this, every process restart (each container
+// redeploy/crash/restart, under docker-compose.yml's bind-mounted
+// ./logfiles host volume) leaves one more file behind forever — this repo's
+// own logfiles/ directory had accumulated well over 100 of them, some going
+// back months, before this existed. A crash-restart loop (the exact
+// scenario these logs exist to help diagnose) would fill disk fastest of
+// all, risking taking the app down via ENOSPC while trying to debug why it
+// keeps crashing.
+const maxRotatedLogs = 10
 
 // CheckLog runs before the default slog logger is pointed at forum.log (see
 // main.go), so these calls land on slog's built-in default (stderr) — the
@@ -37,5 +50,35 @@ func CheckLog(dir string, filename string) {
 		}
 		slog.Info("previous log file renamed and new log created")
 		defer file.Close()
+	}
+
+	cleanupRotatedLogs(dir)
+}
+
+// cleanupRotatedLogs keeps at most the maxRotatedLogs most recently rotated
+// forum_*.log files in dir, deleting the rest. Rotated filenames embed a
+// sortable timestamp (forum_2006-01-02_15-04-05.log), so a plain
+// lexicographic sort orders them chronologically without needing to stat
+// each file's mtime. Best-effort: a failure to list or delete is logged,
+// not fatal — an over-long log retention is a much smaller problem than
+// crashing the server outright over disk cleanup.
+func cleanupRotatedLogs(dir string) {
+	matches, err := filepath.Glob(filepath.Join(dir, "forum_*.log"))
+	if err != nil {
+		slog.Error("failed to list rotated log files", "error", err)
+		return
+	}
+	if len(matches) <= maxRotatedLogs {
+		return
+	}
+
+	sort.Strings(matches)
+	toDelete := matches[:len(matches)-maxRotatedLogs]
+	for _, path := range toDelete {
+		if err := os.Remove(path); err != nil {
+			slog.Error("failed to delete old rotated log file", "path", path, "error", err)
+			continue
+		}
+		slog.Info("deleted old rotated log file", "path", path)
 	}
 }
