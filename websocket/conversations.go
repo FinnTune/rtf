@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"rtForum/database"
+	"strings"
 	"time"
 )
 
@@ -192,9 +193,20 @@ func getConversationMemberIDs(convID int) ([]int, error) {
 // after connecting, so a user sees their existing group chats (and any
 // direct conversation they've already opened before) without having to
 // rediscover them by clicking someone in the online list.
+//
+// Batches the member and read-state lookups across every conversation with
+// two WHERE ... IN (...) queries, rather than calling getConversationInfo
+// (and its own two queries) per conversation — the same batching
+// attachReactionData uses for posts, and for the same reason: this fires on
+// every WS connect and reconnect (getConversations in ws-manager.go), so a
+// user in N conversations previously cost 1+3N sequential round trips
+// against the single shared DB handle instead of 3 total.
+// getConversationInfo/getConversationMembers/getConversationReadStates
+// remain as-is for their other, single-conversation call sites (e.g.
+// "chat-opened").
 func getUserConversations(userID int) ([]ConversationInfo, error) {
 	rows, err := database.ForumDB.Query(`
-		SELECT conversation.id
+		SELECT conversation.id, conversation.is_group, conversation.name
 		FROM conversation
 		JOIN conversation_member ON conversation_member.conversation_id = conversation.id
 		WHERE conversation_member.user_id = ?
@@ -202,32 +214,89 @@ func getUserConversations(userID int) ([]ConversationInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("loading user conversations: %w", err)
 	}
+	defer rows.Close()
+
+	conversations := []ConversationInfo{}
+	indexByConvID := make(map[int]int)
 	var convIDs []int
 	for rows.Next() {
 		var id int
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return nil, fmt.Errorf("scanning conversation id: %w", err)
+		var isGroup bool
+		var name sql.NullString
+		if err := rows.Scan(&id, &isGroup, &name); err != nil {
+			return nil, fmt.Errorf("scanning conversation: %w", err)
 		}
+		indexByConvID[id] = len(conversations)
 		convIDs = append(convIDs, id)
+		conversations = append(conversations, ConversationInfo{
+			ConversationID: id,
+			IsGroup:        isGroup,
+			Name:           name.String,
+			Members:        []ConversationMember{},
+			ReadStates:     []ReadState{},
+		})
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
 		return nil, err
 	}
-	rows.Close()
+	if len(convIDs) == 0 {
+		return conversations, nil
+	}
 
-	conversations := []ConversationInfo{}
-	for _, id := range convIDs {
-		info, found, err := getConversationInfo(id)
-		if err != nil {
-			return nil, err
+	placeholders := strings.Repeat("?,", len(convIDs))
+	placeholders = placeholders[:len(placeholders)-1]
+	args := make([]interface{}, len(convIDs))
+	for i, id := range convIDs {
+		args[i] = id
+	}
+
+	memberRows, err := database.ForumDB.Query(`
+		SELECT conversation_member.conversation_id, user.id, user.uname
+		FROM conversation_member
+		JOIN user ON user.id = conversation_member.user_id
+		WHERE conversation_member.conversation_id IN (`+placeholders+`)
+		ORDER BY user.uname ASC`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("loading conversation members: %w", err)
+	}
+	defer memberRows.Close()
+	for memberRows.Next() {
+		var convID int
+		var m ConversationMember
+		if err := memberRows.Scan(&convID, &m.UserID, &m.Username); err != nil {
+			return nil, fmt.Errorf("scanning conversation member: %w", err)
 		}
-		if found {
-			conversations = append(conversations, *info)
+		if idx, ok := indexByConvID[convID]; ok {
+			conversations[idx].Members = append(conversations[idx].Members, m)
 		}
 	}
-	return conversations, nil
+	if err := memberRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating conversation members: %w", err)
+	}
+
+	readRows, err := database.ForumDB.Query(`
+		SELECT conversation_member.conversation_id, user.id, user.uname, COALESCE(message_read.last_read_message_id, 0)
+		FROM conversation_member
+		JOIN user ON user.id = conversation_member.user_id
+		LEFT JOIN message_read ON message_read.conversation_id = conversation_member.conversation_id
+			AND message_read.user_id = conversation_member.user_id
+		WHERE conversation_member.conversation_id IN (`+placeholders+`)
+		ORDER BY user.uname ASC`, args...)
+	if err != nil {
+		return nil, fmt.Errorf("loading read states: %w", err)
+	}
+	defer readRows.Close()
+	for readRows.Next() {
+		var convID int
+		var s ReadState
+		if err := readRows.Scan(&convID, &s.UserID, &s.Username, &s.LastReadMessageID); err != nil {
+			return nil, fmt.Errorf("scanning read state: %w", err)
+		}
+		if idx, ok := indexByConvID[convID]; ok {
+			conversations[idx].ReadStates = append(conversations[idx].ReadStates, s)
+		}
+	}
+	return conversations, readRows.Err()
 }
 
 // getConversationReadStates returns every member's read watermark. A member
