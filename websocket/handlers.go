@@ -295,8 +295,10 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 				// (see the existing-client branch there).
 				//
 				// Otp
-				//Create new OTP and store in manager otps map
-				otp := m.otps.newOtp()
+				//Create new OTP and store in manager otps map, bound to this
+				//session so it can't be redeemed against a different one at
+				//the /ws upgrade (see otp.go's otpObj doc).
+				otp := m.otps.newOtp(client.sessionID)
 
 				// Send the login status to the client
 				w.Header().Set("Content-Type", "application/json")
@@ -413,8 +415,10 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			// credential check like the one above.
 			m.clients[newAuthenticatedClient(m, sessionID, userInfo.ID, userInfo.Username, userInfo.Email, userInfo.Joined)] = true
 
-			//Create new OTP and store in manager otps map
-			otp := m.otps.newOtp()
+			//Create new OTP and store in manager otps map, bound to this
+			//session so it can't be redeemed against a different one at the
+			//"/ws" upgrade (see otp.go's otpObj doc).
+			otp := m.otps.newOtp(sessionID)
 
 			resp := UserLoginResponse{
 				OTP:      otp.Key,
@@ -535,8 +539,26 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//Get cookie from request. Read before verifying the otp (and before
+	//upgrading) so verification can bind the two together — see below.
+	cookie, err := r.Cookie("session_id")
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		slog.Warn("websocket upgrade rejected: no session cookie")
+		return
+	}
+	sessionID := cookie.Value // a live session credential — never logged raw
+
 	// The otp value itself is a live, one-time credential — never logged.
-	if !m.otps.verifyOtp(otp) {
+	// Checking it was minted for this exact sessionID (not merely that it
+	// exists) closes off an otherwise-open path to registering a phantom
+	// client: without this binding, anyone who can mint an OTP for their
+	// own real session (via checkLogin/login) could redeem it here paired
+	// with any made-up session_id, hitting the no-existing-client branch
+	// below and registering a fresh, loggedIn Client with userID 0 and an
+	// empty username — corrupting LoggedInList and any conversation rows
+	// it goes on to create.
+	if !m.otps.verifyOtp(otp, sessionID) {
 		w.WriteHeader(http.StatusUnauthorized)
 		slog.Warn("websocket upgrade rejected: otp is invalid")
 		return
@@ -550,21 +572,8 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//Get cookie from request
-	cookie, err := r.Cookie("session_id")
-	if err != nil {
-		slog.Error("error getting session cookie for websocket upgrade", "error", err)
-		// The upgrade already succeeded above, so without this the
-		// connection is left open with nothing ever reading/writing it or
-		// tracking it in m.clients — a leaked socket the client believes is
-		// live until it eventually times out on its own.
-		conn.Close()
-		return
-	}
-
-	//Get cookie value and check if client already exists
+	//Check if client already exists
 	//If client exists, set connection to new connection and start client routines
-	sessionID := cookie.Value // a live session credential — never logged raw
 
 	// m.clients is shared with every other handler (login, logout,
 	// checkLogin, ...), all of which access it under m.Lock() — this lookup
