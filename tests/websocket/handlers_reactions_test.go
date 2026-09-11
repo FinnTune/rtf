@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"rtForum/tests/testutil"
 	"rtForum/websocket"
+	"sync"
 	"testing"
 )
 
@@ -180,6 +181,64 @@ func TestAllPostsHandler_IncludesReactionDataForAnonymousViewer(t *testing.T) {
 	// reaction attached, even though the aggregate counts are still public.
 	if post1.MyReaction != "none" {
 		t.Fatalf("expected an anonymous viewer's MyReaction to be 'none', got %q", post1.MyReaction)
+	}
+}
+
+// TestReactToPostHandler_ConcurrentInsertRace_NoServerErrors covers the
+// insert race ReactToPostHandler's upfront SELECT can lose: multiple
+// concurrent identical requests for the same user+post (the same post open
+// in two tabs, or a retried submit) can all see no existing reaction and
+// all attempt the INSERT — only one commits, the rest hit
+// user_post_reaction's UNIQUE(user_id, post_id) constraint. Before this
+// fix, a loser fell into the generic error branch and got a bare 500 even
+// though its request was, from the caller's perspective, entirely valid.
+// None of these concurrent requests must ever see a 500, and the table
+// must never end up with more than one row for this user+post no matter
+// how the toggles interleave.
+func TestReactToPostHandler_ConcurrentInsertRace_NoServerErrors(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	// Forces the concurrent goroutines below onto one shared connection
+	// against one real database, the same way conversations_race_test.go
+	// and TestCreateCategoryHandler_ConcurrentCreatesSameName_OnlyOneSucceeds
+	// do — a bare ":memory:" DSN with the default pool would otherwise hand
+	// each goroutine its own isolated, empty database.
+	db.SetMaxOpenConns(1)
+	websocket.AddAuthenticatedClient("session-race", "alice", 2)
+
+	const n = 10
+	var wg sync.WaitGroup
+	codes := make([]int, n)
+	bodies := make([]string, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			body, _ := json.Marshal(map[string]any{"post_id": 1, "is_liked": true})
+			req := httptest.NewRequest(http.MethodPost, "/reactToPost", bytes.NewBuffer(body))
+			req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-race"})
+			rr := httptest.NewRecorder()
+			websocket.ReactToPostHandler(rr, req)
+			codes[i] = rr.Code
+			bodies[i] = rr.Body.String()
+		}(i)
+	}
+	wg.Wait()
+
+	for i, code := range codes {
+		if code != http.StatusOK {
+			t.Fatalf("request %d: expected status %d, got %d: %s", i, http.StatusOK, code, bodies[i])
+		}
+	}
+
+	var rowCount int
+	if err := db.QueryRow(
+		"SELECT COUNT(*) FROM user_post_reaction WHERE user_id = 2 AND post_id = 1",
+	).Scan(&rowCount); err != nil {
+		t.Fatalf("failed to count reaction rows: %v", err)
+	}
+	if rowCount > 1 {
+		t.Fatalf("expected at most 1 reaction row for this user+post, got %d — the UNIQUE constraint was violated", rowCount)
 	}
 }
 
