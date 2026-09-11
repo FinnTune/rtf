@@ -1,6 +1,7 @@
 package websocket_test
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -12,12 +13,35 @@ func TestNewOtpAndVerify(t *testing.T) {
 	otps := websocket.NewTestOtps(5 * time.Second)
 	defer otps.Close()
 
-	key := otps.NewKey()
+	key := otps.NewKey("session-a")
 	if key == "" {
 		t.Fatal("expected non-empty OTP key")
 	}
-	if !otps.Verify(key) {
-		t.Fatal("expected OTP to verify successfully")
+	if !otps.Verify(key, "session-a") {
+		t.Fatal("expected OTP to verify successfully against the session it was minted for")
+	}
+}
+
+// TestVerifyOtp_WrongSessionRejected is the core regression test for the
+// session-binding fix: an otp minted for one session must not verify
+// against a different one, even though the otp itself is valid and unused.
+// Before this fix, otpObj carried no session identity at all, so any
+// authenticated user could mint an otp for their own session and redeem it
+// here with an arbitrary, made-up session_id — see ServeWS's
+// no-existing-client branch, which would register a fresh Client with
+// userID 0 and an empty username for whatever session_id was presented.
+func TestVerifyOtp_WrongSessionRejected(t *testing.T) {
+	otps := websocket.NewTestOtps(5 * time.Second)
+	defer otps.Close()
+
+	key := otps.NewKey("session-a")
+	if otps.Verify(key, "session-b") {
+		t.Fatal("expected an otp minted for session-a to be rejected when presented with session-b")
+	}
+	// Also confirm it's genuinely consumed (one-time use) rather than left
+	// usable by the failed cross-session attempt above.
+	if otps.Verify(key, "session-a") {
+		t.Fatal("expected the otp to have been consumed by the earlier verify attempt, even though that attempt failed")
 	}
 }
 
@@ -25,12 +49,12 @@ func TestVerifyOtp_OneTimeUse(t *testing.T) {
 	otps := websocket.NewTestOtps(5 * time.Second)
 	defer otps.Close()
 
-	key := otps.NewKey()
+	key := otps.NewKey("session-a")
 
-	if !otps.Verify(key) {
+	if !otps.Verify(key, "session-a") {
 		t.Fatal("expected first verification to succeed")
 	}
-	if otps.Verify(key) {
+	if otps.Verify(key, "session-a") {
 		t.Fatal("expected OTP to be invalid after first use")
 	}
 }
@@ -39,7 +63,7 @@ func TestVerifyOtp_Invalid(t *testing.T) {
 	otps := websocket.NewTestOtps(5 * time.Second)
 	defer otps.Close()
 
-	if otps.Verify("not-a-real-otp") {
+	if otps.Verify("not-a-real-otp", "session-a") {
 		t.Fatal("expected unknown OTP to fail verification")
 	}
 }
@@ -48,10 +72,10 @@ func TestOtpExpiry(t *testing.T) {
 	otps := websocket.NewTestOtps(50 * time.Millisecond)
 	defer otps.Close()
 
-	key := otps.NewKey()
+	key := otps.NewKey("session-a")
 	time.Sleep(600 * time.Millisecond)
 
-	if otps.Verify(key) {
+	if otps.Verify(key, "session-a") {
 		t.Fatal("expected expired OTP to fail verification")
 	}
 }
@@ -70,11 +94,12 @@ func TestOtp_ConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := 0; i < 50; i++ {
 		wg.Add(1)
-		go func() {
+		go func(i int) {
 			defer wg.Done()
-			key := otps.NewKey()
-			otps.Verify(key)
-		}()
+			sessionID := fmt.Sprintf("session-%d", i)
+			key := otps.NewKey(sessionID)
+			otps.Verify(key, sessionID)
+		}(i)
 	}
 	wg.Wait()
 }

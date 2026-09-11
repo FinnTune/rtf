@@ -112,12 +112,13 @@ func (h *TestClientHandle) IsRemovedFromManager() bool {
 	return !ok
 }
 
-// NewOtpForTest mints a one-time password against the package's live
-// manager — the same instance WebsocketHandler/ServeWS use — for tests that
-// exercise the real /ws upgrade path end-to-end rather than calling an
-// event handler directly.
-func NewOtpForTest() string {
-	return manager.otps.newOtp().Key
+// NewOtpForTest mints a one-time password bound to sessionID against the
+// package's live manager — the same instance WebsocketHandler/ServeWS use —
+// for tests that exercise the real /ws upgrade path end-to-end rather than
+// calling an event handler directly. Callers must dial with the same
+// sessionID, since ServeWS now rejects an otp presented with any other one.
+func NewOtpForTest(sessionID string) string {
+	return manager.otps.newOtp(sessionID).Key
 }
 
 // FindClientBySessionForTest looks up a connected client by session id
@@ -229,8 +230,8 @@ func NewTestOtps(expiry time.Duration) *TestOtps {
 // Close stops background OTP cleanup.
 func (o *TestOtps) Close() { o.cancel() }
 
-// NewKey creates a new OTP and returns its key.
-func (o *TestOtps) NewKey() string { return o.otps.newOtp().Key }
+// NewKey creates a new OTP bound to sessionID and returns its key.
+func (o *TestOtps) NewKey(sessionID string) string { return o.otps.newOtp(sessionID).Key }
 
-// Verify validates and consumes an OTP key.
-func (o *TestOtps) Verify(key string) bool { return o.otps.verifyOtp(key) }
+// Verify validates and consumes an OTP key, checking it was minted for sessionID.
+func (o *TestOtps) Verify(key, sessionID string) bool { return o.otps.verifyOtp(key, sessionID) }

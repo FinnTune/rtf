@@ -53,7 +53,15 @@ func TestServeWS_InvalidOTP_Rejected(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(websocket.WebsocketHandler))
 	defer server.Close()
 
-	resp, err := http.Get(server.URL + "/ws?otp=not-a-real-otp")
+	// A real session cookie, so this actually exercises otp verification
+	// itself rather than failing earlier on the missing-cookie check.
+	req, err := http.NewRequest(http.MethodGet, server.URL+"/ws?otp=not-a-real-otp", nil)
+	if err != nil {
+		t.Fatalf("failed to build request: %v", err)
+	}
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "some-session"})
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
@@ -68,11 +76,12 @@ func TestServeWS_WrongOrigin_Rejected(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(websocket.WebsocketHandler))
 	defer server.Close()
 
-	otp := websocket.NewOtpForTest()
+	sessionID := "whatever"
+	otp := websocket.NewOtpForTest(sessionID)
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http") + "/ws?otp=" + otp
 	header := http.Header{}
 	header.Set("Origin", "https://evil.example.com")
-	header.Set("Cookie", "session_id=whatever")
+	header.Set("Cookie", "session_id="+sessionID)
 
 	_, resp, err := gorillaws.DefaultDialer.Dial(wsURL, header)
 	if err == nil {
@@ -87,29 +96,65 @@ func TestServeWS_WrongOrigin_Rejected(t *testing.T) {
 	}
 }
 
-func TestServeWS_ValidOTP_MissingCookie_ConnectionClosed(t *testing.T) {
+func TestServeWS_ValidOTP_MissingCookie_Rejected(t *testing.T) {
 	websocket.ResetTestState()
 	server := httptest.NewServer(http.HandlerFunc(websocket.WebsocketHandler))
 	defer server.Close()
 
-	otp := websocket.NewOtpForTest()
+	// The session cookie is read before the otp is verified against it (see
+	// ServeWS), so a missing cookie is rejected outright — the upgrade
+	// itself never happens, regardless of how the otp was minted.
+	otp := websocket.NewOtpForTest("some-session")
 	conn, resp, err := dialWS(t, server.URL, otp, "")
-	if err != nil {
-		t.Fatalf("expected the upgrade itself to succeed (cookie is checked after), got error: %v (status %v)", err, resp)
+	if err == nil {
+		conn.Close()
+		t.Fatal("expected the handshake to fail without a session cookie")
 	}
-	defer conn.Close()
-
-	// The server closes the connection right after upgrading, since it has
-	// no session cookie to attach the connection to. The client should
-	// observe the connection being closed rather than it staying open.
-	conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	_, _, readErr := conn.ReadMessage()
-	if readErr == nil {
-		t.Fatal("expected the connection to be closed by the server due to the missing session cookie")
+	if resp == nil || resp.StatusCode != http.StatusUnauthorized {
+		status := -1
+		if resp != nil {
+			status = resp.StatusCode
+		}
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, status)
 	}
 
 	if got := websocket.ClientCountForTest(); got != 0 {
 		t.Fatalf("expected no client to be registered without a session cookie, got %d", got)
+	}
+}
+
+// TestServeWS_OTPMintedForDifferentSession_Rejected is the end-to-end
+// regression test for the otp/session binding fix: an otp is only ever
+// minted by checkLogin/serveLogin for the caller's own, already-verified
+// session (see those handlers). Before this fix, ServeWS accepted any
+// live, unused otp paired with *any* session_id cookie — so anyone who
+// could log in once could mint an otp for their own session and redeem it
+// here against an arbitrary, made-up session_id, hitting the
+// no-existing-client branch below and registering a fresh, loggedIn Client
+// with userID 0 and an empty username. Confirms the otp/session binding is
+// enforced by ServeWS itself, not just by the otpsMap in isolation (see
+// otp_test.go's TestVerifyOtp_WrongSessionRejected for that narrower case).
+func TestServeWS_OTPMintedForDifferentSession_Rejected(t *testing.T) {
+	websocket.ResetTestState()
+	server := httptest.NewServer(http.HandlerFunc(websocket.WebsocketHandler))
+	defer server.Close()
+
+	otp := websocket.NewOtpForTest("real-session")
+	conn, resp, err := dialWS(t, server.URL, otp, "attacker-made-up-session")
+	if err == nil {
+		conn.Close()
+		t.Fatal("expected the handshake to fail when the otp was minted for a different session")
+	}
+	if resp == nil || resp.StatusCode != http.StatusUnauthorized {
+		status := -1
+		if resp != nil {
+			status = resp.StatusCode
+		}
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, status)
+	}
+
+	if got := websocket.ClientCountForTest(); got != 0 {
+		t.Fatalf("expected no phantom client to be registered, got %d", got)
 	}
 }
 
@@ -118,8 +163,8 @@ func TestServeWS_NewClient_UpgradesRegistersAndRoutesEvents(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(websocket.WebsocketHandler))
 	defer server.Close()
 
-	otp := websocket.NewOtpForTest()
 	sessionID := "brand-new-session"
+	otp := websocket.NewOtpForTest(sessionID)
 	conn, _, err := dialWS(t, server.URL, otp, sessionID)
 	if err != nil {
 		t.Fatalf("dial failed: %v", err)
@@ -184,7 +229,7 @@ func TestServeWS_ExistingClient_ReconnectsSameClient(t *testing.T) {
 		t.Fatalf("expected 1 pre-registered client, got %d", got)
 	}
 
-	otp := websocket.NewOtpForTest()
+	otp := websocket.NewOtpForTest(sessionID)
 	conn, _, err := dialWS(t, server.URL, otp, sessionID)
 	if err != nil {
 		t.Fatalf("dial failed: %v", err)
@@ -223,7 +268,7 @@ func TestServeWS_ExpiredExistingClient_DiscardedAndReplaced(t *testing.T) {
 	}
 	handle.ExpireForTest()
 
-	otp := websocket.NewOtpForTest()
+	otp := websocket.NewOtpForTest(sessionID)
 	conn, _, err := dialWS(t, server.URL, otp, sessionID)
 	if err != nil {
 		t.Fatalf("dial failed: %v", err)
@@ -276,7 +321,7 @@ func TestCheckLogin_DoesNotCloseExistingConnection(t *testing.T) {
 	// ("actual_user") is real seed data.
 	websocket.AddAuthenticatedClient(sessionID, "actual_user", 42)
 
-	otp := websocket.NewOtpForTest()
+	otp := websocket.NewOtpForTest(sessionID)
 	conn, _, err := dialWS(t, server.URL, otp, sessionID)
 	if err != nil {
 		t.Fatalf("dial failed: %v", err)
@@ -345,7 +390,7 @@ func TestServeWS_ExistingClient_ClosesPreviousConnectionBeforeReplacing(t *testi
 	defer server.Close()
 
 	sessionID := "two-tabs-session"
-	firstOTP := websocket.NewOtpForTest()
+	firstOTP := websocket.NewOtpForTest(sessionID)
 	firstConn, _, err := dialWS(t, server.URL, firstOTP, sessionID)
 	if err != nil {
 		t.Fatalf("first dial failed: %v", err)
@@ -364,7 +409,7 @@ func TestServeWS_ExistingClient_ClosesPreviousConnectionBeforeReplacing(t *testi
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	secondOTP := websocket.NewOtpForTest()
+	secondOTP := websocket.NewOtpForTest(sessionID)
 	secondConn, _, err := dialWS(t, server.URL, secondOTP, sessionID)
 	if err != nil {
 		t.Fatalf("second dial failed: %v", err)
@@ -438,7 +483,7 @@ func TestServeWS_ConcurrentNewSessionDials_RegisterExactlyOneClient(t *testing.T
 	const n = 20
 	otps := make([]string, n)
 	for i := range otps {
-		otps[i] = websocket.NewOtpForTest()
+		otps[i] = websocket.NewOtpForTest(sessionID)
 	}
 
 	var start sync.WaitGroup
@@ -498,7 +543,7 @@ func TestServeWS_Reconnect_KeepsUserOnlineInLoggedInList(t *testing.T) {
 	username := "reconnectuser"
 	websocket.AddAuthenticatedClient(sessionID, username, 55)
 
-	firstOTP := websocket.NewOtpForTest()
+	firstOTP := websocket.NewOtpForTest(sessionID)
 	firstConn, _, err := dialWS(t, server.URL, firstOTP, sessionID)
 	if err != nil {
 		t.Fatalf("first dial failed: %v", err)
@@ -522,7 +567,7 @@ func TestServeWS_Reconnect_KeepsUserOnlineInLoggedInList(t *testing.T) {
 	// reconnect race actually starts from.
 	websocket.SetLoggedInList(username)
 
-	secondOTP := websocket.NewOtpForTest()
+	secondOTP := websocket.NewOtpForTest(sessionID)
 	secondConn, _, err := dialWS(t, server.URL, secondOTP, sessionID)
 	if err != nil {
 		t.Fatalf("second dial failed: %v", err)
@@ -567,7 +612,7 @@ func TestClient_GenuineDisconnect_RemovesFromLoggedInList(t *testing.T) {
 	// user-connect event runs, which this test never sends.
 	websocket.AddAuthenticatedClient(sessionID, username, 77)
 
-	otp := websocket.NewOtpForTest()
+	otp := websocket.NewOtpForTest(sessionID)
 	conn, _, err := dialWS(t, server.URL, otp, sessionID)
 	if err != nil {
 		t.Fatalf("dial failed: %v", err)
@@ -606,7 +651,7 @@ func TestServeWS_AcceptsChatMessageFrameLargerThanOldReadLimit(t *testing.T) {
 	sessionID := "large-frame-session"
 	websocket.AddAuthenticatedClient(sessionID, "admin", 1)
 
-	otp := websocket.NewOtpForTest()
+	otp := websocket.NewOtpForTest(sessionID)
 	conn, _, err := dialWS(t, server.URL, otp, sessionID)
 	if err != nil {
 		t.Fatalf("dial failed: %v", err)
