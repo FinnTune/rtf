@@ -824,6 +824,123 @@ func TestGetConversations_ReturnsAllUserConversations(t *testing.T) {
 	}
 }
 
+// TestGetConversations_MembersAndReadStatesScopedToCorrectConversation is
+// the regression test for getUserConversations's batched rewrite: members
+// and read states for every conversation the user belongs to are now
+// fetched with two shared WHERE ... IN (...) queries instead of one pair of
+// queries per conversation, keyed back to the right conversation via a
+// conversation_id column in each result row. A bug here would look like
+// one conversation's members or read watermark leaking into another's.
+func TestGetConversations_MembersAndReadStatesScopedToCorrectConversation(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	// admin (1) is already a member of the seeded direct conversation (id
+	// 1, with alice/2, messages 1 and 2). Add a group with a different
+	// member set so the two conversations have genuinely different
+	// members to potentially get mixed up.
+	requester := websocket.AddTestClient("s1", "admin", 1)
+	groupPayload, _ := json.Marshal(websocket.CreateGroupChatRequest{Name: "Everyone", Usernames: []string{"actual_user"}})
+	if err := websocket.CreateGroupChatForTest(groupPayload, requester); err != nil {
+		t.Fatalf("createGroupChat failed: %v", err)
+	}
+	requester.WaitEvent(time.Second) // drain the chat-opened event
+
+	// Mark the direct conversation's seeded message 2 as read by admin,
+	// so its read watermark differs from the group's (still-zero) one —
+	// a mix-up would show up as the wrong watermark on the wrong
+	// conversation.
+	markReadPayload, _ := json.Marshal(websocket.MarkReadRequest{ConversationID: 1, MessageID: 2})
+	if err := websocket.MarkReadForTest(markReadPayload, requester); err != nil {
+		t.Fatalf("markRead failed: %v", err)
+	}
+	requester.WaitEvent(time.Second) // drain the read-receipt event
+
+	if err := websocket.GetConversationsForTest(requester); err != nil {
+		t.Fatalf("getConversations failed: %v", err)
+	}
+	eventType, eventPayload, ok := requester.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for conversations-list")
+	}
+	if eventType != websocket.ConversationsList {
+		t.Fatalf("expected conversations-list event, got %q", eventType)
+	}
+	var conversations []websocket.ConversationInfo
+	if err := json.Unmarshal(eventPayload, &conversations); err != nil {
+		t.Fatalf("failed to decode conversations-list: %v", err)
+	}
+	if len(conversations) != 2 {
+		t.Fatalf("expected 2 conversations (1 direct + 1 group), got %d: %+v", len(conversations), conversations)
+	}
+
+	var direct, group *websocket.ConversationInfo
+	for i := range conversations {
+		if conversations[i].IsGroup {
+			group = &conversations[i]
+		} else {
+			direct = &conversations[i]
+		}
+	}
+	if direct == nil || group == nil {
+		t.Fatalf("expected one direct and one group conversation, got %+v", conversations)
+	}
+
+	directUsernames := memberUsernames(direct.Members)
+	if !equalUsernameSets(directUsernames, []string{"admin", "alice"}) {
+		t.Fatalf("expected the direct conversation's members to be exactly admin+alice, got %v", directUsernames)
+	}
+	groupUsernames := memberUsernames(group.Members)
+	if !equalUsernameSets(groupUsernames, []string{"actual_user", "admin"}) {
+		t.Fatalf("expected the group conversation's members to be exactly admin+actual_user, got %v", groupUsernames)
+	}
+
+	// The direct conversation's read state for admin must reflect the
+	// mark-read above (watermark 2); the group's must still be untouched
+	// (watermark 0) — neither should have leaked into the other.
+	directAdminRead := readStateFor(direct.ReadStates, "admin")
+	if directAdminRead == nil || directAdminRead.LastReadMessageID != 2 {
+		t.Fatalf("expected the direct conversation's admin read state to be watermark 2, got %+v", directAdminRead)
+	}
+	groupAdminRead := readStateFor(group.ReadStates, "admin")
+	if groupAdminRead == nil || groupAdminRead.LastReadMessageID != 0 {
+		t.Fatalf("expected the group conversation's admin read state to still be watermark 0, got %+v", groupAdminRead)
+	}
+}
+
+func memberUsernames(members []websocket.ConversationMember) []string {
+	names := make([]string, len(members))
+	for i, m := range members {
+		names[i] = m.Username
+	}
+	return names
+}
+
+func equalUsernameSets(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	wantSet := make(map[string]bool, len(want))
+	for _, w := range want {
+		wantSet[w] = true
+	}
+	for _, g := range got {
+		if !wantSet[g] {
+			return false
+		}
+	}
+	return true
+}
+
+func readStateFor(states []websocket.ReadState, username string) *websocket.ReadState {
+	for i := range states {
+		if states[i].Username == username {
+			return &states[i]
+		}
+	}
+	return nil
+}
+
 func TestAddUserInfo_MarksAlreadyIdentifiedClientOnline(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
