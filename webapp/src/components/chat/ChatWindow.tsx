@@ -86,7 +86,14 @@ export function ChatWindow({ state }: ChatWindowProps) {
       <button type="button" className="close-chat" aria-label="Close chat" onClick={() => closeChat(conversationId)}>
         x
       </button>
-      <div className="chat-messages" id={`chat-messages-${conversationId}`} onScroll={handleScroll}>
+      <div
+        className="chat-messages"
+        id={`chat-messages-${conversationId}`}
+        onScroll={handleScroll}
+        role="log"
+        aria-live="polite"
+        aria-relevant="additions"
+      >
         <div className="spacer" style={{ height: 20 }} />
         {state.messages.map((message) => (
           // Not index-based: loadMoreHistory prepends whole batches to the
@@ -101,7 +108,7 @@ export function ChatWindow({ state }: ChatWindowProps) {
         ))}
       </div>
       {seenBy.length > 0 && <div className="seen-by">Seen by {seenBy.join(', ')}</div>}
-      <div className="typing">
+      <div className="typing" role="status" aria-live="polite">
         {typingLabel && (
           <>
             <img

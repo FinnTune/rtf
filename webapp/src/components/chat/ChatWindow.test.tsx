@@ -196,6 +196,18 @@ describe('ChatWindow', () => {
     expect(screen.queryByText(/Seen by/)).not.toBeInTheDocument()
   })
 
+  it('exposes the message transcript as a live region so a screen reader announces new messages', async () => {
+    await renderWindow(makeState())
+    const log = screen.getByRole('log')
+    expect(log).toHaveAttribute('aria-live', 'polite')
+    expect(log.id).toMatch(/^chat-messages-/)
+  })
+
+  it('exposes the typing indicator as a live region so a screen reader announces it appearing', async () => {
+    await renderWindow(makeState({ typingUsers: new Set(['bob']) }))
+    expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite')
+  })
+
   it('scrolling to the top of an open conversation requests more history', async () => {
     const { socketReady } = await setup()
     render(<ChatWindowsLayer />, { wrapper })
