@@ -1326,13 +1326,39 @@ func DeleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
 // ListUsersHandler returns every user's public-ish account info (never the
 // password hash) for the admin "Manage Users" view. Admin-only (see
 // RequireAdmin).
+// ListUsersHandler returns a page of users, alphabetical by username — the
+// only remaining unbounded listing endpoint in this file before this fix;
+// every other list (posts, comments, search) already paginates. Mirrors
+// AllPostsHandler's limit/offset/X-Total-Count contract.
 func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	rows, err := database.ForumDB.Query("SELECT id, uname, email, role, banned FROM user ORDER BY uname ASC")
+	limit := defaultUsersPageSize
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 {
+		limit = v
+	}
+	if limit > maxUsersPageSize {
+		limit = maxUsersPageSize
+	}
+
+	offset := 0
+	if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v >= 0 {
+		offset = v
+	}
+
+	var total int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM user").Scan(&total); err != nil {
+		slog.Error("error counting users", "error", err)
+		http.Error(w, "Failed to load users", http.StatusInternalServerError)
+		return
+	}
+
+	rows, err := database.ForumDB.Query(
+		"SELECT id, uname, email, role, banned FROM user ORDER BY uname ASC LIMIT ? OFFSET ?", limit, offset,
+	)
 	if err != nil {
 		slog.Error("error querying users", "error", err)
 		http.Error(w, "Failed to load users", http.StatusInternalServerError)
@@ -1359,6 +1385,7 @@ func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Total-Count", strconv.Itoa(total))
 	json.NewEncoder(w).Encode(users)
 }
 

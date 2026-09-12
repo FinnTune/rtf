@@ -3,6 +3,7 @@ package websocket_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -49,6 +50,75 @@ func TestListUsersHandler_ReturnsAllUsersWithoutPasswordHash(t *testing.T) {
 	}
 	if rr.Body.String() != "" && bytes.Contains(rr.Body.Bytes(), []byte("password")) {
 		t.Fatal("response should never include a password field")
+	}
+	if got := rr.Header().Get("X-Total-Count"); got != "3" {
+		t.Fatalf("expected X-Total-Count 3, got %q", got)
+	}
+}
+
+// TestListUsersHandler_RespectsLimitAndOffset is the regression test for
+// ListUsersHandler's pagination: it used to run an unbounded SELECT with no
+// LIMIT/OFFSET at all, unlike every other listing endpoint in this file
+// (posts, comments, search). Mirrors AllPostsHandler's own limit/offset
+// tests.
+func TestListUsersHandler_RespectsLimitAndOffset(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/listUsers?limit=1&offset=1", nil)
+	rr := httptest.NewRecorder()
+	websocket.ListUsersHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var users []struct {
+		Username string `json:"username"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&users); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(users) != 1 {
+		t.Fatalf("expected exactly 1 user with limit=1, got %d: %+v", len(users), users)
+	}
+	if got := rr.Header().Get("X-Total-Count"); got != "3" {
+		t.Fatalf("expected X-Total-Count 3 regardless of the page size, got %q", got)
+	}
+}
+
+func TestListUsersHandler_CapsLimitAtMax(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	for i := 0; i < 120; i++ {
+		_, err := db.Exec(
+			`INSERT INTO user (fname, lname, uname, email, age, gender, pass, created_at) VALUES
+			('bulk', 'user', ?, ?, '30', 'other', 'hash', datetime('now'))`,
+			fmt.Sprintf("bulkuser%d", i), fmt.Sprintf("bulkuser%d@example.com", i),
+		)
+		if err != nil {
+			t.Fatalf("failed to seed bulk user: %v", err)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/listUsers?limit=9999", nil)
+	rr := httptest.NewRecorder()
+	websocket.ListUsersHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var users []struct {
+		Username string `json:"username"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&users); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(users) != 100 {
+		t.Fatalf("expected limit to be capped at 100, got %d users", len(users))
+	}
+	if got := rr.Header().Get("X-Total-Count"); got != "123" {
+		t.Fatalf("expected X-Total-Count 123 (3 seeded + 120 bulk), got %q", got)
 	}
 }
 
