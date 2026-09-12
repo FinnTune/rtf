@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"rtForum/tests/testutil"
 	"rtForum/websocket"
@@ -136,6 +137,46 @@ func TestSetUserBannedHandler_DisconnectsLiveClientImmediately(t *testing.T) {
 	}
 }
 
+// TestSetUserBannedHandler_BroadcastsUpdatedUsersList is the regression
+// test for the presence-broadcast fix on the admin-kick path: kickUser
+// used to remove the banned user from LoggedInList without ever telling
+// anyone else — other connected clients' "online" sidebar only refreshed
+// whenever some unrelated user happened to connect or disconnect next,
+// which meant a freshly-banned, disruptive user could still appear online
+// to everyone indefinitely.
+func TestSetUserBannedHandler_BroadcastsUpdatedUsersList(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	admin := websocket.AddTestClient("session-admin", "admin", 1)
+	websocket.AddTestClient("session-target", "actual_user", 42)
+	websocket.SetLoggedInList("actual_user")
+
+	req := httptest.NewRequest(http.MethodPost, "/setUserBanned", setUserBannedRequest(t, 42, true))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-admin"})
+	rr := httptest.NewRecorder()
+
+	websocket.SetUserBannedHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	eventType, payload, ok := admin.WaitEvent(2 * time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for a users-online broadcast after the ban")
+	}
+	if eventType != websocket.UsersList {
+		t.Fatalf("expected a %q broadcast, got %q", websocket.UsersList, eventType)
+	}
+	var snapshot map[string]bool
+	if err := json.Unmarshal(payload, &snapshot); err != nil {
+		t.Fatalf("failed to decode users-online payload: %v", err)
+	}
+	if snapshot["actual_user"] {
+		t.Fatalf("expected the banned user to no longer be in the broadcast users-online list, got %+v", snapshot)
+	}
+}
+
 func TestSetUserBannedHandler_RejectsNonAdmin(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
@@ -197,5 +238,50 @@ func TestCheckLoginHandler_TerminatesSessionForBannedUser(t *testing.T) {
 	handle := websocket.FindClientBySessionForTest("session-banned")
 	if handle != nil {
 		t.Fatal("expected the banned user's client to be removed from the manager")
+	}
+}
+
+// TestCheckLoginHandler_BannedUser_BroadcastsUpdatedUsersList is the
+// regression test for the presence-broadcast fix on checkLogin's own ban
+// path (distinct from the admin-kick path — this fires when a poll
+// discovers a ban that happened since the user's last checkLogin, rather
+// than an admin action against a currently-registered client). checkLogin
+// holds the manager's write lock for its whole body, so the fix has to
+// broadcast without re-acquiring it (see broadcastUsersListLocked) — this
+// confirms that actually happens, not just that the deadlock was avoided.
+func TestCheckLoginHandler_BannedUser_BroadcastsUpdatedUsersList(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-banned", "alice", 2)
+	observer := websocket.AddTestClient("session-observer", "observer", 99)
+	websocket.SetLoggedInList("alice")
+
+	if _, err := db.Exec(`UPDATE user SET banned = 1 WHERE uname = 'alice'`); err != nil {
+		t.Fatalf("failed to ban alice: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/checkLogin", nil)
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-banned"})
+	rr := httptest.NewRecorder()
+
+	websocket.CheckLoginHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	eventType, payload, ok := observer.WaitEvent(2 * time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for a users-online broadcast after the ban")
+	}
+	if eventType != websocket.UsersList {
+		t.Fatalf("expected a %q broadcast, got %q", websocket.UsersList, eventType)
+	}
+	var snapshot map[string]bool
+	if err := json.Unmarshal(payload, &snapshot); err != nil {
+		t.Fatalf("failed to decode users-online payload: %v", err)
+	}
+	if snapshot["alice"] {
+		t.Fatalf("expected the banned user to no longer be in the broadcast users-online list, got %+v", snapshot)
 	}
 }

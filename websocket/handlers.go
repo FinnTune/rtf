@@ -237,6 +237,13 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 				slog.Info("session expired for client", "username", client.username)
 				client.closeConnection()
 				delete(m.clients, client)
+				// Same presence gap as the banned branch below: this
+				// client's own readMessages/writeMesssage cleanup won't do
+				// this for us, since closeConnection() (not
+				// closeConnectionIfCurrent) already cleared c.connection by
+				// the time their deferred cleanup runs.
+				LoggedInList.Remove(client.username)
+				broadcastUsersListLocked(m)
 				utility.ClearCookie(w)
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(UserLoginResponse{
@@ -270,6 +277,11 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 					client.closeConnection()
 					delete(m.clients, client)
 					LoggedInList.Remove(client.username)
+					// Not broadcastUsersList: this whole function holds
+					// m.Lock() via defer above, and that calls
+					// m.clientsSnapshot(), which would deadlock trying to
+					// RLock the same non-reentrant mutex.
+					broadcastUsersListLocked(m)
 					utility.ClearCookie(w)
 					w.Header().Set("Content-Type", "application/json")
 					json.NewEncoder(w).Encode(UserLoginResponse{
@@ -501,20 +513,7 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 		client.loggedIn = false
 		LoggedInList.Remove(client.username)
 		m.removeClient(client)
-
-		data, err := json.Marshal(LoggedInList.Snapshot())
-		if err != nil {
-			slog.Error("failed to marshal broadcast message", "error", err)
-			// return fmt.Errorf("failed to marshal broadcast message error: %s", err)
-		}
-		outgoingEvent := Event{
-			Payload: json.RawMessage(data),
-			Type:    UsersList,
-		}
-
-		slog.Debug("logout and new users list sent")
-
-		broadcastTo(m.clientsSnapshot(), outgoingEvent)
+		broadcastUsersList(m)
 
 		// Send the login status to the client
 		w.Header().Set("Content-Type", "application/json")

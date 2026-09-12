@@ -307,6 +307,7 @@ func (c *Client) readMessages(conn *websocket.Conn) {
 		// user offline out from under it (see closeConnectionIfCurrent).
 		if c.closeConnectionIfCurrent(conn) {
 			LoggedInList.Remove(c.username)
+			broadcastUsersList(c.manager)
 		}
 	}()
 
@@ -415,6 +416,7 @@ func (c *Client) writeMesssage(conn *websocket.Conn, done <-chan struct{}) {
 		// connection is still current represents a genuine disconnect.
 		if c.closeConnectionIfCurrent(conn) {
 			LoggedInList.Remove(c.username)
+			broadcastUsersList(c.manager)
 		}
 	}()
 
