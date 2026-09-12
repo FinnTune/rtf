@@ -642,6 +642,66 @@ func TestClient_GenuineDisconnect_RemovesFromLoggedInList(t *testing.T) {
 	}
 }
 
+// TestClient_GenuineDisconnect_BroadcastsUpdatedUsersList is the regression
+// test for the presence-broadcast fix: an ordinary disconnect (tab close,
+// network drop, browser crash — the dominant real-world case, unlike
+// clicking Logout) must push a fresh "users-online" snapshot to every
+// other connected client, not just update LoggedInList server-side. Before
+// this fix, readMessages/writeMesssage's deferred cleanup removed the
+// departing user from LoggedInList but never told anyone; other clients'
+// presence view only refreshed whenever some unrelated user happened to
+// connect or disconnect next.
+func TestClient_GenuineDisconnect_BroadcastsUpdatedUsersList(t *testing.T) {
+	websocket.ResetTestState()
+	server := httptest.NewServer(http.HandlerFunc(websocket.WebsocketHandler))
+	defer server.Close()
+
+	sessionID := "broadcast-disconnect-session"
+	username := "leavinguser"
+	websocket.AddAuthenticatedClient(sessionID, username, 88)
+	// A second, unrelated connected client to observe the broadcast — never
+	// dials a real socket, since c.send() only ever writes to c.egress,
+	// which AddTestClient gives a buffered channel WaitEvent reads from
+	// directly.
+	observer := websocket.AddTestClient("observer-session", "observer", 89)
+
+	otp := websocket.NewOtpForTest(sessionID)
+	conn, _, err := dialWS(t, server.URL, otp, sessionID)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+
+	deadlineCheck := time.Now().Add(2 * time.Second)
+	for {
+		handle := websocket.FindClientBySessionForTest(sessionID)
+		if handle != nil && handle.HasConnectionForTest() {
+			break
+		}
+		if time.Now().After(deadlineCheck) {
+			t.Fatal("timed out waiting for the connection to be set")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	websocket.SetLoggedInList(username)
+
+	conn.Close() // genuine client-side disconnect — nothing replaces it
+
+	eventType, payload, ok := observer.WaitEvent(2 * time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for a users-online broadcast after the disconnect")
+	}
+	if eventType != websocket.UsersList {
+		t.Fatalf("expected a %q broadcast, got %q", websocket.UsersList, eventType)
+	}
+	var snapshot map[string]bool
+	if err := json.Unmarshal(payload, &snapshot); err != nil {
+		t.Fatalf("failed to decode users-online payload: %v", err)
+	}
+	if snapshot[username] {
+		t.Fatalf("expected %q to no longer be in the broadcast users-online list, got %+v", username, snapshot)
+	}
+}
+
 func TestServeWS_AcceptsChatMessageFrameLargerThanOldReadLimit(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)

@@ -87,6 +87,14 @@ func (m *Manager) sweepOnce() {
 func (m *Manager) clientsSnapshot() []*Client {
 	m.RLock()
 	defer m.RUnlock()
+	return m.clientsSnapshotLocked()
+}
+
+// clientsSnapshotLocked is clientsSnapshot's lock-free core, for a caller
+// (checkLogin) that already holds m's lock — calling clientsSnapshot itself
+// from there would deadlock, since sync.RWMutex isn't reentrant and
+// clientsSnapshot takes its own RLock.
+func (m *Manager) clientsSnapshotLocked() []*Client {
 	snapshot := make([]*Client, 0, len(m.clients))
 	for c := range m.clients {
 		snapshot = append(snapshot, c)
@@ -203,6 +211,33 @@ func broadcastToConversation(m *Manager, convID, excludeUserID int, outgoingEven
 	return nil
 }
 
+// broadcastUsersList sends every connected client a fresh "users-online"
+// snapshot of LoggedInList. Every place that changes who's in LoggedInList
+// must call this right after, or other clients' presence view goes stale
+// until some unrelated user's own connect/disconnect happens to trigger the
+// next broadcast — which, for a removal, may never happen at all in a quiet
+// session.
+func broadcastUsersList(m *Manager) {
+	broadcastUsersListTo(m.clientsSnapshot())
+}
+
+// broadcastUsersListLocked is broadcastUsersList's variant for a caller
+// (checkLogin) that already holds m's lock — broadcastUsersList's own
+// m.clientsSnapshot() call takes m.RLock(), which would deadlock in that
+// case since sync.RWMutex isn't reentrant.
+func broadcastUsersListLocked(m *Manager) {
+	broadcastUsersListTo(m.clientsSnapshotLocked())
+}
+
+func broadcastUsersListTo(recipients []*Client) {
+	data, err := json.Marshal(LoggedInList.Snapshot())
+	if err != nil {
+		slog.Error("failed to marshal users-online broadcast", "error", err)
+		return
+	}
+	broadcastTo(recipients, Event{Type: UsersList, Payload: json.RawMessage(data)})
+}
+
 // addUserInfo handles the user-connect event, marking an already-identified
 // client as online. It deliberately ignores any identity fields in
 // event.Payload — c.username/c.userID/c.email/c.joined were already bound
@@ -215,16 +250,7 @@ func addUserInfo(event Event, c *Client) error {
 	LoggedInList.Add(c.username)
 	slog.Info("user added to logged-in list", "username", c.username)
 
-	data, err := json.Marshal(LoggedInList.Snapshot())
-	if err != nil {
-		return fmt.Errorf("failed to marshal broadcast message error: %s", err)
-	}
-	outgoingEvent := Event{
-		Payload: json.RawMessage(data),
-		Type:    UsersList,
-	}
-
-	broadcastTo(c.manager.clientsSnapshot(), outgoingEvent)
+	broadcastUsersList(c.manager)
 
 	return nil
 }
@@ -626,5 +652,12 @@ func (m *Manager) kickUser(userID int) {
 	for _, c := range toRemove {
 		LoggedInList.Remove(c.username)
 		m.removeClient(c)
+	}
+	// A single broadcast after the loop rather than one per removed
+	// connection — a user with multiple tabs open has multiple *Client
+	// entries here, but LoggedInList only ever needs one push once they're
+	// all gone.
+	if len(toRemove) > 0 {
+		broadcastUsersList(m)
 	}
 }
