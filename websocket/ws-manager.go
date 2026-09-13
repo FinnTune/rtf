@@ -238,6 +238,36 @@ func broadcastUsersListTo(recipients []*Client) {
 	broadcastTo(recipients, Event{Type: UsersList, Payload: json.RawMessage(data)})
 }
 
+// broadcastPostReactionUpdate tells every OTHER connected client a post's
+// aggregate reaction counts changed — see PostReactionUpdatedEvent's doc
+// comment for why no personal "my reaction" field is included. The
+// reacting client (excludeUserID) already has the authoritative counts via
+// ReactToPostHandler's own HTTP response, so it's excluded rather than
+// merely redundant: a client that reacts several times in quick succession
+// (e.g. the concurrent-retry path in insertOrReconcileReaction) would
+// otherwise flood its own already-registered connection's egress buffer
+// with broadcasts of its own action, risking send()'s sendTimeout dropping
+// some of them and logging spurious warnings for no behavioral benefit.
+// Called from ReactToPostHandler after its own DB write, using the
+// package-level manager singleton directly (mirroring
+// SetUserBannedHandler's identical manager.kickUser(...) call) since that
+// plain HTTP handler isn't a *Manager method.
+func broadcastPostReactionUpdate(postID, likeCount, dislikeCount, excludeUserID int) {
+	data, err := json.Marshal(PostReactionUpdatedEvent{PostID: postID, LikeCount: likeCount, DislikeCount: dislikeCount})
+	if err != nil {
+		slog.Error("failed to marshal post-reaction-updated broadcast", "error", err, "post_id", postID)
+		return
+	}
+
+	var recipients []*Client
+	for _, c := range manager.clientsSnapshot() {
+		if c.userID != excludeUserID {
+			recipients = append(recipients, c)
+		}
+	}
+	broadcastTo(recipients, Event{Type: PostReactionUpdated, Payload: data})
+}
+
 // addUserInfo handles the user-connect event, marking an already-identified
 // client as online. It deliberately ignores any identity fields in
 // event.Payload — c.username/c.userID/c.email/c.joined were already bound

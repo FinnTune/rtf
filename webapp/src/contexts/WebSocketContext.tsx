@@ -190,3 +190,12 @@ export function useWebSocket(): WebSocketContextValue {
   }
   return ctx
 }
+
+// useOptionalWebSocket is useWebSocket without the hard requirement of a
+// provider, for a caller (useReaction) that renders in lighter-weight test
+// setups with no WebSocketProvider at all and should simply skip live
+// updates rather than crash — every real render tree always has one (see
+// main.tsx), so this only matters outside of it.
+export function useOptionalWebSocket(): WebSocketContextValue | null {
+  return useContext(WebSocketContext)
+}
