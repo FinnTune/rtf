@@ -34,6 +34,7 @@ const (
 	MessageAck          = "message-ack"
 	PostReactionUpdated = "post-reaction-updated"
 	CommentDeleted      = "comment-deleted"
+	CommentEdited       = "comment-edited"
 )
 
 // ReceiveMessageEvent is the client->server "new-message" payload. Every
@@ -173,6 +174,16 @@ type PostReactionUpdatedEvent struct {
 type CommentDeletedEvent struct {
 	PostID    int `json:"post_id"`
 	CommentID int `json:"comment_id"`
+}
+
+// CommentEditedEvent is broadcast to every connected client whenever a
+// comment's content is edited, so a comment list visible in another
+// client's single-post view doesn't keep showing the stale pre-edit text
+// until they happen to reload.
+type CommentEditedEvent struct {
+	PostID    int    `json:"post_id"`
+	CommentID int    `json:"comment_id"`
+	Content   string `json:"content"`
 }
 
 // ReadReceiptEvent is the "read-receipt" server->other-members broadcast,

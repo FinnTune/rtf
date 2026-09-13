@@ -384,6 +384,47 @@ func TestEditCommentHandler_UpdatesOwnComment(t *testing.T) {
 	}
 }
 
+// TestEditCommentHandler_BroadcastsToOtherClients is the regression test
+// for the live-update fix: EditCommentHandler used to update the row and
+// return with no WS broadcast at all — a comment list visible in another
+// connected client's SinglePostView kept showing the stale pre-edit text
+// until they happened to reload.
+func TestEditCommentHandler_BroadcastsToOtherClients(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-owner", "actual_user", 42)
+	observer := websocket.AddTestClient("session-observer", "observer", 99)
+
+	body := `{"id":1,"content":"edited comment"}`
+	req := httptest.NewRequest(http.MethodPost, "/editComment", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-owner"})
+	rr := httptest.NewRecorder()
+
+	websocket.EditCommentHandler(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	eventType, payload, ok := observer.WaitEvent(2 * time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for a comment-edited broadcast")
+	}
+	if eventType != websocket.CommentEdited {
+		t.Fatalf("expected a %q broadcast, got %q", websocket.CommentEdited, eventType)
+	}
+	var update struct {
+		PostID    int    `json:"post_id"`
+		CommentID int    `json:"comment_id"`
+		Content   string `json:"content"`
+	}
+	if err := json.Unmarshal(payload, &update); err != nil {
+		t.Fatalf("failed to decode comment-edited payload: %v", err)
+	}
+	if update.PostID != 1 || update.CommentID != 1 || update.Content != "edited comment" {
+		t.Fatalf("expected {post_id:1 comment_id:1 content:\"edited comment\"}, got %+v", update)
+	}
+}
+
 func TestEditCommentHandler_RejectsNonOwner(t *testing.T) {
 	websocket.ResetTestState()
 	db := testutil.UseForumDB(t)

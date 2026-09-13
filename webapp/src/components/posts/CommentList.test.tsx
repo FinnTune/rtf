@@ -65,4 +65,45 @@ describe('CommentList', () => {
     await waitFor(() => expect(screen.queryByText(/first comment/)).not.toBeInTheDocument())
     expect(screen.getByText(/second comment/)).toBeInTheDocument()
   })
+
+  it('updates a comment content when a comment-edited broadcast arrives for this post, but ignores one for a different post', async () => {
+    ControllableFakeWebSocket.instances = []
+    vi.stubGlobal('WebSocket', ControllableFakeWebSocket)
+    const comments = [makeComment({ id: 1, content: 'original content' })]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = requestUrl(input)
+        if (url.startsWith('/checkLogin')) return checkLoginResponse('alice')
+        if (url.startsWith('/comments')) {
+          return new Response(JSON.stringify(comments), { status: 200, headers: { 'X-Total-Count': '1' } })
+        }
+        throw new Error('Unexpected fetch: ' + url)
+      }),
+    )
+
+    render(
+      <StatusMessageProvider>
+        <AuthProvider>
+          <WebSocketProvider>
+            <CommentList postId={5} />
+          </WebSocketProvider>
+        </AuthProvider>
+      </StatusMessageProvider>,
+    )
+
+    expect(await screen.findByText(/original content/)).toBeInTheDocument()
+
+    await waitFor(() => expect(ControllableFakeWebSocket.instances.length).toBe(1))
+    const socket = ControllableFakeWebSocket.instances[0]
+    act(() => socket.simulateOpen())
+
+    // A broadcast for a different post must be ignored.
+    act(() => socket.simulateMessage('comment-edited', { post_id: 999, comment_id: 1, content: 'wrong post' }))
+    expect(screen.getByText(/original content/)).toBeInTheDocument()
+
+    act(() => socket.simulateMessage('comment-edited', { post_id: 5, comment_id: 1, content: 'edited content' }))
+    await waitFor(() => expect(screen.getByText(/edited content/)).toBeInTheDocument())
+    expect(screen.queryByText(/original content/)).not.toBeInTheDocument()
+  })
 })
