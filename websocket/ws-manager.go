@@ -268,6 +268,33 @@ func broadcastPostReactionUpdate(postID, likeCount, dislikeCount, excludeUserID 
 	broadcastTo(recipients, Event{Type: PostReactionUpdated, Payload: data})
 }
 
+// broadcastCommentDeleted tells every OTHER connected client a comment was
+// deleted, so a comment list visible elsewhere doesn't keep showing it
+// until a manual reload. The deleting client (excludeUserID) is excluded
+// for the same reason as broadcastPostReactionUpdate: it already applies
+// the removal locally the instant its own HTTP response arrives (for
+// instant feedback, without waiting on a WS round trip), and the
+// frontend's own comment-count bookkeeping decrements once per removal —
+// a redundant echo back to the actor would double-decrement it. Called
+// from DeleteCommentHandler after its own DB write, using the
+// package-level manager singleton directly (see
+// broadcastPostReactionUpdate's doc comment for why).
+func broadcastCommentDeleted(postID, commentID, excludeUserID int) {
+	data, err := json.Marshal(CommentDeletedEvent{PostID: postID, CommentID: commentID})
+	if err != nil {
+		slog.Error("failed to marshal comment-deleted broadcast", "error", err, "comment_id", commentID)
+		return
+	}
+
+	var recipients []*Client
+	for _, c := range manager.clientsSnapshot() {
+		if c.userID != excludeUserID {
+			recipients = append(recipients, c)
+		}
+	}
+	broadcastTo(recipients, Event{Type: CommentDeleted, Payload: data})
+}
+
 // addUserInfo handles the user-connect event, marking an already-identified
 // client as online. It deliberately ignores any identity fields in
 // event.Payload — c.username/c.userID/c.email/c.joined were already bound

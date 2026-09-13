@@ -33,6 +33,7 @@ const (
 	ReadReceipt         = "read-receipt"
 	MessageAck          = "message-ack"
 	PostReactionUpdated = "post-reaction-updated"
+	CommentDeleted      = "comment-deleted"
 )
 
 // ReceiveMessageEvent is the client->server "new-message" payload. Every
@@ -163,6 +164,15 @@ type PostReactionUpdatedEvent struct {
 	PostID       int `json:"post_id"`
 	LikeCount    int `json:"like_count"`
 	DislikeCount int `json:"dislike_count"`
+}
+
+// CommentDeletedEvent is broadcast to every connected client whenever a
+// comment is deleted, so a comment list visible in another client's
+// single-post view doesn't keep showing a comment that's actually gone
+// until they happen to reload.
+type CommentDeletedEvent struct {
+	PostID    int `json:"post_id"`
+	CommentID int `json:"comment_id"`
 }
 
 // ReadReceiptEvent is the "read-receipt" server->other-members broadcast,

@@ -2265,8 +2265,8 @@ func DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var ownerID int
-	err = database.ForumDB.QueryRow("SELECT user_id FROM comment WHERE id = ?", requestBody.ID).Scan(&ownerID)
+	var ownerID, postID int
+	err = database.ForumDB.QueryRow("SELECT user_id, post_id FROM comment WHERE id = ?", requestBody.ID).Scan(&ownerID, &postID)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Comment not found", http.StatusNotFound)
 		return
@@ -2293,6 +2293,11 @@ func DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
 		return
 	}
+
+	// Tell every other connected client this comment is gone too — without
+	// this, a comment list visible in another tab/user's SinglePostView
+	// (e.g. an admin's moderation delete) stays stale until they reload.
+	broadcastCommentDeleted(postID, requestBody.ID, client.userID)
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Comment deleted"))
