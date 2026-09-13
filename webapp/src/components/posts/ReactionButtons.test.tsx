@@ -1,7 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { AuthProvider } from '../../contexts/AuthContext'
 import { StatusMessageProvider } from '../../contexts/StatusMessageContext'
+import { WebSocketProvider } from '../../contexts/WebSocketContext'
+import { ControllableFakeWebSocket, checkLoginResponse } from '../../testUtils/chatTestHarness'
 import type { Post } from '../../types'
 import { StatusBanner } from '../common/StatusBanner'
 import { ReactionButtons } from './ReactionButtons'
@@ -91,6 +94,37 @@ describe('ReactionButtons', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Like (2)' }))
     expect(await screen.findByText('Err: Failed to react to post')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Like (2)' })).not.toHaveClass('active')
+  })
+
+  it('live-updates counts from a post-reaction-updated broadcast for this post', async () => {
+    ControllableFakeWebSocket.instances = []
+    vi.stubGlobal('WebSocket', ControllableFakeWebSocket)
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(checkLoginResponse('alice'))))
+
+    render(
+      <StatusMessageProvider>
+        <AuthProvider>
+          <WebSocketProvider>
+            <ReactionButtons post={makePost({ PostId: 7 })} />
+          </WebSocketProvider>
+        </AuthProvider>
+      </StatusMessageProvider>,
+    )
+
+    await waitFor(() => expect(ControllableFakeWebSocket.instances.length).toBe(1))
+    const socket = ControllableFakeWebSocket.instances[0]
+    act(() => socket.simulateOpen())
+
+    // A broadcast for a different post must be ignored.
+    act(() => socket.simulateMessage('post-reaction-updated', { post_id: 999, like_count: 40, dislike_count: 40 }))
+    expect(screen.queryByRole('button', { name: 'Like (40)' })).not.toBeInTheDocument()
+
+    act(() => socket.simulateMessage('post-reaction-updated', { post_id: 7, like_count: 9, dislike_count: 4 }))
+    expect(await screen.findByRole('button', { name: 'Like (9)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Dislike (4)' })).toBeInTheDocument()
+    // The broadcast never carries a personal reaction — must stay whatever
+    // it already was, not get reset by the live update.
+    expect(screen.getByRole('button', { name: 'Like (9)' })).not.toHaveClass('active')
   })
 
   it('clicking dislike while already liked switches the reaction', async () => {

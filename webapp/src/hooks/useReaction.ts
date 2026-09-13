@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { reactToPost } from '../api/posts'
 import { useStatusMessage } from '../contexts/StatusMessageContext'
+import { useOptionalWebSocket } from '../contexts/WebSocketContext'
 import type { Post } from '../types'
 
 interface ReactionState {
@@ -39,6 +40,23 @@ export function useReaction(post: Post) {
   })
   const [pending, setPending] = useState(false)
   const { showMessage } = useStatusMessage()
+  const ws = useOptionalWebSocket()
+
+  // Keeps this post's counts live for every OTHER connected client's own
+  // reactions too — the server broadcasts post-reaction-updated (excluding
+  // the reacting client itself, which already gets the authoritative
+  // counts via reactToPost's own response below) whenever anyone reacts.
+  // Never touches myReaction: that's personal, and the broadcast carries
+  // no such field (see PostReactionUpdatedEvent's doc comment on the Go
+  // side) — only this viewer's own react() call ever changes it.
+  useEffect(() => {
+    if (!ws) return
+    return ws.subscribe('post-reaction-updated', (payload) => {
+      const update = payload as { post_id: number; like_count: number; dislike_count: number }
+      if (update.post_id !== post.PostId) return
+      setState((prev) => ({ ...prev, likeCount: update.like_count, dislikeCount: update.dislike_count }))
+    })
+  }, [ws, post.PostId])
 
   async function react(wantLiked: boolean) {
     if (pending) return

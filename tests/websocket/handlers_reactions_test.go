@@ -9,6 +9,7 @@ import (
 	"rtForum/websocket"
 	"sync"
 	"testing"
+	"time"
 )
 
 type reactionResponse struct {
@@ -49,6 +50,44 @@ func TestReactToPostHandler_LikeWithNoExistingReaction(t *testing.T) {
 	}
 	if resp.MyReaction != "liked" {
 		t.Fatalf("expected my_reaction 'liked', got %q", resp.MyReaction)
+	}
+}
+
+// TestReactToPostHandler_BroadcastsUpdatedCountsToOtherClients is the
+// regression test for the live-update fix: ReactToPostHandler used to
+// return the new counts only in its HTTP response to the reacting client,
+// with no WS broadcast at all — a post visible in another connected
+// client's feed or single-post view went stale until they happened to
+// reload. The observer here never reacts to anything itself; it only
+// needs a live registered client to receive the broadcast.
+func TestReactToPostHandler_BroadcastsUpdatedCountsToOtherClients(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-react", "alice", 2)
+	observer := websocket.AddTestClient("session-observer", "observer", 99)
+
+	rr, _ := reactToPost(t, "session-react", 1, true)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	eventType, payload, ok := observer.WaitEvent(2 * time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for a post-reaction-updated broadcast")
+	}
+	if eventType != websocket.PostReactionUpdated {
+		t.Fatalf("expected a %q broadcast, got %q", websocket.PostReactionUpdated, eventType)
+	}
+	var update struct {
+		PostID       int `json:"post_id"`
+		LikeCount    int `json:"like_count"`
+		DislikeCount int `json:"dislike_count"`
+	}
+	if err := json.Unmarshal(payload, &update); err != nil {
+		t.Fatalf("failed to decode post-reaction-updated payload: %v", err)
+	}
+	if update.PostID != 1 || update.LikeCount != 1 || update.DislikeCount != 0 {
+		t.Fatalf("expected {post_id:1 like_count:1 dislike_count:0}, got %+v", update)
 	}
 }
 

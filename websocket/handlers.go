@@ -1059,6 +1059,11 @@ func ReactToPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Tell every other connected client this post's counts changed too —
+	// without this, a post visible in someone else's feed or single-post
+	// view goes stale until they happen to reload.
+	broadcastPostReactionUpdate(requestBody.PostID, posts[0].LikeCount, posts[0].DislikeCount, client.userID)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(struct {
 		LikeCount    int    `json:"like_count"`

@@ -32,6 +32,7 @@ const (
 	MarkRead            = "mark-read"
 	ReadReceipt         = "read-receipt"
 	MessageAck          = "message-ack"
+	PostReactionUpdated = "post-reaction-updated"
 )
 
 // ReceiveMessageEvent is the client->server "new-message" payload. Every
@@ -150,6 +151,18 @@ type ChatErrorEvent struct {
 type MarkReadRequest struct {
 	ConversationID int `json:"conversation_id"`
 	MessageID      int `json:"message_id"`
+}
+
+// PostReactionUpdatedEvent is broadcast to every connected client whenever
+// a post's aggregate reaction counts change, so a post visible in another
+// client's feed or single-post view doesn't go stale until they reload.
+// Deliberately carries no personal "my reaction" field — that's only ever
+// known and updated for the client that actually performed the action, via
+// ReactToPostHandler's own HTTP response to them.
+type PostReactionUpdatedEvent struct {
+	PostID       int `json:"post_id"`
+	LikeCount    int `json:"like_count"`
+	DislikeCount int `json:"dislike_count"`
 }
 
 // ReadReceiptEvent is the "read-receipt" server->other-members broadcast,
