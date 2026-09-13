@@ -10,6 +10,7 @@ import (
 	"rtForum/websocket"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestEditPostHandler_UpdatesOwnPost(t *testing.T) {
@@ -427,6 +428,46 @@ func TestDeleteCommentHandler_DeletesOwnComment(t *testing.T) {
 	db.QueryRow(`SELECT COUNT(*) FROM comment WHERE id = 1`).Scan(&count)
 	if count != 0 {
 		t.Fatalf("expected comment to be deleted, found %d", count)
+	}
+}
+
+// TestDeleteCommentHandler_BroadcastsToOtherClients is the regression test
+// for the live-update fix: DeleteCommentHandler used to delete the row and
+// return with no WS broadcast at all — a comment list visible in another
+// connected client's SinglePostView (e.g. an admin's moderation delete)
+// stayed stale until they happened to reload.
+func TestDeleteCommentHandler_BroadcastsToOtherClients(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-owner", "actual_user", 42)
+	observer := websocket.AddTestClient("session-observer", "observer", 99)
+
+	body := `{"id":1}`
+	req := httptest.NewRequest(http.MethodPost, "/deleteComment", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-owner"})
+	rr := httptest.NewRecorder()
+
+	websocket.DeleteCommentHandler(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	eventType, payload, ok := observer.WaitEvent(2 * time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for a comment-deleted broadcast")
+	}
+	if eventType != websocket.CommentDeleted {
+		t.Fatalf("expected a %q broadcast, got %q", websocket.CommentDeleted, eventType)
+	}
+	var update struct {
+		PostID    int `json:"post_id"`
+		CommentID int `json:"comment_id"`
+	}
+	if err := json.Unmarshal(payload, &update); err != nil {
+		t.Fatalf("failed to decode comment-deleted payload: %v", err)
+	}
+	if update.PostID != 1 || update.CommentID != 1 {
+		t.Fatalf("expected {post_id:1 comment_id:1}, got %+v", update)
 	}
 }
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { getComments } from '../../api/comments'
 import { useStatusMessage } from '../../contexts/StatusMessageContext'
+import { useOptionalWebSocket } from '../../contexts/WebSocketContext'
 import type { Comment } from '../../types'
 import { CommentForm } from './CommentForm'
 import { CommentItem } from './CommentItem'
@@ -14,6 +15,7 @@ export function CommentList({ postId }: { postId: number }) {
   const [loadingMore, setLoadingMore] = useState(false)
   const [loadedOnce, setLoadedOnce] = useState(false)
   const { showMessage } = useStatusMessage()
+  const ws = useOptionalWebSocket()
 
   const loadMore = useCallback(
     async (targetOffset: number) => {
@@ -52,6 +54,23 @@ export function CommentList({ postId }: { postId: number }) {
     setComments((prev) => prev.filter((comment) => comment.id !== id))
     setTotal((prev) => Math.max(0, prev - 1))
   }
+
+  // Keeps this post's comment list live for every OTHER connected client's
+  // own deletes too — the server broadcasts comment-deleted (excluding the
+  // deleting client itself, which already applies handleDeleted the
+  // instant its own HTTP response arrives) whenever anyone deletes a
+  // comment on this post. Inlined rather than calling handleDeleted
+  // directly so this effect's deps stay just [ws, postId] — handleDeleted
+  // is redefined every render and isn't itself memoized.
+  useEffect(() => {
+    if (!ws) return
+    return ws.subscribe('comment-deleted', (payload) => {
+      const update = payload as { post_id: number; comment_id: number }
+      if (update.post_id !== postId) return
+      setComments((prev) => prev.filter((comment) => comment.id !== update.comment_id))
+      setTotal((prev) => Math.max(0, prev - 1))
+    })
+  }, [ws, postId])
 
   function handleEdited(id: number, content: string) {
     setComments((prev) => prev.map((comment) => (comment.id === id ? { ...comment, content } : comment)))
