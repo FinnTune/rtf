@@ -2212,8 +2212,8 @@ func EditCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var ownerID int
-	err = database.ForumDB.QueryRow("SELECT user_id FROM comment WHERE id = ?", requestBody.ID).Scan(&ownerID)
+	var ownerID, postID int
+	err = database.ForumDB.QueryRow("SELECT user_id, post_id FROM comment WHERE id = ?", requestBody.ID).Scan(&ownerID, &postID)
 	if err == sql.ErrNoRows {
 		http.Error(w, "Comment not found", http.StatusNotFound)
 		return
@@ -2232,6 +2232,11 @@ func EditCommentHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to update comment", http.StatusInternalServerError)
 		return
 	}
+
+	// Tell every other connected client this comment's content changed
+	// too — without this, a comment list visible in another tab/user's
+	// SinglePostView stays stale until they reload.
+	broadcastCommentEdited(postID, requestBody.ID, content, client.userID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

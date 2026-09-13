@@ -295,6 +295,32 @@ func broadcastCommentDeleted(postID, commentID, excludeUserID int) {
 	broadcastTo(recipients, Event{Type: CommentDeleted, Payload: data})
 }
 
+// broadcastCommentEdited tells every OTHER connected client a comment's
+// content changed, so a comment list visible elsewhere doesn't keep
+// showing the stale pre-edit text. Excludes the editing client for the
+// same reason as broadcastCommentDeleted: it already applies the new
+// content locally the instant its own HTTP response arrives, so a
+// redundant echo back to the actor would be wasted (and, for a client
+// mid-edit of a second comment, an unnecessary re-render). Called from
+// EditCommentHandler after its own DB write, using the package-level
+// manager singleton directly (see broadcastPostReactionUpdate's doc
+// comment for why).
+func broadcastCommentEdited(postID, commentID int, content string, excludeUserID int) {
+	data, err := json.Marshal(CommentEditedEvent{PostID: postID, CommentID: commentID, Content: content})
+	if err != nil {
+		slog.Error("failed to marshal comment-edited broadcast", "error", err, "comment_id", commentID)
+		return
+	}
+
+	var recipients []*Client
+	for _, c := range manager.clientsSnapshot() {
+		if c.userID != excludeUserID {
+			recipients = append(recipients, c)
+		}
+	}
+	broadcastTo(recipients, Event{Type: CommentEdited, Payload: data})
+}
+
 // addUserInfo handles the user-connect event, marking an already-identified
 // client as online. It deliberately ignores any identity fields in
 // event.Payload — c.username/c.userID/c.email/c.joined were already bound

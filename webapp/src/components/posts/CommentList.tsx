@@ -72,6 +72,19 @@ export function CommentList({ postId }: { postId: number }) {
     })
   }, [ws, postId])
 
+  // Same live-update as the comment-deleted subscription above, for edits
+  // instead of deletes — see that effect's doc comment for why the
+  // editing client's own action isn't (and doesn't need to be) handled
+  // here too (excluded server-side; handleEdited already applied it).
+  useEffect(() => {
+    if (!ws) return
+    return ws.subscribe('comment-edited', (payload) => {
+      const update = payload as { post_id: number; comment_id: number; content: string }
+      if (update.post_id !== postId) return
+      setComments((prev) => prev.map((comment) => (comment.id === update.comment_id ? { ...comment, content: update.content } : comment)))
+    })
+  }, [ws, postId])
+
   function handleEdited(id: number, content: string) {
     setComments((prev) => prev.map((comment) => (comment.id === id ? { ...comment, content } : comment)))
   }
