@@ -36,6 +36,7 @@ const (
 	CommentDeleted      = "comment-deleted"
 	CommentEdited       = "comment-edited"
 	PostEdited          = "post-edited"
+	CommentAdded        = "comment-added"
 )
 
 // ReceiveMessageEvent is the client->server "new-message" payload. Every

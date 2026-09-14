@@ -346,6 +346,35 @@ func broadcastPostEdited(postID int, title, content string, excludeUserID int) {
 	broadcastTo(recipients, Event{Type: PostEdited, Payload: data})
 }
 
+// broadcastCommentAdded tells every OTHER connected client a new comment
+// was posted, so a comment list visible elsewhere doesn't miss it until a
+// manual reload — the one remaining gap in this session's comment/post
+// live-update family (add joins delete/edit, which were already fixed).
+// Broadcasts the Comment domain struct directly (its json tags already
+// match the wire shape CommentList expects, same as ChatOpened/
+// ConversationsList reuse ConversationInfo directly) rather than a
+// separate event-specific struct. Excludes the posting client for the
+// same reason as the other broadcasts here: CommentForm's onAdded
+// callback already appends it locally the instant the HTTP response
+// arrives. Called from AddCommentHandler after its own DB write, using
+// the package-level manager singleton directly (see
+// broadcastPostReactionUpdate's doc comment for why).
+func broadcastCommentAdded(comment Comment, excludeUserID int) {
+	data, err := json.Marshal(comment)
+	if err != nil {
+		slog.Error("failed to marshal comment-added broadcast", "error", err, "comment_id", comment.ID)
+		return
+	}
+
+	var recipients []*Client
+	for _, c := range manager.clientsSnapshot() {
+		if c.userID != excludeUserID {
+			recipients = append(recipients, c)
+		}
+	}
+	broadcastTo(recipients, Event{Type: CommentAdded, Payload: data})
+}
+
 // addUserInfo handles the user-connect event, marking an already-identified
 // client as online. It deliberately ignores any identity fields in
 // event.Payload — c.username/c.userID/c.email/c.joined were already bound

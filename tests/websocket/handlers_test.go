@@ -10,6 +10,7 @@ import (
 	"rtForum/websocket"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCheckOrigin_DefaultAndEnvOverride(t *testing.T) {
@@ -164,6 +165,44 @@ func TestAddComment_UsesAuthenticatedSessionIdentity(t *testing.T) {
 	}
 	if content != "comment body" {
 		t.Fatalf("expected content 'comment body', got %q", content)
+	}
+}
+
+// TestAddComment_BroadcastsToOtherClients is the regression test for the
+// live-update fix: AddCommentHandler used to insert the comment and return
+// it only to the poster — no WS broadcast at all. A comment list visible
+// in another connected client's SinglePostView (the same post open in two
+// tabs, or a second user) missed the new comment entirely until they
+// happened to reload.
+func TestAddComment_BroadcastsToOtherClients(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-abc", "actual_user", 42)
+	observer := websocket.AddTestClient("session-observer", "observer", 99)
+
+	body := `{"post_id":1,"content":"comment body"}`
+	req := httptest.NewRequest(http.MethodPost, "/addcomment", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-abc"})
+	rr := httptest.NewRecorder()
+
+	websocket.AddCommentHandler(rr, req)
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d", http.StatusCreated, rr.Code)
+	}
+
+	eventType, payload, ok := observer.WaitEvent(2 * time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for a comment-added broadcast")
+	}
+	if eventType != websocket.CommentAdded {
+		t.Fatalf("expected a %q broadcast, got %q", websocket.CommentAdded, eventType)
+	}
+	var broadcastComment websocket.Comment
+	if err := json.Unmarshal(payload, &broadcastComment); err != nil {
+		t.Fatalf("failed to decode comment-added payload: %v", err)
+	}
+	if broadcastComment.PostID != 1 || broadcastComment.Content != "comment body" || broadcastComment.Username != "actual_user" {
+		t.Fatalf("expected {post_id:1 content:%q username:%q}, got %+v", "comment body", "actual_user", broadcastComment)
 	}
 }
 
