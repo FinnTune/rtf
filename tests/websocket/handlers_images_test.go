@@ -12,6 +12,7 @@ import (
 	"rtForum/websocket"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -121,6 +122,111 @@ func TestUploadPostImageHandler_ReplacingDeletesOldFile(t *testing.T) {
 
 	if _, err := os.Stat(firstPath); !os.IsNotExist(err) {
 		t.Fatalf("expected the first uploaded file to be deleted after replacement, stat err: %v", err)
+	}
+}
+
+// buildImageUploadRequest is newImageUploadRequest's *testing.T-free
+// twin, for building requests from inside a goroutine — t.Fatalf (which
+// newImageUploadRequest uses via t.Helper()) must only ever be called from
+// the test's own goroutine.
+func buildImageUploadRequest(sessionID string, postID int, filename string, content []byte) (*http.Request, error) {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	if err := writer.WriteField("post_id", strconv.Itoa(postID)); err != nil {
+		return nil, err
+	}
+	part, err := writer.CreateFormFile("image", filename)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := part.Write(content); err != nil {
+		return nil, err
+	}
+	if err := writer.Close(); err != nil {
+		return nil, err
+	}
+	req := httptest.NewRequest(http.MethodPost, "/uploadPostImage", &buf)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	if sessionID != "" {
+		req.AddCookie(&http.Cookie{Name: "session_id", Value: sessionID})
+	}
+	return req, nil
+}
+
+// TestUploadPostImageHandler_ConcurrentUploadsNoOrphanedFiles is the
+// regression test for the optimistic-concurrency fix: two concurrent
+// uploads to the same post used to both read the same existingImgURL, both
+// write their own file to disk, and both UPDATE post.img_url
+// unconditionally — whichever commit landed last "won" the row, but each
+// request only ever deleted the pre-existing file it personally read, so
+// the loser's freshly-written file was never referenced by anything and
+// never deleted either: a permanent orphan on disk. After the fix, every
+// uploaded file must either end up as the post's current img_url or be
+// deleted — nothing left over regardless of how the requests interleave.
+func TestUploadPostImageHandler_ConcurrentUploadsNoOrphanedFiles(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	cleanUploads(t)
+	// Forces the concurrent goroutines below onto one shared connection
+	// against one real database, the same reason
+	// TestReactToPostHandler_ConcurrentInsertRace_NoServerErrors does — a
+	// bare ":memory:" DSN with the default pool would otherwise hand each
+	// goroutine its own isolated, empty database.
+	db.SetMaxOpenConns(1)
+	websocket.AddAuthenticatedClient("session-actual", "actual_user", 42)
+
+	const n = 8
+	var wg sync.WaitGroup
+	codes := make([]int, n)
+	bodies := make([]string, n)
+	errs := make([]error, n)
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			req, err := buildImageUploadRequest("session-actual", 1, "photo.png", pngSignature)
+			if err != nil {
+				errs[i] = err
+				return
+			}
+			rr := httptest.NewRecorder()
+			websocket.UploadPostImageHandler(rr, req)
+			codes[i] = rr.Code
+			bodies[i] = rr.Body.String()
+		}(i)
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("request %d: failed to build upload request: %v", i, err)
+		}
+		if codes[i] != http.StatusOK {
+			t.Fatalf("request %d: expected status %d, got %d: %s", i, http.StatusOK, codes[i], bodies[i])
+		}
+	}
+
+	var storedImgURL string
+	if err := db.QueryRow("SELECT COALESCE(img_url, '') FROM post WHERE id = 1").Scan(&storedImgURL); err != nil {
+		t.Fatalf("failed to query stored img_url: %v", err)
+	}
+	if storedImgURL == "" {
+		t.Fatal("expected post 1 to have a non-empty img_url after concurrent uploads")
+	}
+
+	entries, err := os.ReadDir("./uploads/posts")
+	if err != nil {
+		t.Fatalf("failed to read uploads dir: %v", err)
+	}
+	if len(entries) != 1 {
+		names := make([]string, len(entries))
+		for i, e := range entries {
+			names[i] = e.Name()
+		}
+		t.Fatalf("expected exactly 1 file left on disk (the current img_url, no orphans), got %d: %v", len(entries), names)
+	}
+	if got := "/uploads/posts/" + entries[0].Name(); got != storedImgURL {
+		t.Fatalf("expected the one remaining file to be the current img_url %q, got %q", storedImgURL, got)
 	}
 }
 
