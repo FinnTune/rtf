@@ -38,6 +38,47 @@ func TestEditPostHandler_UpdatesOwnPost(t *testing.T) {
 	}
 }
 
+// TestEditPostHandler_BroadcastsToOtherClients is the regression test for
+// the live-update fix: EditPostHandler used to commit the update and
+// return with no WS broadcast at all — a permalink open in another
+// connected client's SinglePostView kept showing the stale pre-edit
+// title/content until they happened to reload.
+func TestEditPostHandler_BroadcastsToOtherClients(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-owner", "actual_user", 42)
+	observer := websocket.AddTestClient("session-observer", "observer", 99)
+
+	body := `{"id":1,"title":"Updated Title","content":"Updated content"}`
+	req := httptest.NewRequest(http.MethodPost, "/editPost", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-owner"})
+	rr := httptest.NewRecorder()
+
+	websocket.EditPostHandler(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	eventType, payload, ok := observer.WaitEvent(2 * time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for a post-edited broadcast")
+	}
+	if eventType != websocket.PostEdited {
+		t.Fatalf("expected a %q broadcast, got %q", websocket.PostEdited, eventType)
+	}
+	var update struct {
+		PostID  int    `json:"post_id"`
+		Title   string `json:"title"`
+		Content string `json:"content"`
+	}
+	if err := json.Unmarshal(payload, &update); err != nil {
+		t.Fatalf("failed to decode post-edited payload: %v", err)
+	}
+	if update.PostID != 1 || update.Title != "Updated Title" || update.Content != "Updated content" {
+		t.Fatalf("expected {post_id:1 title:%q content:%q}, got %+v", "Updated Title", "Updated content", update)
+	}
+}
+
 func TestEditPostHandler_RejectsNonOwner(t *testing.T) {
 	websocket.ResetTestState()
 	db := testutil.UseForumDB(t)

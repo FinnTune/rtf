@@ -1,10 +1,12 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../../contexts/AuthContext'
 import { FeedViewProvider } from '../../contexts/FeedViewContext'
 import { StatusMessageProvider } from '../../contexts/StatusMessageContext'
+import { WebSocketProvider } from '../../contexts/WebSocketContext'
+import { ControllableFakeWebSocket } from '../../testUtils/chatTestHarness'
 import { StatusBanner } from '../common/StatusBanner'
 import { SinglePostView } from './SinglePostView'
 
@@ -141,6 +143,45 @@ describe('SinglePostView', () => {
     renderPostRoute()
     await screen.findByText('A Post')
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
+  it('live-updates the title/content from a post-edited broadcast for this post', async () => {
+    ControllableFakeWebSocket.instances = []
+    vi.stubGlobal('WebSocket', ControllableFakeWebSocket)
+    mockBackend('alice', 'admin')
+
+    render(
+      <MemoryRouter initialEntries={['/posts/7']}>
+        <StatusMessageProvider>
+          <AuthProvider>
+            <WebSocketProvider>
+              <FeedViewProvider>
+                <StatusBanner />
+                <Routes>
+                  <Route path="/" element={<p>Feed placeholder</p>} />
+                  <Route path="/posts/:id" element={<SinglePostView />} />
+                </Routes>
+              </FeedViewProvider>
+            </WebSocketProvider>
+          </AuthProvider>
+        </StatusMessageProvider>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('A Post')).toBeInTheDocument()
+
+    await waitFor(() => expect(ControllableFakeWebSocket.instances.length).toBe(1))
+    const socket = ControllableFakeWebSocket.instances[0]
+    act(() => socket.simulateOpen())
+
+    // A broadcast for a different post must be ignored.
+    act(() => socket.simulateMessage('post-edited', { post_id: 999, title: 'Wrong Post', content: 'Wrong content' }))
+    expect(screen.getByText('A Post')).toBeInTheDocument()
+
+    act(() => socket.simulateMessage('post-edited', { post_id: 7, title: 'Edited Title', content: 'Edited content' }))
+    expect(await screen.findByText('Edited Title')).toBeInTheDocument()
+    expect(screen.getByText('Edited content')).toBeInTheDocument()
+    expect(screen.queryByText('A Post')).not.toBeInTheDocument()
   })
 
   it('uploading an image from the edit form updates the displayed image', async () => {

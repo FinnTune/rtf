@@ -4,6 +4,7 @@ import { deletePost, getPost } from '../../api/posts'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFeedView } from '../../contexts/FeedViewContext'
 import { useStatusMessage } from '../../contexts/StatusMessageContext'
+import { useOptionalWebSocket } from '../../contexts/WebSocketContext'
 import type { Post } from '../../types'
 import { LoadingButton } from '../common/LoadingButton'
 import { CommentList } from './CommentList'
@@ -16,6 +17,7 @@ export function SinglePostView() {
   const { user } = useAuth()
   const { showAllPosts } = useFeedView()
   const { showMessage } = useStatusMessage()
+  const ws = useOptionalWebSocket()
 
   const [post, setPost] = useState<Post | null>(null)
   const [loading, setLoading] = useState(true)
@@ -35,6 +37,20 @@ export function SinglePostView() {
       })
       .finally(() => setLoading(false))
   }, [id, showMessage])
+
+  // Keeps this permalink live for another connected client's own edits
+  // too — the server broadcasts post-edited (excluding the editing client
+  // itself, which already applies it via PostEditForm's onSaved callback)
+  // whenever anyone edits this post. Filters against the current post
+  // state directly (rather than a postId dependency) so it stays correct
+  // if a stale broadcast for a since-navigated-away-from post arrives.
+  useEffect(() => {
+    if (!ws) return
+    return ws.subscribe('post-edited', (payload) => {
+      const update = payload as { post_id: number; title: string; content: string }
+      setPost((prev) => (prev && prev.PostId === update.post_id ? { ...prev, Title: update.title, Content: update.content } : prev))
+    })
+  }, [ws])
 
   function backToPosts() {
     showAllPosts()
