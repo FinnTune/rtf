@@ -106,4 +106,63 @@ describe('CommentList', () => {
     await waitFor(() => expect(screen.getByText(/edited content/)).toBeInTheDocument())
     expect(screen.queryByText(/original content/)).not.toBeInTheDocument()
   })
+
+  it('appends a new comment when a comment-added broadcast arrives for this post, but ignores one for a different post', async () => {
+    ControllableFakeWebSocket.instances = []
+    vi.stubGlobal('WebSocket', ControllableFakeWebSocket)
+    const comments = [makeComment({ id: 1, content: 'existing comment' })]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = requestUrl(input)
+        if (url.startsWith('/checkLogin')) return checkLoginResponse('alice')
+        if (url.startsWith('/comments')) {
+          return new Response(JSON.stringify(comments), { status: 200, headers: { 'X-Total-Count': '1' } })
+        }
+        throw new Error('Unexpected fetch: ' + url)
+      }),
+    )
+
+    render(
+      <StatusMessageProvider>
+        <AuthProvider>
+          <WebSocketProvider>
+            <CommentList postId={5} />
+          </WebSocketProvider>
+        </AuthProvider>
+      </StatusMessageProvider>,
+    )
+
+    expect(await screen.findByText(/existing comment/)).toBeInTheDocument()
+
+    await waitFor(() => expect(ControllableFakeWebSocket.instances.length).toBe(1))
+    const socket = ControllableFakeWebSocket.instances[0]
+    act(() => socket.simulateOpen())
+
+    // A broadcast for a different post must be ignored.
+    act(() =>
+      socket.simulateMessage('comment-added', {
+        id: 2,
+        user_id: 9,
+        post_id: 999,
+        username: 'bob',
+        content: 'wrong post comment',
+        created_at: '2026-01-02',
+      }),
+    )
+    expect(screen.queryByText(/wrong post comment/)).not.toBeInTheDocument()
+
+    act(() =>
+      socket.simulateMessage('comment-added', {
+        id: 3,
+        user_id: 9,
+        post_id: 5,
+        username: 'bob',
+        content: 'new comment from bob',
+        created_at: '2026-01-02',
+      }),
+    )
+    await waitFor(() => expect(screen.getByText(/new comment from bob/)).toBeInTheDocument())
+    expect(screen.getByText(/existing comment/)).toBeInTheDocument()
+  })
 })

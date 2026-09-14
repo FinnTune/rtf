@@ -2109,11 +2109,17 @@ func AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
 	comment.ID = int(commentID)
 	comment.UserID = client.userID
 	comment.Username = client.username
 	comment.CreatedAt = created
+
+	// Tell every other connected client a new comment landed too —
+	// without this, a comment list visible in another tab/user's
+	// SinglePostView stays stale until they reload.
+	broadcastCommentAdded(comment, client.userID)
+
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(comment)
 }
 

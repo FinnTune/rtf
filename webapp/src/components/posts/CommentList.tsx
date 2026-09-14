@@ -85,6 +85,21 @@ export function CommentList({ postId }: { postId: number }) {
     })
   }, [ws, postId])
 
+  // Same live-update as the two subscriptions above, for a brand new
+  // comment from another client — the server broadcasts the full Comment
+  // object (excluding the poster, whose own CommentForm.onAdded already
+  // appended it via handleAdded). Appended to the end, matching
+  // handleAdded and the oldest-first order getComments already returns.
+  useEffect(() => {
+    if (!ws) return
+    return ws.subscribe('comment-added', (payload) => {
+      const comment = payload as Comment
+      if (comment.post_id !== postId) return
+      setComments((prev) => [...prev, comment])
+      setTotal((prev) => prev + 1)
+    })
+  }, [ws, postId])
+
   function handleEdited(id: number, content: string) {
     setComments((prev) => prev.map((comment) => (comment.id === id ? { ...comment, content } : comment)))
   }
