@@ -292,6 +292,71 @@ describe('ChatContext', () => {
     vi.useRealTimers()
   })
 
+  it('a received typing indicator auto-expires if no stop-typing ever arrives', async () => {
+    const { result, socket } = await setup()
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
+
+    vi.useFakeTimers()
+    act(() => socket.simulateMessage('typing', { conversation_id: convId, from: 'bob' }))
+    expect(result.current.openWindows[convId].typingUsers.has('bob')).toBe(true)
+
+    // Simulates bob's tab crashing mid-keystroke: ChatWindow's own
+    // client-side setTimeout is the only thing that would normally send a
+    // stop-typing, and it never runs if the sender's process is gone —
+    // this must self-heal instead of leaving "bob is typing..." stuck
+    // showing forever.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4000)
+    })
+
+    expect(result.current.openWindows[convId].typingUsers.has('bob')).toBe(false)
+    vi.useRealTimers()
+  })
+
+  it('a fresh typing event restarts the expiry timer, so continuously typing never flickers off', async () => {
+    const { result, socket } = await setup()
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
+
+    vi.useFakeTimers()
+    act(() => socket.simulateMessage('typing', { conversation_id: convId, from: 'bob' }))
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
+    // Bob is still typing — a fresh event just before the first one would
+    // have expired must push expiry out again, not leave the old timer
+    // running.
+    act(() => socket.simulateMessage('typing', { conversation_id: convId, from: 'bob' }))
+    expect(result.current.openWindows[convId].typingUsers.has('bob')).toBe(true)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
+    // 3s after the restart — still under the 4s TTL measured from the
+    // fresh event — must still be showing typing.
+    expect(result.current.openWindows[convId].typingUsers.has('bob')).toBe(true)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500)
+    })
+    expect(result.current.openWindows[convId].typingUsers.has('bob')).toBe(false)
+    vi.useRealTimers()
+  })
+
+  it('an explicit stop-typing clears the indicator immediately, without waiting for the expiry timeout', async () => {
+    const { result, socket } = await setup()
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
+
+    act(() => socket.simulateMessage('typing', { conversation_id: convId, from: 'bob' }))
+    expect(result.current.openWindows[convId].typingUsers.has('bob')).toBe(true)
+
+    act(() => socket.simulateMessage('stop-typing', { conversation_id: convId, from: 'bob' }))
+    expect(result.current.openWindows[convId].typingUsers.has('bob')).toBe(false)
+  })
+
   it('closeChat removes the window', async () => {
     const { result, socket } = await setup()
     const convId = openBobConversation(socket, result)

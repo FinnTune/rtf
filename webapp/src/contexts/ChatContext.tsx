@@ -6,6 +6,11 @@ import { useWebSocket } from './WebSocketContext'
 import type { ChatMessageVM, ConversationInfo } from '../types'
 
 const HISTORY_PAGE_SIZE = 10
+// How long a received "typing" indicator stays shown without a follow-up
+// typing/stop-typing event refreshing or clearing it. Comfortably longer
+// than ChatWindow's own TYPING_IDLE_MS (1000ms) sender-side debounce plus
+// network latency margin, so a normal pause-while-typing never trips it.
+const TYPING_RECEIVED_TTL_MS = 4000
 
 export interface ChatWindowState {
   conversationId: number
@@ -167,6 +172,34 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if (timeoutId !== undefined) {
       window.clearTimeout(timeoutId)
       pendingSendTimeoutsRef.current.delete(clientMsgId)
+    }
+  }, [])
+
+  // One TYPING_RECEIVED_TTL_MS auto-clear timer per (conversation, typing
+  // user), keyed by "conversationId:username" — a received typing
+  // indicator otherwise only ever clears on an explicit stop-typing, which
+  // the sender fires from a client-side setTimeout (see ChatWindow's own
+  // TYPING_IDLE_MS) that simply never runs if their tab/process dies
+  // mid-keystroke (crash, network drop, laptop sleep). Without this, that
+  // leaves "<user> is typing..." stuck showing indefinitely — worse still
+  // in a long-lived group chat window, since revealWindow only resets
+  // typingUsers the *first* time a window opens, never on later reveals of
+  // an already-open one.
+  const typingExpiryTimeoutsRef = useRef(new Map<string, ReturnType<typeof window.setTimeout>>())
+  useEffect(() => {
+    const timeouts = typingExpiryTimeoutsRef.current
+    return () => {
+      for (const id of timeouts.values()) window.clearTimeout(id)
+      timeouts.clear()
+    }
+  }, [])
+
+  const clearTypingExpiry = useCallback((conversationId: number, username: string) => {
+    const key = `${conversationId}:${username}`
+    const timeoutId = typingExpiryTimeoutsRef.current.get(key)
+    if (timeoutId !== undefined) {
+      window.clearTimeout(timeoutId)
+      typingExpiryTimeoutsRef.current.delete(key)
     }
   }, [])
 
@@ -396,10 +429,30 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         if (!existing) return prev
         return { ...prev, [data.conversation_id]: { ...existing, typingUsers: new Set(existing.typingUsers).add(data.from) } }
       })
+
+      // Restart this user's expiry timer on every typing event, the same
+      // way ChatWindow's own sender-side timer restarts on every keystroke
+      // — a continuously-typing peer never trips it.
+      const key = `${data.conversation_id}:${data.from}`
+      window.clearTimeout(typingExpiryTimeoutsRef.current.get(key))
+      typingExpiryTimeoutsRef.current.set(
+        key,
+        window.setTimeout(() => {
+          typingExpiryTimeoutsRef.current.delete(key)
+          setOpenWindows((prev) => {
+            const existing = prev[data.conversation_id]
+            if (!existing) return prev
+            const next = new Set(existing.typingUsers)
+            next.delete(data.from)
+            return { ...prev, [data.conversation_id]: { ...existing, typingUsers: next } }
+          })
+        }, TYPING_RECEIVED_TTL_MS),
+      )
     })
 
     const unsubStopTyping = subscribe('stop-typing', (payload) => {
       const data = payload as RawTypingEvent
+      clearTypingExpiry(data.conversation_id, data.from)
       setOpenWindows((prev) => {
         const existing = prev[data.conversation_id]
         if (!existing) return prev
@@ -435,7 +488,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       unsubStopTyping()
       unsubChatError()
     }
-  }, [subscribe, myUsername, markUnread, markRead, showMessage, clearPendingSendTimeout, markSendFailed])
+  }, [subscribe, myUsername, markUnread, markRead, showMessage, clearPendingSendTimeout, markSendFailed, clearTypingExpiry])
 
   const openDirectChat = useCallback(
     (username: string) => {
