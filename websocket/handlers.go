@@ -1776,6 +1776,11 @@ func EditPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Tell every other connected client this post's title/content changed
+	// too — without this, a permalink open in another tab/user's
+	// SinglePostView stays stale until they reload.
+	broadcastPostEdited(requestBody.ID, title, content, client.userID)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"title": title, "content": content})

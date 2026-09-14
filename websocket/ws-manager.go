@@ -321,6 +321,31 @@ func broadcastCommentEdited(postID, commentID int, content string, excludeUserID
 	broadcastTo(recipients, Event{Type: CommentEdited, Payload: data})
 }
 
+// broadcastPostEdited tells every OTHER connected client a post's
+// title/content changed, so a permalink open elsewhere doesn't keep
+// showing the stale pre-edit text. Excludes the editing client for the
+// same reason as broadcastCommentEdited: it already applies the new
+// title/content locally via PostEditForm's own onSaved callback the
+// instant its own HTTP response arrives, so a redundant echo back would
+// be wasted. Called from EditPostHandler after its own DB commit, using
+// the package-level manager singleton directly (see
+// broadcastPostReactionUpdate's doc comment for why).
+func broadcastPostEdited(postID int, title, content string, excludeUserID int) {
+	data, err := json.Marshal(PostEditedEvent{PostID: postID, Title: title, Content: content})
+	if err != nil {
+		slog.Error("failed to marshal post-edited broadcast", "error", err, "post_id", postID)
+		return
+	}
+
+	var recipients []*Client
+	for _, c := range manager.clientsSnapshot() {
+		if c.userID != excludeUserID {
+			recipients = append(recipients, c)
+		}
+	}
+	broadcastTo(recipients, Event{Type: PostEdited, Payload: data})
+}
+
 // addUserInfo handles the user-connect event, marking an already-identified
 // client as online. It deliberately ignores any identity fields in
 // event.Payload — c.username/c.userID/c.email/c.joined were already bound
