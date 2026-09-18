@@ -170,6 +170,31 @@ func RouteEventForTest(eventType string, payload json.RawMessage, client *TestCl
 	return dispatchEvent(Event{Type: eventType, Payload: payload}, client)
 }
 
+// SetEventHandlerForTest temporarily overrides (or adds) the handler for
+// eventType in the package's live manager — used to deliberately trigger a
+// panic from a handler, so routeEventSafely's recovery can be tested
+// without needing a real handler that can be made to panic. Returns a
+// restore func; callers should defer it.
+func SetEventHandlerForTest(eventType string, handler EventHandler) (restore func()) {
+	previous, had := manager.eventHandlers[eventType]
+	manager.eventHandlers[eventType] = handler
+	return func() {
+		if had {
+			manager.eventHandlers[eventType] = previous
+		} else {
+			delete(manager.eventHandlers, eventType)
+		}
+	}
+}
+
+// RouteEventSafelyForTest exercises Client.routeEventSafely directly — the
+// panic-recovering wrapper readMessages calls around routeEvent — for
+// tests that need to assert its recovery behavior without a real
+// WebSocket connection.
+func RouteEventSafelyForTest(eventType string, payload json.RawMessage, client *TestClientHandle) error {
+	return client.client.routeEventSafely(Event{Type: eventType, Payload: payload})
+}
+
 // SendMessageForTest invokes the chat message handler for tests.
 func SendMessageForTest(payload json.RawMessage, client *TestClientHandle) error {
 	return sendMessage(Event{Type: EventReceiveMessage, Payload: payload}, client.client)
