@@ -2,9 +2,11 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"rtForum/utility"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -387,12 +389,33 @@ func (c *Client) readMessages(conn *websocket.Conn) {
 			break
 		}
 
-		if err := c.manager.routeEvent(request, c); err != nil {
+		if err := c.routeEventSafely(request); err != nil {
 			slog.Error("error routing event", "username", c.username, "event_type", request.Type, "error", err)
 			break
 		}
 
 	}
+}
+
+// routeEventSafely calls c.manager.routeEvent, recovering from any panic
+// inside it (or any handler it dispatches to) so a bug in one event
+// handler — a nil dereference, an out-of-range index, a bad assumption
+// about attacker-controlled JSON, or any mistake a future handler
+// introduces — can only ever take down this one connection, not the whole
+// process. Go's net/http only auto-recovers panics in the goroutine
+// directly serving an HTTP request; readMessages runs in its own goroutine
+// spawned from ServeWS, outside that protection, and (as of this writing)
+// this codebase has no recover() anywhere else — without this, a single
+// malformed or edge-case WS message from any authenticated client could
+// crash every connected user's session at once.
+func (c *Client) routeEventSafely(event Event) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("recovered from panic while routing event", "username", c.username, "event_type", event.Type, "panic", r, "stack", string(debug.Stack()))
+			err = fmt.Errorf("panic while routing event %q: %v", event.Type, r)
+		}
+	}()
+	return c.manager.routeEvent(event, c)
 }
 
 // writeMesssage runs this connection's write loop. conn and done are passed
@@ -411,6 +434,17 @@ func (c *Client) readMessages(conn *websocket.Conn) {
 // message it just took, meant for whichever connection is live now, is
 // simply lost.
 func (c *Client) writeMesssage(conn *websocket.Conn, done <-chan struct{}) {
+	// See routeEventSafely's doc comment for why this matters: this
+	// goroutine runs outside net/http's own per-request panic recovery, so
+	// without this, a panic here (e.g. constructing some future outgoing
+	// event) would crash every connected user's session at once, not just
+	// this one.
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("recovered from panic in write loop", "username", c.username, "panic", r, "stack", string(debug.Stack()))
+		}
+	}()
+
 	defer func() {
 		// See readMessages' identical guard: only a goroutine whose
 		// connection is still current represents a genuine disconnect.
