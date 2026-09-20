@@ -1913,6 +1913,11 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Tell every other connected client this post is gone too — without
+	// this, a permalink open in another tab/user's SinglePostView stays on
+	// a now-nonexistent post indefinitely.
+	broadcastPostDeleted(requestBody.ID, client.userID)
+
 	if imgURL != "" {
 		deleteUploadedImage(imgURL)
 	}

@@ -346,6 +346,34 @@ func broadcastPostEdited(postID int, title, content string, excludeUserID int) {
 	broadcastTo(recipients, Event{Type: PostEdited, Payload: data})
 }
 
+// broadcastPostDeleted tells every OTHER connected client a post was
+// deleted, so a permalink open elsewhere can navigate away instead of
+// continuing to show content that's now gone — the same live-update
+// treatment already given to reactions, comments, and post edits, just for
+// the post disappearing entirely rather than a field on it changing.
+// Excludes the deleting client for the same reason as the other
+// broadcasts here: they already know (their own DeletePostHandler request
+// just succeeded) and navigate away locally the instant that response
+// arrives — see handleDelete in SinglePostView.tsx. Called from
+// DeletePostHandler after its own DB commit, using the package-level
+// manager singleton directly (see broadcastPostReactionUpdate's doc
+// comment for why).
+func broadcastPostDeleted(postID, excludeUserID int) {
+	data, err := json.Marshal(PostDeletedEvent{PostID: postID})
+	if err != nil {
+		slog.Error("failed to marshal post-deleted broadcast", "error", err, "post_id", postID)
+		return
+	}
+
+	var recipients []*Client
+	for _, c := range manager.clientsSnapshot() {
+		if c.userID != excludeUserID {
+			recipients = append(recipients, c)
+		}
+	}
+	broadcastTo(recipients, Event{Type: PostDeleted, Payload: data})
+}
+
 // broadcastCommentAdded tells every OTHER connected client a new comment
 // was posted, so a comment list visible elsewhere doesn't miss it until a
 // manual reload — the one remaining gap in this session's comment/post

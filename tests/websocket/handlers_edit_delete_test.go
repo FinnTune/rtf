@@ -308,6 +308,45 @@ func TestDeletePostHandler_DeletesOwnPostAndDependents(t *testing.T) {
 // which would silently inherit the old post's leftover reactions (phantom
 // like/dislike counts, a false "you already reacted" state) without this
 // cleanup.
+// TestDeletePostHandler_BroadcastsToOtherClients is the regression test
+// for the live-update fix: DeletePostHandler used to delete the post and
+// its dependents with no WS broadcast at all — a permalink open in
+// another connected client's SinglePostView kept showing a post that no
+// longer existed until they happened to reload.
+func TestDeletePostHandler_BroadcastsToOtherClients(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-owner", "actual_user", 42)
+	observer := websocket.AddTestClient("session-observer", "observer", 99)
+
+	body := `{"id":1}`
+	req := httptest.NewRequest(http.MethodPost, "/deletePost", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-owner"})
+	rr := httptest.NewRecorder()
+
+	websocket.DeletePostHandler(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	eventType, payload, ok := observer.WaitEvent(2 * time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for a post-deleted broadcast")
+	}
+	if eventType != websocket.PostDeleted {
+		t.Fatalf("expected a %q broadcast, got %q", websocket.PostDeleted, eventType)
+	}
+	var update struct {
+		PostID int `json:"post_id"`
+	}
+	if err := json.Unmarshal(payload, &update); err != nil {
+		t.Fatalf("failed to decode post-deleted payload: %v", err)
+	}
+	if update.PostID != 1 {
+		t.Fatalf("expected {post_id:1}, got %+v", update)
+	}
+}
+
 func TestDeletePostHandler_ReusedPostIDHasNoLeftoverReactions(t *testing.T) {
 	websocket.ResetTestState()
 	db := testutil.UseForumDB(t)

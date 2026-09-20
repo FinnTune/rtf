@@ -184,6 +184,44 @@ describe('SinglePostView', () => {
     expect(screen.queryByText('A Post')).not.toBeInTheDocument()
   })
 
+  it('navigates back to the feed with a notice on a post-deleted broadcast for this post, but ignores one for a different post', async () => {
+    ControllableFakeWebSocket.instances = []
+    vi.stubGlobal('WebSocket', ControllableFakeWebSocket)
+    mockBackend('alice', 'admin')
+
+    render(
+      <MemoryRouter initialEntries={['/posts/7']}>
+        <StatusMessageProvider>
+          <AuthProvider>
+            <WebSocketProvider>
+              <FeedViewProvider>
+                <StatusBanner />
+                <Routes>
+                  <Route path="/" element={<p>Feed placeholder</p>} />
+                  <Route path="/posts/:id" element={<SinglePostView />} />
+                </Routes>
+              </FeedViewProvider>
+            </WebSocketProvider>
+          </AuthProvider>
+        </StatusMessageProvider>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('A Post')).toBeInTheDocument()
+
+    await waitFor(() => expect(ControllableFakeWebSocket.instances.length).toBe(1))
+    const socket = ControllableFakeWebSocket.instances[0]
+    act(() => socket.simulateOpen())
+
+    // A broadcast for a different post must be ignored.
+    act(() => socket.simulateMessage('post-deleted', { post_id: 999 }))
+    expect(screen.getByText('A Post')).toBeInTheDocument()
+
+    act(() => socket.simulateMessage('post-deleted', { post_id: 7 }))
+    expect(await screen.findByText('Feed placeholder')).toBeInTheDocument()
+    expect(screen.getByText('This post was deleted.')).toBeInTheDocument()
+  })
+
   it('uploading an image from the edit form updates the displayed image', async () => {
     mockBackend('admin', 'admin')
     renderPostRoute()

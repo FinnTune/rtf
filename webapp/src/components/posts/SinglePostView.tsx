@@ -52,6 +52,25 @@ export function SinglePostView() {
     })
   }, [ws])
 
+  // Same live-update family as post-edited above, for this post being
+  // deleted entirely instead of just changed — the server broadcasts
+  // post-deleted (excluding the deleting client, which already navigates
+  // away locally via handleDelete's own success path) whenever anyone
+  // deletes this post. Compares against the route param id (a stable
+  // string, unlike post state, which this effect deliberately avoids
+  // depending on to keep the subscription from churning on every edit)
+  // rather than post.PostId.
+  useEffect(() => {
+    if (!ws) return
+    return ws.subscribe('post-deleted', (payload) => {
+      const update = payload as { post_id: number }
+      if (String(update.post_id) !== id) return
+      showMessage('This post was deleted.', 'info')
+      backToPosts()
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- backToPosts/showAllPosts/navigate aren't memoized; re-subscribing on their identity churn (every render) would be pure waste, and id/ws are the only inputs that actually matter for this comparison
+  }, [ws, id])
+
   function backToPosts() {
     showAllPosts()
     navigate('/')
