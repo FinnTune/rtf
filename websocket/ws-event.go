@@ -37,6 +37,7 @@ const (
 	CommentEdited       = "comment-edited"
 	PostEdited          = "post-edited"
 	CommentAdded        = "comment-added"
+	PostDeleted         = "post-deleted"
 )
 
 // ReceiveMessageEvent is the client->server "new-message" payload. Every
@@ -196,6 +197,14 @@ type PostEditedEvent struct {
 	PostID  int    `json:"post_id"`
 	Title   string `json:"title"`
 	Content string `json:"content"`
+}
+
+// PostDeletedEvent is broadcast to every connected client whenever a post
+// is deleted, so a permalink (SinglePostView) open in another client on
+// that post can notice and navigate away instead of continuing to show
+// content that no longer exists.
+type PostDeletedEvent struct {
+	PostID int `json:"post_id"`
 }
 
 // ReadReceiptEvent is the "read-receipt" server->other-members broadcast,
