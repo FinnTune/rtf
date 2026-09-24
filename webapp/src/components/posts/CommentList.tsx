@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getComments } from '../../api/comments'
 import { useStatusMessage } from '../../contexts/StatusMessageContext'
 import { useOptionalWebSocket } from '../../contexts/WebSocketContext'
@@ -16,6 +16,15 @@ export function CommentList({ postId }: { postId: number }) {
   const [loadedOnce, setLoadedOnce] = useState(false)
   const { showMessage } = useStatusMessage()
   const ws = useOptionalWebSocket()
+
+  // Lets the comment-added subscription below read the latest offset/total
+  // without needing them in its dependency array (which would force
+  // resubscribing on every load), the same pattern ChatContext uses for
+  // its own WS-subscription closures (openWindowsRef/conversationsRef).
+  const paginationRef = useRef({ offset, total })
+  useEffect(() => {
+    paginationRef.current = { offset, total }
+  }, [offset, total])
 
   const loadMore = useCallback(
     async (targetOffset: number) => {
@@ -88,14 +97,30 @@ export function CommentList({ postId }: { postId: number }) {
   // Same live-update as the two subscriptions above, for a brand new
   // comment from another client — the server broadcasts the full Comment
   // object (excluding the poster, whose own CommentForm.onAdded already
-  // appended it via handleAdded). Appended to the end, matching
-  // handleAdded and the oldest-first order getComments already returns.
+  // appended it via handleAdded).
+  //
+  // Only appended directly (and offset advanced in lockstep, matching
+  // handleAdded) when the viewer has already loaded this post's entire
+  // comment history so far (offset >= total): comments paginate
+  // oldest-first, so a genuinely new comment is always the correct next
+  // item to show once caught up. If there's still older, not-yet-loaded
+  // history between what's shown and this new comment, only total is
+  // bumped — appending here would put it out of order ahead of that
+  // unloaded history, and worse, the next "Load more" click re-fetches
+  // from the same offset and would include this same comment a second
+  // time (its created_at sorts it into that exact page). Leaving offset/
+  // comments untouched lets that fetch reveal it once, in its correct
+  // position, instead.
   useEffect(() => {
     if (!ws) return
     return ws.subscribe('comment-added', (payload) => {
       const comment = payload as Comment
       if (comment.post_id !== postId) return
-      setComments((prev) => [...prev, comment])
+      const { offset: currentOffset, total: currentTotal } = paginationRef.current
+      if (currentOffset >= currentTotal) {
+        setComments((prev) => [...prev, comment])
+        setOffset((prev) => prev + 1)
+      }
       setTotal((prev) => prev + 1)
     })
   }, [ws, postId])
