@@ -417,7 +417,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         const index = existing.messages.findIndex((m) => m.clientMsgId === data.client_msg_id)
         if (index === -1) return prev
         const messages = [...existing.messages]
-        messages[index] = { ...messages[index], id: data.id }
+        // Also clears failed: a late ack — arriving after
+        // SEND_ACK_TIMEOUT_MS already gave up and marked this send
+        // failed, but before this handler unsubscribes on window
+        // close/unmount — still means the message was actually delivered
+        // and correctly reconciled here. Without this, ChatMessageVM's own
+        // documented invariant ("failed never set on a message with a real
+        // id") would be violated, leaving a delivered message stuck
+        // showing "— failed to send" for the rest of the window's session.
+        messages[index] = { ...messages[index], id: data.id, failed: false }
         return { ...prev, [data.conversation_id]: { ...existing, messages } }
       })
     })
