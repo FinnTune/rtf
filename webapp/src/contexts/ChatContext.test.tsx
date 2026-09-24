@@ -287,7 +287,37 @@ describe('ChatContext', () => {
       await vi.advanceTimersByTimeAsync(15_000)
     })
 
-    expect(result.current.openWindows[convId].messages[0].failed).toBeUndefined()
+    expect(result.current.openWindows[convId].messages[0].failed).toBeFalsy()
+    expect(result.current.openWindows[convId].messages[0].id).toBe(7)
+    vi.useRealTimers()
+  })
+
+  // Regression test for a bug where a late ack — arriving after
+  // SEND_ACK_TIMEOUT_MS already gave up and marked the send failed, but
+  // still a genuine delivery (a network stall/retransmit, not one of the
+  // server's actual silent-drop paths) — reconciled the message's real id
+  // without clearing failed, violating ChatMessageVM's own documented
+  // invariant ("failed never set on a message with a real id") and leaving
+  // a message that was in fact delivered stuck showing as failed for the
+  // rest of the window's session.
+  it('a late ack — arriving after the timeout already marked the send failed — clears failed once it does arrive', async () => {
+    const { result, socket } = await setup()
+    const convId = openBobConversation(socket, result)
+    await waitFor(() => expect(result.current.openWindows[convId]).toBeDefined())
+
+    vi.useFakeTimers()
+    act(() => result.current.sendMessage(convId, 'hi'))
+    const clientMsgId = result.current.openWindows[convId].messages[0].clientMsgId
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(15_000)
+    })
+    expect(result.current.openWindows[convId].messages[0].failed).toBe(true)
+
+    // The ack finally arrives, well after the timeout already fired.
+    act(() => socket.simulateMessage('message-ack', { conversation_id: convId, id: 7, client_msg_id: clientMsgId }))
+
+    expect(result.current.openWindows[convId].messages[0].failed).toBeFalsy()
     expect(result.current.openWindows[convId].messages[0].id).toBe(7)
     vi.useRealTimers()
   })
