@@ -26,6 +26,16 @@ export function CommentList({ postId }: { postId: number }) {
     paginationRef.current = { offset, total }
   }, [offset, total])
 
+  // Lets the comment-deleted subscription below check whether a broadcast
+  // deletion targets a comment that's actually part of the already-loaded
+  // prefix (offset needs to shrink to match) versus one still in the
+  // not-yet-loaded remainder (offset must stay put) — same ref-sync
+  // pattern as paginationRef above, for the same reason.
+  const loadedCommentIdsRef = useRef(new Set<number>())
+  useEffect(() => {
+    loadedCommentIdsRef.current = new Set(comments.map((comment) => comment.id))
+  }, [comments])
+
   const loadMore = useCallback(
     async (targetOffset: number) => {
       setLoadingMore(true)
@@ -61,6 +71,13 @@ export function CommentList({ postId }: { postId: number }) {
 
   function handleDeleted(id: number) {
     setComments((prev) => prev.filter((comment) => comment.id !== id))
+    // Also decrements offset, unconditionally: onDeleted is only ever
+    // wired to a rendered CommentItem, so the deleted comment is by
+    // definition part of the already-loaded prefix — see the
+    // comment-deleted subscription below for why a broadcast deletion
+    // (which could target any comment, loaded or not) needs to check
+    // first instead of assuming this.
+    setOffset((prev) => Math.max(0, prev - 1))
     setTotal((prev) => Math.max(0, prev - 1))
   }
 
@@ -76,7 +93,18 @@ export function CommentList({ postId }: { postId: number }) {
     return ws.subscribe('comment-deleted', (payload) => {
       const update = payload as { post_id: number; comment_id: number }
       if (update.post_id !== postId) return
+      // Unlike handleDeleted, this broadcast can target ANY comment in the
+      // thread — including one this viewer hasn't loaded yet, still sitting
+      // in the not-yet-fetched remainder past offset. Only decrement offset
+      // when the deleted comment was actually part of the loaded prefix;
+      // otherwise the next "Load more" click would fetch starting one
+      // comment too late and skip over whichever comment now sits at the
+      // old offset.
+      const wasLoaded = loadedCommentIdsRef.current.has(update.comment_id)
       setComments((prev) => prev.filter((comment) => comment.id !== update.comment_id))
+      if (wasLoaded) {
+        setOffset((prev) => Math.max(0, prev - 1))
+      }
       setTotal((prev) => Math.max(0, prev - 1))
     })
   }, [ws, postId])

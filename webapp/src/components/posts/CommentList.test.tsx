@@ -244,4 +244,181 @@ describe('CommentList', () => {
     expect(screen.getByText(/third comment/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Load more comments' })).not.toBeInTheDocument()
   })
+
+  // Regression test for a bug where deleting a comment (locally, via the
+  // Delete button) removed it from the list but left offset unchanged —
+  // so the next "Load more" fetch, still anchored at the pre-delete
+  // offset, silently skipped over the comment that had shifted into that
+  // now-vacated slot, permanently hiding it.
+  it('does not skip a comment on "Load more" after locally deleting an own comment', async () => {
+    ControllableFakeWebSocket.instances = []
+    vi.stubGlobal('WebSocket', ControllableFakeWebSocket)
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const firstPage = [makeComment({ id: 1, content: 'first comment' }), makeComment({ id: 2, content: 'second comment' })]
+    const secondPage = [makeComment({ id: 3, content: 'third comment' })]
+    const requestedOffsets: (string | null)[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = requestUrl(input)
+        if (url.startsWith('/checkLogin')) return checkLoginResponse('alice')
+        if (url.startsWith('/deleteComment')) return new Response(null, { status: 200 })
+        if (url.startsWith('/comments')) {
+          const offset = new URL(url, 'https://localhost').searchParams.get('offset')
+          requestedOffsets.push(offset)
+          if (offset === '0') {
+            return new Response(JSON.stringify(firstPage), { status: 200, headers: { 'X-Total-Count': '3' } })
+          }
+          return new Response(JSON.stringify(secondPage), { status: 200, headers: { 'X-Total-Count': '2' } })
+        }
+        throw new Error('Unexpected fetch: ' + (init?.method ?? 'GET') + ' ' + url)
+      }),
+    )
+
+    render(
+      <StatusMessageProvider>
+        <AuthProvider>
+          <WebSocketProvider>
+            <CommentList postId={5} />
+          </WebSocketProvider>
+        </AuthProvider>
+      </StatusMessageProvider>,
+    )
+
+    expect(await screen.findByText(/first comment/)).toBeInTheDocument()
+    const deleteButtons = await screen.findAllByRole('button', { name: 'Delete' })
+    await userEvent.click(deleteButtons[0])
+    await waitFor(() => expect(screen.queryByText(/first comment/)).not.toBeInTheDocument())
+
+    const loadMoreButton = await screen.findByRole('button', { name: 'Load more comments' })
+    await userEvent.click(loadMoreButton)
+
+    await waitFor(() => expect(screen.getByText(/third comment/)).toBeInTheDocument())
+    expect(screen.getByText(/second comment/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Load more comments' })).not.toBeInTheDocument()
+    // The "Load more" fetch must have been anchored at offset 1 (shrunk
+    // from 2 by the delete above), not stayed at 2.
+    expect(requestedOffsets).toEqual(['0', '1'])
+  })
+
+  // Regression test for the same offset-skip bug as above, but via a
+  // comment-deleted broadcast for a comment this viewer HAD already
+  // loaded — the handler must decrement offset just like the local
+  // delete path does.
+  it('does not skip a comment on "Load more" after a comment-deleted broadcast for an already-loaded comment', async () => {
+    ControllableFakeWebSocket.instances = []
+    vi.stubGlobal('WebSocket', ControllableFakeWebSocket)
+    const firstPage = [makeComment({ id: 1, content: 'first comment' }), makeComment({ id: 2, content: 'second comment' })]
+    const secondPage = [makeComment({ id: 3, content: 'third comment' })]
+    const requestedOffsets: (string | null)[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = requestUrl(input)
+        if (url.startsWith('/checkLogin')) return checkLoginResponse('alice')
+        if (url.startsWith('/comments')) {
+          const offset = new URL(url, 'https://localhost').searchParams.get('offset')
+          requestedOffsets.push(offset)
+          if (offset === '0') {
+            return new Response(JSON.stringify(firstPage), { status: 200, headers: { 'X-Total-Count': '3' } })
+          }
+          return new Response(JSON.stringify(secondPage), { status: 200, headers: { 'X-Total-Count': '2' } })
+        }
+        throw new Error('Unexpected fetch: ' + url)
+      }),
+    )
+
+    render(
+      <StatusMessageProvider>
+        <AuthProvider>
+          <WebSocketProvider>
+            <CommentList postId={5} />
+          </WebSocketProvider>
+        </AuthProvider>
+      </StatusMessageProvider>,
+    )
+
+    expect(await screen.findByText(/first comment/)).toBeInTheDocument()
+    expect(await screen.findByText(/second comment/)).toBeInTheDocument()
+
+    await waitFor(() => expect(ControllableFakeWebSocket.instances.length).toBe(1))
+    const socket = ControllableFakeWebSocket.instances[0]
+    act(() => socket.simulateOpen())
+
+    // Comment 1 is part of the already-loaded prefix.
+    act(() => socket.simulateMessage('comment-deleted', { post_id: 5, comment_id: 1 }))
+    await waitFor(() => expect(screen.queryByText(/first comment/)).not.toBeInTheDocument())
+
+    const loadMoreButton = await screen.findByRole('button', { name: 'Load more comments' })
+    await userEvent.click(loadMoreButton)
+
+    await waitFor(() => expect(screen.getByText(/third comment/)).toBeInTheDocument())
+    expect(screen.getByText(/second comment/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Load more comments' })).not.toBeInTheDocument()
+    // The "Load more" fetch must have been anchored at offset 1 (shrunk
+    // from 2 by the broadcast delete above), not stayed at 2.
+    expect(requestedOffsets).toEqual(['0', '1'])
+  })
+
+  // Sanity check for the other direction: a comment-deleted broadcast for
+  // a comment NOT yet loaded (still in the unfetched remainder past
+  // offset) must leave offset untouched — only total should shrink. This
+  // case already worked before the fix above; confirms it still does.
+  // (If offset were wrongly decremented here too, the "Load more" fetch
+  // below would re-request from offset 1 instead of 2, re-fetching
+  // comment 2 a second time.)
+  it('does not change offset when a comment-deleted broadcast targets a comment that was not yet loaded', async () => {
+    ControllableFakeWebSocket.instances = []
+    vi.stubGlobal('WebSocket', ControllableFakeWebSocket)
+    const firstPage = [makeComment({ id: 1, content: 'first comment' }), makeComment({ id: 2, content: 'second comment' })]
+    const secondPage = [makeComment({ id: 4, content: 'fourth comment' })]
+    const requestedOffsets: (string | null)[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = requestUrl(input)
+        if (url.startsWith('/checkLogin')) return checkLoginResponse('alice')
+        if (url.startsWith('/comments')) {
+          const offset = new URL(url, 'https://localhost').searchParams.get('offset')
+          requestedOffsets.push(offset)
+          if (offset === '0') {
+            // 2 loaded, 2 more (ids 3 and 4) remain unloaded.
+            return new Response(JSON.stringify(firstPage), { status: 200, headers: { 'X-Total-Count': '4' } })
+          }
+          return new Response(JSON.stringify(secondPage), { status: 200, headers: { 'X-Total-Count': '3' } })
+        }
+        throw new Error('Unexpected fetch: ' + url)
+      }),
+    )
+
+    render(
+      <StatusMessageProvider>
+        <AuthProvider>
+          <WebSocketProvider>
+            <CommentList postId={5} />
+          </WebSocketProvider>
+        </AuthProvider>
+      </StatusMessageProvider>,
+    )
+
+    expect(await screen.findByText(/first comment/)).toBeInTheDocument()
+    expect(await screen.findByText(/second comment/)).toBeInTheDocument()
+
+    await waitFor(() => expect(ControllableFakeWebSocket.instances.length).toBe(1))
+    const socket = ControllableFakeWebSocket.instances[0]
+    act(() => socket.simulateOpen())
+
+    // Comment 3 was never loaded (only 1 and 2 were).
+    act(() => socket.simulateMessage('comment-deleted', { post_id: 5, comment_id: 3 }))
+
+    const loadMoreButton = await screen.findByRole('button', { name: 'Load more comments' })
+    await userEvent.click(loadMoreButton)
+
+    await waitFor(() => expect(screen.getByText(/fourth comment/)).toBeInTheDocument())
+    expect(screen.getAllByText(/second comment/)).toHaveLength(1)
+    expect(screen.queryByRole('button', { name: 'Load more comments' })).not.toBeInTheDocument()
+    // The "Load more" fetch must have stayed anchored at offset 2 — the
+    // deleted comment was never loaded, so offset must not have shrunk.
+    expect(requestedOffsets).toEqual(['0', '2'])
+  })
 })
