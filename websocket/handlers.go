@@ -28,6 +28,25 @@ var (
 	manager = newManager(ctx)
 )
 
+// maxJSONRequestBytes bounds every JSON request body this server decodes.
+// Every real payload here (credentials, post/comment content, category
+// names, ...) is already capped far smaller by application-level
+// validation that runs after decoding — this exists purely so a client
+// can't force the server to buffer an arbitrarily large body into memory
+// before that validation ever gets a chance to reject it. Mirrors the same
+// http.MaxBytesReader pattern UploadPostImageHandler already uses for its
+// (much larger) multipart bodies.
+const maxJSONRequestBytes = 1 << 20 // 1 MiB
+
+// decodeJSONBody decodes r's body into v, first capping how many bytes the
+// decoder is allowed to read via http.MaxBytesReader — see
+// maxJSONRequestBytes. Every JSON-body handler in this file should decode
+// through this instead of calling json.NewDecoder(r.Body) directly.
+func decodeJSONBody(w http.ResponseWriter, r *http.Request, v any) error {
+	r.Body = http.MaxBytesReader(w, r.Body, maxJSONRequestBytes)
+	return json.NewDecoder(r.Body).Decode(v)
+}
+
 func checkOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	slog.Debug("checking origin", "origin", origin)
@@ -362,7 +381,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 	//Check if request is POST and decode request body into struct above
 	if r.Method == http.MethodPost {
 		slog.Debug("login POST request received")
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := decodeJSONBody(w, r, &req); err != nil {
 			slog.Warn("error decoding login request", "error", err)
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
@@ -683,7 +702,7 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 func registerUser(w http.ResponseWriter, r *http.Request) {
 	//Decode request body to struct
 	var user = RegUser{}
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+	if err := decodeJSONBody(w, r, &user); err != nil {
 		slog.Warn("error decoding registration request body", "error", err)
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
@@ -1002,7 +1021,7 @@ func ReactToPostHandler(w http.ResponseWriter, r *http.Request) {
 		PostID  int  `json:"post_id"`
 		IsLiked bool `json:"is_liked"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+	if err := decodeJSONBody(w, r, &requestBody); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -1153,7 +1172,7 @@ func CreateCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	var requestBody struct {
 		Name string `json:"name"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+	if err := decodeJSONBody(w, r, &requestBody); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -1215,7 +1234,7 @@ func EditCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+	if err := decodeJSONBody(w, r, &requestBody); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -1280,7 +1299,7 @@ func DeleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	var requestBody struct {
 		ID int `json:"id"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+	if err := decodeJSONBody(w, r, &requestBody); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -1408,7 +1427,7 @@ func SetUserBannedHandler(w http.ResponseWriter, r *http.Request) {
 		UserID int  `json:"user_id"`
 		Banned bool `json:"banned"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+	if err := decodeJSONBody(w, r, &requestBody); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -1555,7 +1574,7 @@ func AddPost(w http.ResponseWriter, r *http.Request) {
 			} `json:"categories"`
 		}
 
-		err := json.NewDecoder(r.Body).Decode(&requestBody)
+		err := decodeJSONBody(w, r, &requestBody)
 		if err != nil {
 			// Handle error
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
@@ -1690,7 +1709,7 @@ func EditPostHandler(w http.ResponseWriter, r *http.Request) {
 			Name string `json:"name"`
 		} `json:"categories"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+	if err := decodeJSONBody(w, r, &requestBody); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -1839,7 +1858,7 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 	var requestBody struct {
 		ID int `json:"id"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+	if err := decodeJSONBody(w, r, &requestBody); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -1931,7 +1950,7 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 		var categories Categories
 
 		// Decode the request body into the categories struct
-		err := json.NewDecoder(r.Body).Decode(&categories)
+		err := decodeJSONBody(w, r, &categories)
 		if err != nil {
 			http.Error(w, "Bad Request", http.StatusBadRequest)
 			return
@@ -2049,7 +2068,7 @@ func AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	var comment Comment
 	created := time.Now().Format("2006-01-02 15:04:05")
-	err := json.NewDecoder(r.Body).Decode(&comment)
+	err := decodeJSONBody(w, r, &comment)
 	if err != nil {
 		http.Error(w, "Bad request", http.StatusBadRequest)
 		return
@@ -2210,7 +2229,7 @@ func EditCommentHandler(w http.ResponseWriter, r *http.Request) {
 		ID      int    `json:"id"`
 		Content string `json:"content"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+	if err := decodeJSONBody(w, r, &requestBody); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
@@ -2270,7 +2289,7 @@ func DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 	var requestBody struct {
 		ID int `json:"id"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+	if err := decodeJSONBody(w, r, &requestBody); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
