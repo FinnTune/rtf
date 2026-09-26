@@ -42,6 +42,18 @@ func CheckOriginForTest(r *http.Request) bool {
 	return checkOrigin(r)
 }
 
+// MaxJSONRequestBytesForTest exposes maxJSONRequestBytes so a test can build
+// a request right around the body-size limit without hardcoding it twice.
+const MaxJSONRequestBytesForTest = maxJSONRequestBytes
+
+// DecodeJSONBodyForTest exposes decodeJSONBody so a test can verify its
+// size-capping behavior directly, independent of any particular handler's
+// own downstream validation (which can otherwise mask whether a request
+// was rejected for being oversized versus for some unrelated reason).
+func DecodeJSONBodyForTest(w http.ResponseWriter, r *http.Request, v any) error {
+	return decodeJSONBody(w, r, v)
+}
+
 // TestClientHandle provides controlled access to a connected test client.
 type TestClientHandle struct {
 	client *Client

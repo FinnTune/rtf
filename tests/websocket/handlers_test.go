@@ -129,6 +129,62 @@ func TestAddPost_AllowsNonASCIIContentAtTheRuneLengthLimit(t *testing.T) {
 	}
 }
 
+// TestDecodeJSONBody_RejectsBodyOverLimit guards against a memory-
+// exhaustion DoS: without a body-size cap on JSON decoding, an
+// unauthenticated client could send an arbitrarily large request body and
+// force the server to buffer all of it before any validation ever runs (of
+// the 14 handlers that decode a JSON body in this package, several —
+// including AddPost — decode before authenticating). decodeJSONBody wraps
+// r.Body in http.MaxBytesReader so the read itself is cut off once the
+// body exceeds the limit, well before the full body is ever buffered.
+//
+// Asserts on decodeJSONBody directly (via the DecodeJSONBodyForTest hook)
+// rather than through a handler like AddPost: an oversized body sent
+// through a real handler still comes back as a generic 400 either way
+// (AddPost's own JSON-validity and content-length checks would reject a
+// huge body for an unrelated reason even with no size cap at all), so that
+// route can't actually distinguish "rejected for being oversized" from
+// "rejected for some other reason" — only the underlying error's message
+// (a distinct *http.MaxBytesError, "http: request body too large") does.
+func TestDecodeJSONBody_RejectsBodyOverLimit(t *testing.T) {
+	// A quoted JSON string, not a stream of syntactically-invalid bytes:
+	// the decoder has to actually keep reading through it (rather than
+	// rejecting it immediately as malformed on the very first byte), so
+	// what stops it partway through is genuinely the size cap kicking in,
+	// not a JSON-syntax error that happens to fire before enough bytes
+	// have been read to reveal whether the cap works at all.
+	oversized := `"` + strings.Repeat("a", websocket.MaxJSONRequestBytesForTest) + `"`
+	req := httptest.NewRequest(http.MethodPost, "/addPost", strings.NewReader(oversized))
+	rr := httptest.NewRecorder()
+
+	var v string
+	err := websocket.DecodeJSONBodyForTest(rr, req, &v)
+	if err == nil {
+		t.Fatal("expected an error decoding a body over the size limit")
+	}
+	if !strings.Contains(err.Error(), "too large") {
+		t.Fatalf("expected a body-too-large error, got: %v", err)
+	}
+}
+
+// TestDecodeJSONBody_AllowsBodyAtLimit confirms the cap doesn't clip a
+// legitimate, exactly-at-the-limit request — only genuinely oversized ones.
+func TestDecodeJSONBody_AllowsBodyAtLimit(t *testing.T) {
+	// A JSON string of N quoted characters is N+2 bytes (the surrounding
+	// quotes) - pad so the whole body lands exactly at the limit.
+	payload := `"` + strings.Repeat("a", websocket.MaxJSONRequestBytesForTest-2) + `"`
+	if len(payload) != websocket.MaxJSONRequestBytesForTest {
+		t.Fatalf("test setup bug: payload is %d bytes, want exactly %d", len(payload), websocket.MaxJSONRequestBytesForTest)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/addPost", strings.NewReader(payload))
+	rr := httptest.NewRecorder()
+
+	var v string
+	if err := websocket.DecodeJSONBodyForTest(rr, req, &v); err != nil {
+		t.Fatalf("expected a body exactly at the limit to decode successfully, got: %v", err)
+	}
+}
+
 func TestAddComment_UsesAuthenticatedSessionIdentity(t *testing.T) {
 	websocket.ResetTestState()
 	db := testutil.UseForumDB(t)
