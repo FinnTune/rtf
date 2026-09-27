@@ -17,7 +17,16 @@ var ForumDB *sql.DB
 // e.g. the E2E test suite can point at a disposable file instead of a
 // developer's real database.
 func OpenDB(path string) *sql.DB {
-	dataBase, err := sql.Open("sqlite3", path)
+	// _foreign_keys=on: SQLite disables foreign-key enforcement by default
+	// on every new connection, so without this every FOREIGN KEY in
+	// createTables.sql (post, comment, category_relation,
+	// conversation_member, message, ...) is purely decorative — a bad
+	// insert/update referencing a nonexistent row would silently succeed
+	// instead of erroring. Set via the DSN (not a one-off PRAGMA exec)
+	// because database/sql pools multiple underlying connections; the
+	// driver applies this to every connection it opens, matching what
+	// tests/testutil/database.go already does for the test schema.
+	dataBase, err := sql.Open("sqlite3", path+"?_foreign_keys=on")
 	if err != nil {
 		slog.Error("error opening database", "error", err, "path", path)
 		os.Exit(1)
