@@ -835,6 +835,28 @@ font-weight: 700;
     letter-spacing: 0.6px;
 }
 
+.start-chat-form {
+display: flex;
+gap: 6px;
+margin-bottom: 10px;
+}
+
+.start-chat-form input[type='text'] {
+flex: 1;
+min-width: 0;
+padding: 8px 10px;
+border: 1px solid var(--border-subtle);
+border-radius: var(--radius-sm);
+background-color: rgba(255, 255, 255, 0.06);
+color: #fff;
+box-sizing: border-box;
+}
+
+.start-chat-form .btns {
+flex-grow: 0;
+margin: 0;
+}
+
 #users-list {
 list-style: none;
 margin: 0;
@@ -938,6 +960,55 @@ align-items: center;
 gap: 8px;
 font-size: 13px;
 cursor: pointer;
+}
+
+.add-offline-member-form {
+display: flex;
+gap: 6px;
+margin-bottom: 8px;
+}
+
+.add-offline-member-form input[type='text'] {
+flex: 1;
+min-width: 0;
+padding: 8px 10px;
+border: 1px solid var(--border-subtle);
+border-radius: var(--radius-sm);
+background-color: rgba(255, 255, 255, 0.06);
+color: #fff;
+box-sizing: border-box;
+}
+
+.add-offline-member-form .btns {
+flex-grow: 0;
+margin: 0;
+}
+
+.new-group-offline-members {
+list-style: none;
+margin: 0 0 10px;
+padding: 0;
+display: flex;
+flex-direction: column;
+gap: 4px;
+}
+
+.new-group-offline-members li {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 4px 8px;
+border-radius: var(--radius-sm);
+background-color: rgba(255, 255, 255, 0.06);
+font-size: 13px;
+}
+
+.new-group-offline-members .btns {
+flex-grow: 0;
+margin: 0;
+padding: 0 6px;
+font-size: 14px;
+line-height: 1;
 }
 
 #group-chats-list {
