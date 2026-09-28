@@ -71,4 +71,34 @@ describe('OnlineUsersList', () => {
     const bobItem = (await screen.findByText('bob')).closest('li')
     expect(bobItem!.querySelector('.msg-alert')).toBeNull()
   })
+
+  // Regression test: openDirectChat (and the server's open-direct-chat
+  // handler behind it) resolves any real username, online or not — before
+  // this form existed, the online-users list was the only way to start a
+  // chat, so there was no way to message someone who wasn't online at that
+  // exact moment.
+  it('submitting the "message someone" form sends open-direct-chat for a username that is not online', async () => {
+    const { socket } = await setup()
+    act(() => socket.simulateMessage('users-online', { alice: true }))
+
+    await userEvent.type(screen.getByLabelText('Message someone by username'), 'offline_dave')
+    await userEvent.click(screen.getByRole('button', { name: 'Chat' }))
+
+    await waitFor(() => {
+      const openRequest = socket.sent.find((frame) => (JSON.parse(frame) as { type: string }).type === 'open-direct-chat')
+      expect(openRequest).toBeDefined()
+      expect((JSON.parse(openRequest!) as { payload: unknown }).payload).toEqual({ username: 'offline_dave' })
+    })
+    expect(screen.getByLabelText('Message someone by username')).toHaveValue('')
+  })
+
+  it('submitting the "message someone" form with your own username does not open a chat with yourself', async () => {
+    const { socket } = await setup()
+    act(() => socket.simulateMessage('users-online', { alice: true }))
+
+    await userEvent.type(screen.getByLabelText('Message someone by username'), 'alice')
+    await userEvent.click(screen.getByRole('button', { name: 'Chat' }))
+
+    expect(socket.sent.some((frame) => (JSON.parse(frame) as { type: string }).type === 'open-direct-chat')).toBe(false)
+  })
 })

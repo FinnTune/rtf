@@ -103,6 +103,45 @@ describe('GroupChatsPanel', () => {
     await waitFor(() => expect(screen.getByText('Trip Planning').closest('li')!.querySelector('.msg-alert')).not.toBeNull())
   })
 
+  // Regression test: createGroupChat (and the server's create-group-chat
+  // handler behind it) resolves any real username, online or not — before
+  // this form existed, the online-users checkbox list was the only way to
+  // pick group members, so there was no way to add someone who wasn't
+  // online at that exact moment.
+  it('adds an offline username to the group via the "add someone offline" form', async () => {
+    const { socket } = await setup()
+    act(() => socket.simulateMessage('users-online', { alice: true, bob: true }))
+    await userEvent.click(screen.getByRole('button', { name: '+ New Group' }))
+
+    await userEvent.type(screen.getByPlaceholderText('Group name'), 'Trip Planning')
+    await userEvent.type(screen.getByLabelText('Add a member by username'), 'offline_dave')
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByText('offline_dave')).toBeInTheDocument()
+    expect(screen.getByLabelText('Add a member by username')).toHaveValue('')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Create Group' }))
+
+    const createRequest = socket.sent.find((frame) => (JSON.parse(frame) as { type: string }).type === 'create-group-chat')
+    expect(createRequest).toBeDefined()
+    const payload = (JSON.parse(createRequest!) as { payload: { name: string; usernames: string[] } }).payload
+    expect(payload.usernames).toEqual(['offline_dave'])
+  })
+
+  it('removes an added offline username from the group before creating', async () => {
+    await setup()
+    await userEvent.click(screen.getByRole('button', { name: '+ New Group' }))
+
+    await userEvent.type(screen.getByLabelText('Add a member by username'), 'offline_dave')
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+    expect(await screen.findByText('offline_dave')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove offline_dave' }))
+
+    expect(screen.queryByText('offline_dave')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create Group' })).toBeDisabled()
+  })
+
   it('clicking a group chat requests its history', async () => {
     const { socket } = await setup()
     act(() =>
