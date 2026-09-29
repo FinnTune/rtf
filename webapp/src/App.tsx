@@ -5,6 +5,7 @@ import { Feed } from './components/posts/Feed'
 import { SinglePostView } from './components/posts/SinglePostView'
 import { ManageCategoriesPage } from './components/admin/ManageCategoriesPage'
 import { ManageUsersPage } from './components/admin/ManageUsersPage'
+import { SettingsPage } from './components/settings/SettingsPage'
 import { useAuth } from './contexts/AuthContext'
 import { LoggedInShell } from './components/layout/LoggedInShell'
 import { LoggedOutShell } from './components/layout/LoggedOutShell'
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/posts/:id" element={<SinglePostView />} />
         <Route path="/users/:username" element={<AuthorPostsPage />} />
         <Route path="/new-post" element={<AddPostForm />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="/admin/categories" element={<ManageCategoriesPage />} />
         <Route path="/admin/users" element={<ManageUsersPage />} />
       </Routes>
