@@ -17,6 +17,7 @@ export function SidebarLeft() {
   // route-based NavLink can't express the second half of that.
   const isAllPostsActive = pathname === '/' && view.type === 'all'
   const isNewPostActive = pathname === '/new-post'
+  const isSettingsActive = pathname === '/settings'
   const isManageCategoriesActive = pathname === '/admin/categories'
   const isManageUsersActive = pathname === '/admin/users'
 
@@ -27,6 +28,9 @@ export function SidebarLeft() {
       </Link>
       <Link to="/new-post" className={navItemClass(isNewPostActive)} id="create-post-button">
         New Post
+      </Link>
+      <Link to="/settings" className={navItemClass(isSettingsActive)} id="settings-button">
+        Settings
       </Link>
       {user?.role === 'admin' && (
         <>

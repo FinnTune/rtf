@@ -84,6 +84,7 @@ func AddAuthenticatedClient(sessionID, username string, userID int) {
 
 func (h *TestClientHandle) Username() string { return h.client.username }
 func (h *TestClientHandle) UserID() int      { return h.client.userID }
+func (h *TestClientHandle) Email() string    { return h.client.email }
 
 // ExpireForTest backdates the client's lastSeen so client.expired() reports
 // true, for testing stale-session cleanup paths without waiting out the

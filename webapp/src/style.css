@@ -1250,6 +1250,50 @@ font-size: 13px;
     flex-grow: 0;
 }
 
+#settings-page {
+    max-width: 400px;
+}
+
+#settings-page h3 {
+    margin: 0 0 12px;
+    padding: 0 0 8px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+#settings-page h3:not(:first-child) {
+    margin-top: 28px;
+}
+
+.settings-form label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.settings-form input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    margin-bottom: 16px;
+    box-sizing: border-box;
+    background-color: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    font-size: 15px;
+    transition: border-color var(--transition), background-color var(--transition);
+}
+
+.settings-form input:focus {
+    outline: none;
+    border-color: var(--border-strong);
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
 /* Stack the app shell into a single column once there's no room for three
    side by side. */
 @media (max-width: 900px) {

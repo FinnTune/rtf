@@ -1,0 +1,260 @@
+package websocket_test
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"rtForum/tests/testutil"
+	"rtForum/utility"
+	"rtForum/websocket"
+)
+
+func authenticatedRequest(method, target string, body *bytes.Buffer, sessionID string) *http.Request {
+	var req *http.Request
+	if body != nil {
+		req = httptest.NewRequest(method, target, body)
+	} else {
+		req = httptest.NewRequest(method, target, nil)
+	}
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: sessionID})
+	return req
+}
+
+func TestGetProfileHandler_RejectsUnauthenticatedRequest(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/profile", nil)
+	rr := httptest.NewRecorder()
+
+	websocket.GetProfileHandler(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rr.Code)
+	}
+}
+
+func TestGetProfileHandler_ReturnsAuthenticatedUsersOwnProfile(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-123", "actual_user", 42)
+
+	req := authenticatedRequest(http.MethodGet, "/profile", nil, "session-123")
+	rr := httptest.NewRecorder()
+
+	websocket.GetProfileHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var got struct {
+		Fname string `json:"fname"`
+		Lname string `json:"lname"`
+		Email string `json:"email"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &got); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+	if got.Fname != "Actual" || got.Lname != "User" || got.Email != "actual@example.com" {
+		t.Fatalf("expected the seeded actual_user's own profile, got %+v", got)
+	}
+}
+
+func TestUpdateProfileHandler_RejectsUnauthenticatedRequest(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	body, _ := json.Marshal(map[string]string{"fname": "New", "lname": "Name", "email": "new@example.com"})
+	req := httptest.NewRequest(http.MethodPost, "/updateProfile", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+
+	websocket.UpdateProfileHandler(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rr.Code)
+	}
+}
+
+func TestUpdateProfileHandler_UpdatesOwnFnameLnameAndEmail(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	handle := websocket.AddTestClient("session-123", "actual_user", 42)
+
+	body, _ := json.Marshal(map[string]string{"fname": "Updated", "lname": "Person", "email": "updated@example.com"})
+	req := authenticatedRequest(http.MethodPost, "/updateProfile", bytes.NewBuffer(body), "session-123")
+	rr := httptest.NewRecorder()
+
+	websocket.UpdateProfileHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var fname, lname, email string
+	if err := db.QueryRow(`SELECT fname, lname, email FROM user WHERE id = 42`).Scan(&fname, &lname, &email); err != nil {
+		t.Fatalf("failed to fetch updated profile: %v", err)
+	}
+	if fname != "Updated" || lname != "Person" || email != "updated@example.com" {
+		t.Fatalf("expected the profile to be updated in the database, got fname=%q lname=%q email=%q", fname, lname, email)
+	}
+
+	// checkLogin serves client.email straight from memory (see
+	// (*Manager).checkLogin) — without updating it here too, the new email
+	// wouldn't show up until the next full login even though the database
+	// itself is already correct.
+	if got := handle.Email(); got != "updated@example.com" {
+		t.Fatalf("expected the in-memory client's cached email to be updated too, got %q", got)
+	}
+}
+
+// TestUpdateProfileHandler_RejectsEmailAlreadyInUseByAnotherUser guards the
+// same email-uniqueness invariant registration already enforces (user.email
+// is UNIQUE) — a profile update must re-check it too, not just at signup.
+func TestUpdateProfileHandler_RejectsEmailAlreadyInUseByAnotherUser(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-123", "actual_user", 42)
+
+	// alice (seeded, id 2) already owns alice@example.com.
+	body, _ := json.Marshal(map[string]string{"fname": "Actual", "lname": "User", "email": "alice@example.com"})
+	req := authenticatedRequest(http.MethodPost, "/updateProfile", bytes.NewBuffer(body), "session-123")
+	rr := httptest.NewRecorder()
+
+	websocket.UpdateProfileHandler(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, rr.Code, rr.Body.String())
+	}
+
+	var email string
+	if err := db.QueryRow(`SELECT email FROM user WHERE id = 42`).Scan(&email); err != nil {
+		t.Fatalf("failed to fetch profile: %v", err)
+	}
+	if email != "actual@example.com" {
+		t.Fatalf("expected the rejected update to leave the original email untouched, got %q", email)
+	}
+}
+
+// TestUpdateProfileHandler_AllowsKeepingYourOwnCurrentEmail guards against
+// an over-eager uniqueness check rejecting a no-op email "change" back to
+// the same address the account already owns (e.g. a form re-submit that
+// only actually changed fname/lname).
+func TestUpdateProfileHandler_AllowsKeepingYourOwnCurrentEmail(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-123", "actual_user", 42)
+
+	body, _ := json.Marshal(map[string]string{"fname": "Actual", "lname": "Renamed", "email": "actual@example.com"})
+	req := authenticatedRequest(http.MethodPost, "/updateProfile", bytes.NewBuffer(body), "session-123")
+	rr := httptest.NewRecorder()
+
+	websocket.UpdateProfileHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+}
+
+func TestUpdateProfileHandler_RejectsInvalidEmail(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-123", "actual_user", 42)
+
+	body, _ := json.Marshal(map[string]string{"fname": "Actual", "lname": "User", "email": "not-an-email"})
+	req := authenticatedRequest(http.MethodPost, "/updateProfile", bytes.NewBuffer(body), "session-123")
+	rr := httptest.NewRecorder()
+
+	websocket.UpdateProfileHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
+	}
+}
+
+func TestUpdatePasswordHandler_RejectsUnauthenticatedRequest(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	body, _ := json.Marshal(map[string]string{"current_password": "secret123", "new_password": "newpassword1"})
+	req := httptest.NewRequest(http.MethodPost, "/updatePassword", bytes.NewBuffer(body))
+	rr := httptest.NewRecorder()
+
+	websocket.UpdatePasswordHandler(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rr.Code)
+	}
+}
+
+// TestUpdatePasswordHandler_RejectsWrongCurrentPassword guards the one
+// thing standing between a stolen-but-still-valid session cookie and an
+// attacker locking the real account owner out by changing their password.
+func TestUpdatePasswordHandler_RejectsWrongCurrentPassword(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-123", "actual_user", 42)
+
+	body, _ := json.Marshal(map[string]string{"current_password": "wrong-password", "new_password": "newpassword1"})
+	req := authenticatedRequest(http.MethodPost, "/updatePassword", bytes.NewBuffer(body), "session-123")
+	rr := httptest.NewRecorder()
+
+	websocket.UpdatePasswordHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
+	}
+
+	var hash string
+	if err := db.QueryRow(`SELECT pass FROM user WHERE id = 42`).Scan(&hash); err != nil {
+		t.Fatalf("failed to fetch password hash: %v", err)
+	}
+	if !utility.CheckPasswordHash("secret123", hash) {
+		t.Fatal("expected the original password to still work after a rejected change")
+	}
+}
+
+func TestUpdatePasswordHandler_RejectsTooShortNewPassword(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-123", "actual_user", 42)
+
+	body, _ := json.Marshal(map[string]string{"current_password": "secret123", "new_password": "short"})
+	req := authenticatedRequest(http.MethodPost, "/updatePassword", bytes.NewBuffer(body), "session-123")
+	rr := httptest.NewRecorder()
+
+	websocket.UpdatePasswordHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
+	}
+}
+
+func TestUpdatePasswordHandler_UpdatesPasswordSuccessfully(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-123", "actual_user", 42)
+
+	body, _ := json.Marshal(map[string]string{"current_password": "secret123", "new_password": "newpassword1"})
+	req := authenticatedRequest(http.MethodPost, "/updatePassword", bytes.NewBuffer(body), "session-123")
+	rr := httptest.NewRecorder()
+
+	websocket.UpdatePasswordHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var hash string
+	if err := db.QueryRow(`SELECT pass FROM user WHERE id = 42`).Scan(&hash); err != nil {
+		t.Fatalf("failed to fetch password hash: %v", err)
+	}
+	if !utility.CheckPasswordHash("newpassword1", hash) {
+		t.Fatal("expected the new password to work after a successful change")
+	}
+	if utility.CheckPasswordHash("secret123", hash) {
+		t.Fatal("expected the old password to no longer work after a successful change")
+	}
+}

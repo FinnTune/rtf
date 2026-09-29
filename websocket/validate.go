@@ -131,6 +131,41 @@ func validateRegistration(user *RegUser) error {
 	return nil
 }
 
+// validateProfileUpdate trims fname/lname/email and applies the same
+// per-field bounds validateRegistration uses for those three fields — kept
+// as its own function (rather than reusing validateRegistration directly)
+// since a profile update has no username/age/gender/password fields to
+// validate alongside them.
+func validateProfileUpdate(fname, lname, email string) (string, string, string, error) {
+	fname = strings.TrimSpace(fname)
+	lname = strings.TrimSpace(lname)
+	email = strings.TrimSpace(email)
+
+	if fname == "" || utf8.RuneCountInString(fname) > maxNameLength {
+		return "", "", "", fmt.Errorf("first name must be 1-%d characters", maxNameLength)
+	}
+	if lname == "" || utf8.RuneCountInString(lname) > maxNameLength {
+		return "", "", "", fmt.Errorf("last name must be 1-%d characters", maxNameLength)
+	}
+	if email == "" || len(email) > maxEmailLength || !emailRegex.MatchString(email) {
+		return "", "", "", fmt.Errorf("a valid email address is required")
+	}
+	return fname, lname, email, nil
+}
+
+// validatePasswordChange checks a password-change request's shape only —
+// whether currentPassword is actually correct is a database lookup the
+// caller does separately, once it knows the request itself is well-formed.
+func validatePasswordChange(currentPassword, newPassword string) error {
+	if currentPassword == "" || len(currentPassword) > maxPasswordLen {
+		return fmt.Errorf("current password is required")
+	}
+	if len(newPassword) < minPasswordLen || len(newPassword) > maxPasswordLen {
+		return fmt.Errorf("new password must be %d-%d characters", minPasswordLen, maxPasswordLen)
+	}
+	return nil
+}
+
 func validateLogin(username, password string) error {
 	if strings.TrimSpace(username) == "" || len(username) > maxEmailLength {
 		return fmt.Errorf("username is required")
