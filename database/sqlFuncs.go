@@ -154,6 +154,10 @@ func migrate(db *sql.DB) error {
 		return fmt.Errorf("adding category_name unique index: %w", err)
 	}
 
+	if err := normalizeExistingEmailsToLowercase(db); err != nil {
+		return fmt.Errorf("normalizing existing emails to lowercase: %w", err)
+	}
+
 	return nil
 }
 
@@ -202,6 +206,44 @@ func addCategoryNameUniqueIndex(db *sql.DB) error {
 
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_category_name_unique ON category(category_name)`); err != nil {
 		return fmt.Errorf("creating unique index on category_name: %w", err)
+	}
+	return nil
+}
+
+// normalizeExistingEmailsToLowercase backfills user.email to lowercase for
+// rows written before validateRegistration/validateProfileUpdate started
+// normalizing it (see validateRegistration's doc comment for why email,
+// unlike username, is treated as case-insensitive) — without this, an
+// already-deployed database's older rows would stay mixed-case forever,
+// and a new registration/profile-update that's now correctly rejected as
+// a case-only duplicate of one of THOSE older rows would otherwise depend
+// entirely on the application-level LOWER() checks (serveLogin,
+// UpdateProfileHandler) rather than the data itself ever becoming
+// canonical.
+//
+// Same check-first safety as addCategoryNameUniqueIndex: if two existing
+// rows already differ only by case (impossible for rows written after
+// this migration first ships, but not ruled out for older ones), blindly
+// lowercasing would make both rows try to hold the identical email string,
+// tripping user.email's UNIQUE constraint and crashing the server on every
+// future start (migrate() failing is fatal — see OpenDB). Skipping in that
+// case leaves those specific rows for manual cleanup, same as
+// addCategoryNameUniqueIndex does for duplicate category names.
+func normalizeExistingEmailsToLowercase(db *sql.DB) error {
+	var collidingGroups int
+	if err := db.QueryRow(`
+		SELECT COUNT(*) FROM (
+			SELECT LOWER(email) FROM user GROUP BY LOWER(email) HAVING COUNT(*) > 1
+		)`).Scan(&collidingGroups); err != nil {
+		return fmt.Errorf("checking for email case collisions: %w", err)
+	}
+	if collidingGroups > 0 {
+		slog.Warn("skipping email lowercase backfill: two or more existing accounts share an email differing only by case", "colliding_groups", collidingGroups)
+		return nil
+	}
+
+	if _, err := db.Exec(`UPDATE user SET email = LOWER(email) WHERE email != LOWER(email)`); err != nil {
+		return fmt.Errorf("lowercasing existing emails: %w", err)
 	}
 	return nil
 }

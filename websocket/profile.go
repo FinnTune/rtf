@@ -82,9 +82,12 @@ func UpdateProfileHandler(w http.ResponseWriter, r *http.Request) {
 	// EditCategoryHandler: the COUNT(*) check gives a friendly error in the
 	// common case, and user.email's UNIQUE constraint is the actual
 	// TOCTOU-safe backstop against two concurrent requests racing onto the
-	// same email.
+	// same email. LOWER() on both sides — validateProfileUpdate already
+	// lowercases `email`, but an older, pre-normalization row this is being
+	// compared against might still be stored mixed-case (see migrate()'s
+	// one-time backfill and validateRegistration's doc comment).
 	var existing int
-	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM user WHERE email = ? AND id != ?", email, client.userID).Scan(&existing); err != nil {
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM user WHERE LOWER(email) = ? AND id != ?", email, client.userID).Scan(&existing); err != nil {
 		slog.Error("failed to check existing email", "error", err, "user_id", client.userID)
 		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
 		return
