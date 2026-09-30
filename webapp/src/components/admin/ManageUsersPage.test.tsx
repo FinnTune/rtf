@@ -90,6 +90,51 @@ describe('ManageUsersPage', () => {
     expect(within(bobRow).queryByText(/— banned/)).not.toBeInTheDocument()
   })
 
+  // Regression test: SetUserBannedHandler rejects banning a fellow admin
+  // account server-side, but the button previously gave no indication of
+  // that until the click actually failed — mirrors the existing self-ban
+  // disabled-button treatment.
+  it('disables the Ban button for a fellow admin, with a reason exposed, but allows unbanning one', async () => {
+    let users = [
+      { id: 1, username: 'admin', email: 'admin@example.com', role: 'admin', banned: false },
+      { id: 2, username: 'otherAdmin', email: 'other-admin@example.com', role: 'admin', banned: true },
+    ]
+
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = requestUrl(input)
+      if (url.startsWith('/checkLogin')) return checkLoginResponse('admin')
+      if (url.startsWith('/listUsers')) return new Response(JSON.stringify(users), { status: 200 })
+      if (url.startsWith('/setUserBanned')) {
+        const { user_id, banned } = JSON.parse(init!.body as string)
+        users = users.map((u) => (u.id === user_id ? { ...u, banned } : u))
+        return new Response('', { status: 200 })
+      }
+      throw new Error('Unexpected fetch: ' + url)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <StatusMessageProvider>
+        <AuthProvider>
+          <ManageUsersPage />
+        </AuthProvider>
+      </StatusMessageProvider>,
+    )
+
+    const otherAdminRow = (await screen.findByText(/otherAdmin/)).closest('li')!
+    // otherAdmin starts banned, so Unban must be enabled even though
+    // they're a fellow admin — only the ban direction is blocked.
+    const unbanButton = within(otherAdminRow).getByRole('button', { name: 'Unban' })
+    expect(unbanButton).toBeEnabled()
+
+    await userEvent.click(unbanButton)
+    await waitFor(() => expect(within(otherAdminRow).getByRole('button', { name: 'Ban' })).toBeInTheDocument())
+
+    const banButton = within(otherAdminRow).getByRole('button', { name: 'Ban' })
+    expect(banButton).toBeDisabled()
+    expect(banButton).toHaveAttribute('title', "You can't ban another admin account")
+  })
+
   it('requests users with limit/offset and shows Previous/Next controls once there are more than one page', async () => {
     const page1 = Array.from({ length: 20 }, (_, i) => ({
       id: i + 1,

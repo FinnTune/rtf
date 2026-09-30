@@ -1473,6 +1473,26 @@ func SetUserBannedHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Banning a FELLOW admin has no guard beyond RequireAdmin — any admin
+	// could silently disable every other admin account one at a time
+	// (kickUser disconnects them immediately, and checkLogin/serveLogin
+	// reject them from then on), leaving themselves as the sole admin with
+	// no role-hierarchy or "last admin" concept to fall back on. Unbanning
+	// an admin is never blocked — only the ban direction is a governance
+	// risk.
+	if requestBody.Banned {
+		targetIsAdmin, err := isAdmin(requestBody.UserID)
+		if err != nil {
+			slog.Error("failed to look up target role for ban", "error", err, "user_id", requestBody.UserID)
+			http.Error(w, "Failed to update user", http.StatusInternalServerError)
+			return
+		}
+		if targetIsAdmin {
+			http.Error(w, "you cannot ban another admin account", http.StatusBadRequest)
+			return
+		}
+	}
+
 	result, err := database.ForumDB.Exec("UPDATE user SET banned = ? WHERE id = ?", requestBody.Banned, requestBody.UserID)
 	if err != nil {
 		slog.Error("failed to update banned status", "error", err, "user_id", requestBody.UserID)

@@ -183,6 +183,70 @@ func TestSetUserBannedHandler_RejectsBanningSelf(t *testing.T) {
 	}
 }
 
+// TestSetUserBannedHandler_RejectsBanningAnotherAdmin guards against a real
+// governance/lockout risk: RequireAdmin gates this whole handler, but
+// nothing beyond that stopped one admin from banning a DIFFERENT admin
+// account — kickUser disconnects them immediately and checkLogin/serveLogin
+// reject them from then on, with no role-hierarchy or "last admin" concept
+// to fall back on.
+func TestSetUserBannedHandler_RejectsBanningAnotherAdmin(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-admin", "admin", 1)
+
+	if _, err := db.Exec(`UPDATE user SET role = 'admin' WHERE id = 2`); err != nil {
+		t.Fatalf("failed to promote alice to admin: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/setUserBanned", setUserBannedRequest(t, 2, true))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-admin"})
+	rr := httptest.NewRecorder()
+
+	websocket.SetUserBannedHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
+	}
+	var banned bool
+	if err := db.QueryRow(`SELECT banned FROM user WHERE id = 2`).Scan(&banned); err != nil {
+		t.Fatalf("failed to query banned status: %v", err)
+	}
+	if banned {
+		t.Fatal("an admin should not have been able to ban a fellow admin")
+	}
+}
+
+// TestSetUserBannedHandler_AllowsUnbanningAnotherAdmin guards against the
+// fix overreaching: only the BAN direction is a governance risk — an
+// already-banned admin account (e.g. banned before ever being promoted,
+// or by a since-corrected mistake) must still be unbannable.
+func TestSetUserBannedHandler_AllowsUnbanningAnotherAdmin(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-admin", "admin", 1)
+
+	if _, err := db.Exec(`UPDATE user SET role = 'admin', banned = 1 WHERE id = 2`); err != nil {
+		t.Fatalf("failed to set up a banned fellow admin: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/setUserBanned", setUserBannedRequest(t, 2, false))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-admin"})
+	rr := httptest.NewRecorder()
+
+	websocket.SetUserBannedHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var banned bool
+	if err := db.QueryRow(`SELECT banned FROM user WHERE id = 2`).Scan(&banned); err != nil {
+		t.Fatalf("failed to query banned status: %v", err)
+	}
+	if banned {
+		t.Fatal("expected the fellow admin to be unbanned")
+	}
+}
+
 func TestSetUserBannedHandler_DisconnectsLiveClientImmediately(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
