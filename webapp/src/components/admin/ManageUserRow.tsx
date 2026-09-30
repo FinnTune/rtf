@@ -14,6 +14,18 @@ export function ManageUserRow({ targetUser, isSelf, onChanged }: ManageUserRowPr
   const [working, setWorking] = useState(false)
   const { showMessage } = useStatusMessage()
 
+  // The backend is the real gate (SetUserBannedHandler re-checks this
+  // regardless of what the client claims) — this just avoids showing a
+  // Ban button whose click would visibly fail for a fellow admin's
+  // account. Only the ban direction is blocked; an already-banned admin
+  // (e.g. from before they were promoted) can still be unbanned.
+  const banningBlocked = !targetUser.banned && (isSelf || targetUser.role === 'admin')
+  const banningBlockedReason = isSelf
+    ? "You can't ban your own account"
+    : targetUser.role === 'admin'
+      ? "You can't ban another admin account"
+      : undefined
+
   async function handleToggleBanned() {
     const nextBanned = !targetUser.banned
     if (nextBanned && !window.confirm(`Ban ${targetUser.username}? They'll be signed out immediately and unable to log back in.`)) {
@@ -42,8 +54,8 @@ export function ManageUserRow({ targetUser, isSelf, onChanged }: ManageUserRowPr
         className={targetUser.banned ? 'btns' : 'btns btn-danger'}
         loading={working}
         loadingText="Saving..."
-        disabled={isSelf}
-        title={isSelf ? "You can't ban your own account" : undefined}
+        disabled={banningBlocked}
+        title={banningBlockedReason}
         onClick={() => void handleToggleBanned()}
       >
         {targetUser.banned ? 'Unban' : 'Ban'}
