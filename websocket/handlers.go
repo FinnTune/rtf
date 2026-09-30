@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/gorilla/websocket"
 	sqlite3 "github.com/mattn/go-sqlite3"
@@ -1382,6 +1383,12 @@ func DeleteCategoryHandler(w http.ResponseWriter, r *http.Request) {
 // only remaining unbounded listing endpoint in this file before this fix;
 // every other list (posts, comments, search) already paginates. Mirrors
 // AllPostsHandler's limit/offset/X-Total-Count contract.
+//
+// An optional ?q= filters to usernames/emails containing it (case-
+// insensitively — LIKE's default collation on TEXT is already NOCASE for
+// ASCII, which uname/email always are) — without this, an admin looking
+// for one user among many had no way to do so besides paging through the
+// whole list alphabetically 20 at a time.
 func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -1401,15 +1408,33 @@ func ListUsersHandler(w http.ResponseWriter, r *http.Request) {
 		offset = v
 	}
 
+	// Empty means "no filter" (the whole list, as before this fix) —
+	// unlike SearchPostsHandler's ?q=, which is the endpoint's whole
+	// purpose and rejects empty, this one is optional.
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
+	if utf8.RuneCountInString(query) > maxSearchQueryLength {
+		http.Error(w, fmt.Sprintf("search query must be at most %d characters", maxSearchQueryLength), http.StatusBadRequest)
+		return
+	}
+
+	var whereClause string
+	var filterArgs []any
+	if query != "" {
+		likePattern := "%" + escapeLikePattern(query) + "%"
+		whereClause = `WHERE uname LIKE ? ESCAPE '\' OR email LIKE ? ESCAPE '\'`
+		filterArgs = []any{likePattern, likePattern}
+	}
+
 	var total int
-	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM user").Scan(&total); err != nil {
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM user "+whereClause, filterArgs...).Scan(&total); err != nil {
 		slog.Error("error counting users", "error", err)
 		http.Error(w, "Failed to load users", http.StatusInternalServerError)
 		return
 	}
 
 	rows, err := database.ForumDB.Query(
-		"SELECT id, uname, email, role, banned FROM user ORDER BY uname ASC LIMIT ? OFFSET ?", limit, offset,
+		"SELECT id, uname, email, role, banned FROM user "+whereClause+" ORDER BY uname ASC LIMIT ? OFFSET ?",
+		append(filterArgs, limit, offset)...,
 	)
 	if err != nil {
 		slog.Error("error querying users", "error", err)

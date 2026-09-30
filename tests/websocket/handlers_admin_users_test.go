@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -119,6 +120,121 @@ func TestListUsersHandler_CapsLimitAtMax(t *testing.T) {
 	}
 	if got := rr.Header().Get("X-Total-Count"); got != "123" {
 		t.Fatalf("expected X-Total-Count 123 (3 seeded + 120 bulk), got %q", got)
+	}
+}
+
+// TestListUsersHandler_FiltersByUsernameOrEmailSubstring is the regression
+// test for the actual fix: ?q= used to not exist at all, so an admin
+// looking for one user among many had no way to do so besides paging
+// through the whole list alphabetically.
+func TestListUsersHandler_FiltersByUsernameOrEmailSubstring(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/listUsers?q=ali", nil)
+	rr := httptest.NewRecorder()
+	websocket.ListUsersHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var users []struct {
+		Username string `json:"username"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&users); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(users) != 1 || users[0].Username != "alice" {
+		t.Fatalf("expected exactly alice to match %q, got %+v", "ali", users)
+	}
+	if got := rr.Header().Get("X-Total-Count"); got != "1" {
+		t.Fatalf("expected X-Total-Count to reflect the filtered set (1), got %q", got)
+	}
+}
+
+// TestListUsersHandler_FilterMatchesEmailToo guards the OR half of the
+// filter — a query matching only the email, not the username, must still
+// find the user.
+func TestListUsersHandler_FilterMatchesEmailToo(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	// actual_user's seeded email is actual@example.com — "actual@" doesn't
+	// appear in the username "actual_user" itself, only the email.
+	req := httptest.NewRequest(http.MethodGet, "/listUsers?q=actual@", nil)
+	rr := httptest.NewRecorder()
+	websocket.ListUsersHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var users []struct {
+		Username string `json:"username"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&users); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(users) != 1 || users[0].Username != "actual_user" {
+		t.Fatalf("expected exactly actual_user to match by email, got %+v", users)
+	}
+}
+
+// TestListUsersHandler_FilterIsCaseInsensitive guards against a regression
+// this codebase has hit before (see the email/category case-sensitivity
+// fixes) — SQLite's LIKE is case-insensitive by default for ASCII, which
+// uname/email always are, but this pins that behavior down explicitly.
+func TestListUsersHandler_FilterIsCaseInsensitive(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/listUsers?q=ALICE", nil)
+	rr := httptest.NewRecorder()
+	websocket.ListUsersHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	var users []struct {
+		Username string `json:"username"`
+	}
+	if err := json.NewDecoder(rr.Body).Decode(&users); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if len(users) != 1 || users[0].Username != "alice" {
+		t.Fatalf("expected a case-insensitive match for alice, got %+v", users)
+	}
+}
+
+// TestListUsersHandler_BlankQueryReturnsEveryone guards the "optional"
+// half of the fix — unlike SearchPostsHandler's ?q= (which rejects an
+// empty query, since search is that endpoint's whole purpose), an empty
+// or whitespace-only q here must behave exactly like no filter at all.
+func TestListUsersHandler_BlankQueryReturnsEveryone(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/listUsers?q=%20%20", nil)
+	rr := httptest.NewRecorder()
+	websocket.ListUsersHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	if got := rr.Header().Get("X-Total-Count"); got != "3" {
+		t.Fatalf("expected all 3 seeded users with a blank query, got X-Total-Count %q", got)
+	}
+}
+
+func TestListUsersHandler_RejectsOverlongQuery(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/listUsers?q="+strings.Repeat("a", 101), nil)
+	rr := httptest.NewRecorder()
+	websocket.ListUsersHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
 	}
 }
 
