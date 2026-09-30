@@ -395,8 +395,16 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 		//Create instance of User struct to hold user info from database
 		userInfo := User{}
 
-		//Query database for user info, scan into struct, and check if password matches
-		err := database.ForumDB.QueryRow("SELECT id, uname, email, pass, created_at, role, banned FROM user WHERE uname = $1 OR email = $1", req.Username).Scan(&userInfo.ID, &userInfo.Username, &userInfo.Email, &userInfo.Password, &userInfo.Joined, &userInfo.Role, &userInfo.Banned)
+		// uname matches exact-case (usernames are case-preserving, unlike
+		// email); email matches case-insensitively via LOWER(), since
+		// user.email is stored lowercase for every row normalized so far
+		// (new registrations/profile updates, plus migrate()'s one-time
+		// backfill) — see validateRegistration's doc comment for why email
+		// alone gets this treatment.
+		err := database.ForumDB.QueryRow(
+			"SELECT id, uname, email, pass, created_at, role, banned FROM user WHERE uname = ? OR LOWER(email) = LOWER(?)",
+			req.Username, req.Username,
+		).Scan(&userInfo.ID, &userInfo.Username, &userInfo.Email, &userInfo.Password, &userInfo.Joined, &userInfo.Role, &userInfo.Banned)
 		if err != nil {
 			// Never log userInfo here — never populated on this path, but
 			// this is also the wrong-username/wrong-password failure path in
@@ -710,6 +718,26 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := validateRegistration(&user); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// validateRegistration already lowercases user.Email, so this catches a
+	// collision against a NEW registration using the same email in a
+	// different case. It also has to catch a collision against an OLDER,
+	// pre-normalization row that's still stored mixed-case (see the
+	// migrate() step that lowercases existing emails where it safely can) —
+	// user.email's UNIQUE constraint alone can't, since SQLite's default
+	// BINARY collation treats "Foo@Bar.com" and "foo@bar.com" as distinct.
+	// Same check-then-constraint-backstop shape as category_name's
+	// uniqueness handling elsewhere in this file.
+	var existingEmail int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM user WHERE LOWER(email) = ?", user.Email).Scan(&existingEmail); err != nil {
+		slog.Error("failed to check existing email", "error", err)
+		http.Error(w, "Failed to register user", http.StatusInternalServerError)
+		return
+	}
+	if existingEmail > 0 {
+		http.Error(w, "Username or email already exists", http.StatusConflict)
 		return
 	}
 

@@ -103,7 +103,14 @@ func validateRegistration(user *RegUser) error {
 	user.Fname = strings.TrimSpace(user.Fname)
 	user.Lname = strings.TrimSpace(user.Lname)
 	user.Uname = strings.TrimSpace(user.Uname)
-	user.Email = strings.TrimSpace(user.Email)
+	// Lowercased, unlike Uname: email conventionally is case-insensitive
+	// (provider- and RFC-adjacent convention, not case-preserving like a
+	// username), so storing it canonically lowercase is what makes the
+	// UNIQUE constraint on user.email actually mean what it advertises —
+	// otherwise "Foo@Bar.com" and "foo@bar.com" pass as two distinct,
+	// registerable emails. See serveLogin's matching LOWER(email)
+	// comparison and UpdateProfileHandler's equivalent uniqueness check.
+	user.Email = strings.ToLower(strings.TrimSpace(user.Email))
 	user.Gender = strings.TrimSpace(user.Gender)
 
 	if user.Fname == "" || utf8.RuneCountInString(user.Fname) > maxNameLength {
@@ -139,7 +146,9 @@ func validateRegistration(user *RegUser) error {
 func validateProfileUpdate(fname, lname, email string) (string, string, string, error) {
 	fname = strings.TrimSpace(fname)
 	lname = strings.TrimSpace(lname)
-	email = strings.TrimSpace(email)
+	// Lowercased — see validateRegistration's identical normalization and
+	// its doc comment for why.
+	email = strings.ToLower(strings.TrimSpace(email))
 
 	if fname == "" || utf8.RuneCountInString(fname) > maxNameLength {
 		return "", "", "", fmt.Errorf("first name must be 1-%d characters", maxNameLength)

@@ -110,6 +110,81 @@ func TestUpdateProfileHandler_UpdatesOwnFnameLnameAndEmail(t *testing.T) {
 	}
 }
 
+// TestUpdateProfileHandler_NormalizesEmailToLowercase guards the same fix
+// as TestRegistrationHandler_NormalizesEmailToLowercase, for the profile
+// update path.
+func TestUpdateProfileHandler_NormalizesEmailToLowercase(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-123", "actual_user", 42)
+
+	body, _ := json.Marshal(map[string]string{"fname": "Actual", "lname": "User", "email": "New@Example.com"})
+	req := authenticatedRequest(http.MethodPost, "/updateProfile", bytes.NewBuffer(body), "session-123")
+	rr := httptest.NewRecorder()
+
+	websocket.UpdateProfileHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var email string
+	if err := db.QueryRow(`SELECT email FROM user WHERE id = 42`).Scan(&email); err != nil {
+		t.Fatalf("failed to fetch updated email: %v", err)
+	}
+	if email != "new@example.com" {
+		t.Fatalf("expected the stored email to be lowercased, got %q", email)
+	}
+}
+
+// TestUpdateProfileHandler_RejectsEmailDifferingOnlyByCaseFromAnotherUser
+// guards the other half of the same fix: a profile update must be rejected
+// as a duplicate of another user's email even when the only difference is
+// case (alice, seeded, already owns alice@example.com).
+func TestUpdateProfileHandler_RejectsEmailDifferingOnlyByCaseFromAnotherUser(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-123", "actual_user", 42)
+
+	body, _ := json.Marshal(map[string]string{"fname": "Actual", "lname": "User", "email": "Alice@Example.com"})
+	req := authenticatedRequest(http.MethodPost, "/updateProfile", bytes.NewBuffer(body), "session-123")
+	rr := httptest.NewRecorder()
+
+	websocket.UpdateProfileHandler(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, rr.Code, rr.Body.String())
+	}
+}
+
+// TestUpdateProfileHandler_RejectsEmailDifferingOnlyByCaseFromLegacyMixedCaseRow
+// guards the stored-side LOWER(email) comparison specifically — see the
+// identical-in-spirit registration test's doc comment for why the
+// seeded-alice test above alone doesn't cover this (her email is already
+// lowercase).
+func TestUpdateProfileHandler_RejectsEmailDifferingOnlyByCaseFromLegacyMixedCaseRow(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-123", "actual_user", 42)
+
+	if _, err := db.Exec(
+		`INSERT INTO user (fname, lname, uname, email, age, gender, pass, created_at) VALUES
+		('Legacy', 'User', 'legacyuser', 'Legacy@Example.com', '40', 'other', 'hash', datetime('now'))`,
+	); err != nil {
+		t.Fatalf("failed to seed a legacy mixed-case email row: %v", err)
+	}
+
+	body, _ := json.Marshal(map[string]string{"fname": "Actual", "lname": "User", "email": "legacy@example.com"})
+	req := authenticatedRequest(http.MethodPost, "/updateProfile", bytes.NewBuffer(body), "session-123")
+	rr := httptest.NewRecorder()
+
+	websocket.UpdateProfileHandler(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, rr.Code, rr.Body.String())
+	}
+}
+
 // TestUpdateProfileHandler_RejectsEmailAlreadyInUseByAnotherUser guards the
 // same email-uniqueness invariant registration already enforces (user.email
 // is UNIQUE) — a profile update must re-check it too, not just at signup.

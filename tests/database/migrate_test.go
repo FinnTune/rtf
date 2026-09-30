@@ -240,3 +240,66 @@ func TestMigrate_SkipsCategoryNameUniqueIndexWhenDuplicatesAlreadyExist(t *testi
 		t.Fatalf("expected no unique constraint to have been added, but insert failed: %v", err)
 	}
 }
+
+// TestMigrate_LowercasesExistingMixedCaseEmails covers the backfill half of
+// normalizing email case (see validateRegistration's doc comment for why
+// email, unlike username, is treated as case-insensitive): an
+// already-deployed database's older rows, written before that
+// normalization existed, must not stay mixed-case forever.
+func TestMigrate_LowercasesExistingMixedCaseEmails(t *testing.T) {
+	db := openPreRoleDB(t)
+	if _, err := db.Exec(`
+		INSERT INTO user (fname, lname, uname, email, age, gender, pass, created_at) VALUES
+		('Bob', 'Jones', 'bob', 'Bob@Example.com', '31', 'male', 'hash', datetime('now'))`,
+	); err != nil {
+		t.Fatalf("failed to seed mixed-case email: %v", err)
+	}
+
+	if err := database.MigrateForTest(db); err != nil {
+		t.Fatalf("MigrateForTest: %v", err)
+	}
+
+	var email string
+	if err := db.QueryRow(`SELECT email FROM user WHERE uname = 'bob'`).Scan(&email); err != nil {
+		t.Fatalf("failed to fetch email: %v", err)
+	}
+	if email != "bob@example.com" {
+		t.Fatalf("expected the mixed-case email to be backfilled to lowercase, got %q", email)
+	}
+}
+
+// TestMigrate_SkipsEmailLowercaseBackfillWhenCollisionWouldOccur covers the
+// same fatal-migration safety concern as
+// TestMigrate_SkipsCategoryNameUniqueIndexWhenDuplicatesAlreadyExist: two
+// existing rows that already differ only by email case would, if blindly
+// lowercased, collide on user.email's UNIQUE constraint and crash the
+// server on every future start (migrate() failing is fatal — see OpenDB).
+// Must skip (loudly) rather than fail outright.
+func TestMigrate_SkipsEmailLowercaseBackfillWhenCollisionWouldOccur(t *testing.T) {
+	db := openPreRoleDB(t)
+	if _, err := db.Exec(`
+		INSERT INTO user (fname, lname, uname, email, age, gender, pass, created_at) VALUES
+		('Bob', 'Jones', 'bob', 'Bob@Example.com', '31', 'male', 'hash', datetime('now')),
+		('Bobby', 'Jonas', 'bobby', 'bob@example.com', '32', 'male', 'hash', datetime('now'))`,
+	); err != nil {
+		t.Fatalf("failed to seed colliding emails: %v", err)
+	}
+
+	if err := database.MigrateForTest(db); err != nil {
+		t.Fatalf("expected MigrateForTest to skip rather than fail on a case-collision, got: %v", err)
+	}
+
+	// Confirms the backfill genuinely didn't run (rather than having
+	// silently succeeded some other way) — both original emails must be
+	// untouched.
+	var bobEmail, bobbyEmail string
+	if err := db.QueryRow(`SELECT email FROM user WHERE uname = 'bob'`).Scan(&bobEmail); err != nil {
+		t.Fatalf("failed to fetch bob's email: %v", err)
+	}
+	if err := db.QueryRow(`SELECT email FROM user WHERE uname = 'bobby'`).Scan(&bobbyEmail); err != nil {
+		t.Fatalf("failed to fetch bobby's email: %v", err)
+	}
+	if bobEmail != "Bob@Example.com" || bobbyEmail != "bob@example.com" {
+		t.Fatalf("expected both emails untouched by a skipped backfill, got %q and %q", bobEmail, bobbyEmail)
+	}
+}

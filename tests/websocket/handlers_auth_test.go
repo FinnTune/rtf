@@ -37,6 +37,94 @@ func TestRegistrationHandler_Success(t *testing.T) {
 	}
 }
 
+// TestRegistrationHandler_NormalizesEmailToLowercase guards the fix for
+// email case-sensitivity: without it, "Bob@Example.com" and
+// "bob@example.com" would be treated as two distinct, independently
+// registerable emails despite user.email's UNIQUE constraint.
+func TestRegistrationHandler_NormalizesEmailToLowercase(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	body := `{
+		"fname":"Bob","lname":"Jones","uname":"bob","email":"Bob@Example.com",
+		"age":"31","gender":"male","password":"newpass123"
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBufferString(body))
+	rr := httptest.NewRecorder()
+
+	websocket.RegistrationHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var email string
+	if err := db.QueryRow(`SELECT email FROM user WHERE uname = 'bob'`).Scan(&email); err != nil {
+		t.Fatalf("failed to fetch registered email: %v", err)
+	}
+	if email != "bob@example.com" {
+		t.Fatalf("expected the stored email to be lowercased, got %q", email)
+	}
+}
+
+// TestRegistrationHandler_RejectsEmailDifferingOnlyByCaseFromExisting
+// guards the other half of the same fix: a new registration must be
+// rejected as a duplicate of an existing account's email even when the
+// only difference is case (the seeded alice already owns
+// alice@example.com).
+func TestRegistrationHandler_RejectsEmailDifferingOnlyByCaseFromExisting(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	body := `{
+		"fname":"Second","lname":"Alice","uname":"alice2","email":"Alice@Example.com",
+		"age":"31","gender":"female","password":"newpass123"
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBufferString(body))
+	rr := httptest.NewRecorder()
+
+	websocket.RegistrationHandler(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, rr.Code, rr.Body.String())
+	}
+}
+
+// TestRegistrationHandler_RejectsEmailDifferingOnlyByCaseFromLegacyMixedCaseRow
+// guards the stored-side LOWER(email) comparison specifically: the
+// seeded test users' emails are already lowercase, so
+// TestRegistrationHandler_RejectsEmailDifferingOnlyByCaseFromExisting alone
+// wouldn't catch a regression that only lowercases the newly-submitted
+// email (validateRegistration) without also comparing case-insensitively
+// against whatever case an EXISTING row happens to be stored in — exactly
+// the shape of an older, pre-normalization row (see migrate()'s
+// normalizeExistingEmailsToLowercase, which backfills these where safe,
+// but can't guarantee every row ever gets backfilled).
+func TestRegistrationHandler_RejectsEmailDifferingOnlyByCaseFromLegacyMixedCaseRow(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	if _, err := db.Exec(
+		`INSERT INTO user (fname, lname, uname, email, age, gender, pass, created_at) VALUES
+		('Legacy', 'User', 'legacyuser', 'Legacy@Example.com', '40', 'other', 'hash', datetime('now'))`,
+	); err != nil {
+		t.Fatalf("failed to seed a legacy mixed-case email row: %v", err)
+	}
+
+	body := `{
+		"fname":"New","lname":"User","uname":"newuser","email":"legacy@example.com",
+		"age":"31","gender":"male","password":"newpass123"
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewBufferString(body))
+	rr := httptest.NewRecorder()
+
+	websocket.RegistrationHandler(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, rr.Code, rr.Body.String())
+	}
+}
+
 func TestRegistrationHandler_InvalidJSON(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
@@ -80,6 +168,54 @@ func TestLoginHandler_Success(t *testing.T) {
 	}
 	if resp.Role != "user" {
 		t.Fatalf("expected role 'user' for alice, got %q", resp.Role)
+	}
+}
+
+// TestLoginHandler_MatchesEmailCaseInsensitively guards the login half of
+// the email case-sensitivity fix: the seeded alice's email is
+// alice@example.com, but logging in with any other casing must still work
+// — a user who registered with (or whose email was later normalized to a
+// different case than) what they type shouldn't be locked out.
+func TestLoginHandler_MatchesEmailCaseInsensitively(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	body := `{"username":"ALICE@EXAMPLE.COM","password":"secret123"}`
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString(body))
+	rr := httptest.NewRecorder()
+
+	websocket.LoginHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var resp websocket.UserLoginResponse
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp.Username != "alice" {
+		t.Fatalf("expected username alice, got %q", resp.Username)
+	}
+}
+
+// TestLoginHandler_UsernameMatchingStaysCaseSensitive guards against the
+// fix overreaching: usernames are case-preserving identity strings, unlike
+// email — only the email side of serveLogin's lookup was made
+// case-insensitive, and this confirms logging in with the wrong-case
+// username still fails exactly like before.
+func TestLoginHandler_UsernameMatchingStaysCaseSensitive(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	body := `{"username":"ALICE","password":"secret123"}`
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString(body))
+	rr := httptest.NewRecorder()
+
+	websocket.LoginHandler(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected wrong-case username to still be rejected with status %d, got %d", http.StatusUnauthorized, rr.Code)
 	}
 }
 
