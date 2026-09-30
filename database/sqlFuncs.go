@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 
 	//sqlite3
 	_ "github.com/mattn/go-sqlite3"
@@ -154,6 +155,10 @@ func migrate(db *sql.DB) error {
 		return fmt.Errorf("adding category_name unique index: %w", err)
 	}
 
+	if err := makeCategoryNameUniqueIndexCaseInsensitive(db); err != nil {
+		return fmt.Errorf("making category_name unique index case-insensitive: %w", err)
+	}
+
 	if err := normalizeExistingEmailsToLowercase(db); err != nil {
 		return fmt.Errorf("normalizing existing emails to lowercase: %w", err)
 	}
@@ -206,6 +211,69 @@ func addCategoryNameUniqueIndex(db *sql.DB) error {
 
 	if _, err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_category_name_unique ON category(category_name)`); err != nil {
 		return fmt.Errorf("creating unique index on category_name: %w", err)
+	}
+	return nil
+}
+
+// makeCategoryNameUniqueIndexCaseInsensitive upgrades idx_category_name_unique
+// to compare case-insensitively (COLLATE NOCASE) — without this, "Sports"
+// and "sports" pass as two distinct, independently creatable/renameable
+// category names despite the index's own name suggesting otherwise. Unlike
+// user.email (normalizeExistingEmailsToLowercase), category_name is a
+// case-preserving display string, so this makes the COMPARISON
+// case-insensitive rather than normalizing stored values to lowercase.
+//
+// Runs unconditionally on every start (not just once) since it's cheap and
+// idempotent: the SQL-inspection check below makes it a no-op the moment
+// the index is already case-insensitive, whether that's because a brand-
+// new database's createTables.sql already creates it that way, or because
+// this migration already ran here before.
+//
+// Same check-first safety as addCategoryNameUniqueIndex: replacing the
+// index would fail outright if any two existing categories already differ
+// only by case (a UNIQUE index can't be created over data that already
+// violates it), and since migrate() failing is fatal (see OpenDB), that
+// would take the whole server down on every future start. Skip (loudly) in
+// that case instead, leaving the existing case-sensitive index in place.
+func makeCategoryNameUniqueIndexCaseInsensitive(db *sql.DB) error {
+	var hasCategoryTable int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'category'`).Scan(&hasCategoryTable); err != nil {
+		return fmt.Errorf("checking for category table: %w", err)
+	}
+	if hasCategoryTable == 0 {
+		return nil
+	}
+
+	var currentIndexSQL sql.NullString
+	err := db.QueryRow(`SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_category_name_unique'`).Scan(&currentIndexSQL)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("checking existing category_name index: %w", err)
+	}
+	if err == nil && strings.Contains(strings.ToUpper(currentIndexSQL.String), "NOCASE") {
+		return nil
+	}
+
+	var dupes int
+	if err := db.QueryRow(`
+		SELECT COUNT(*) FROM (
+			SELECT LOWER(category_name) FROM category GROUP BY LOWER(category_name) HAVING COUNT(*) > 1
+		)`).Scan(&dupes); err != nil {
+		return fmt.Errorf("checking for case-insensitive duplicate category names: %w", err)
+	}
+	if dupes > 0 {
+		slog.Warn("skipping case-insensitive category_name unique index: two or more existing categories share a name differing only by case", "distinct_duplicated_names", dupes)
+		return nil
+	}
+
+	// No index to drop is fine too (IF EXISTS) — that's the case where
+	// addCategoryNameUniqueIndex itself skipped (exact-duplicate names
+	// already existed there, a stricter condition than the case-insensitive
+	// dupe check above already just cleared).
+	if _, err := db.Exec(`DROP INDEX IF EXISTS idx_category_name_unique`); err != nil {
+		return fmt.Errorf("dropping case-sensitive category_name index: %w", err)
+	}
+	if _, err := db.Exec(`CREATE UNIQUE INDEX idx_category_name_unique ON category(category_name COLLATE NOCASE)`); err != nil {
+		return fmt.Errorf("creating case-insensitive unique index on category_name: %w", err)
 	}
 	return nil
 }

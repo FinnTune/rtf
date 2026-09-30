@@ -1212,7 +1212,7 @@ func CreateCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var existing int
-	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM category WHERE category_name = ?", name).Scan(&existing); err != nil {
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM category WHERE category_name = ? COLLATE NOCASE", name).Scan(&existing); err != nil {
 		slog.Error("failed to check existing category", "error", err)
 		http.Error(w, "Failed to create category", http.StatusInternalServerError)
 		return
@@ -1278,7 +1278,7 @@ func EditCategoryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var existing int
-	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM category WHERE category_name = ? AND id != ?", name, requestBody.ID).Scan(&existing); err != nil {
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM category WHERE category_name = ? COLLATE NOCASE AND id != ?", name, requestBody.ID).Scan(&existing); err != nil {
 		slog.Error("failed to check existing category", "error", err)
 		http.Error(w, "Failed to update category", http.StatusInternalServerError)
 		return
