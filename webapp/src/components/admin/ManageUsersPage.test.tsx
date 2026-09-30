@@ -207,4 +207,76 @@ describe('ManageUsersPage', () => {
       false,
     )
   })
+
+  // Regression test for the actual fix: ListUsersHandler's ?q= used to not
+  // exist at all, so there was no way to search for a user besides paging
+  // through the whole list alphabetically.
+  it('submitting a search sends q= and resets back to offset 0', async () => {
+    const allUsers = [
+      { id: 1, username: 'admin', email: 'admin@example.com', role: 'admin', banned: false },
+      { id: 2, username: 'alice', email: 'alice@example.com', role: 'user', banned: false },
+    ]
+    const filteredUsers = [allUsers[1]]
+
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = requestUrl(input)
+      if (url.startsWith('/checkLogin')) return checkLoginResponse('admin')
+      if (url.startsWith('/listUsers')) {
+        const q = new URL(url, 'https://localhost').searchParams.get('q')
+        const body = q ? filteredUsers : allUsers
+        return new Response(JSON.stringify(body), { status: 200, headers: { 'X-Total-Count': String(body.length) } })
+      }
+      throw new Error('Unexpected fetch: ' + url)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <StatusMessageProvider>
+        <AuthProvider>
+          <ManageUsersPage />
+        </AuthProvider>
+      </StatusMessageProvider>,
+    )
+    await screen.findByText(/admin@/)
+    expect(screen.getByText(/alice@/)).toBeInTheDocument()
+
+    await userEvent.type(screen.getByLabelText('Search users by username or email'), 'alice')
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }))
+
+    await waitFor(() => expect(screen.queryByText(/^admin@/)).not.toBeInTheDocument())
+    expect(screen.getByText(/alice@/)).toBeInTheDocument()
+
+    const searchCall = fetchMock.mock.calls.find(([input]) => requestUrl(input as string | URL | Request).includes('q=alice'))
+    expect(searchCall).toBeDefined()
+    expect(requestUrl(searchCall![0] as string | URL | Request)).toContain('offset=0')
+  })
+
+  it('a blank search still calls listUsers without a q param', async () => {
+    const users = [{ id: 2, username: 'bob', email: 'bob@example.com', role: 'user', banned: false }]
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = requestUrl(input)
+      if (url.startsWith('/checkLogin')) return checkLoginResponse('admin')
+      if (url.startsWith('/listUsers')) return new Response(JSON.stringify(users), { status: 200 })
+      throw new Error('Unexpected fetch: ' + url)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(
+      <StatusMessageProvider>
+        <AuthProvider>
+          <ManageUsersPage />
+        </AuthProvider>
+      </StatusMessageProvider>,
+    )
+    await screen.findByText(/bob@/)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }))
+
+    await waitFor(() => {
+      const calls = fetchMock.mock.calls.filter(([input]) => requestUrl(input as string | URL | Request).startsWith('/listUsers'))
+      expect(calls.length).toBeGreaterThanOrEqual(2)
+    })
+    const lastListUsersCall = fetchMock.mock.calls.filter(([input]) => requestUrl(input as string | URL | Request).startsWith('/listUsers')).at(-1)
+    expect(requestUrl(lastListUsersCall![0] as string | URL | Request)).not.toContain('q=')
+  })
 })

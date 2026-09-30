@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { listUsers } from '../../api/admin'
 import { useAuth } from '../../contexts/AuthContext'
 import { useStatusMessage } from '../../contexts/StatusMessageContext'
@@ -27,12 +27,13 @@ function ManageUsersList({ currentUsername }: { currentUsername: string }) {
   const [offset, setOffset] = useState(0)
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState('')
   const { showMessage } = useStatusMessage()
 
   const load = useCallback(
-    (targetOffset: number) => {
+    (targetOffset: number, targetQuery: string) => {
       setLoading(true)
-      listUsers(targetOffset, USERS_PAGE_SIZE)
+      listUsers(targetOffset, USERS_PAGE_SIZE, targetQuery || undefined)
         .then((result) => {
           setUsers(result.users)
           // Falls back to the page's own length if the backend ever omits
@@ -50,25 +51,48 @@ function ManageUsersList({ currentUsername }: { currentUsername: string }) {
   )
 
   useEffect(() => {
-    load(0)
+    load(0, '')
     // eslint-disable-next-line react-hooks/exhaustive-deps -- load only on mount, like every other paginated list's initial fetch
   }, [])
+
+  // A new search always starts back at offset 0 — the previous page's
+  // offset is almost certainly meaningless against the new, filtered
+  // result set.
+  function handleSearchSubmit(event: FormEvent) {
+    event.preventDefault()
+    load(0, query)
+  }
 
   return (
     <div id="manage-users">
       <h3>Manage Users</h3>
-      {!loading && users.length === 0 && <p className="empty-state">No users yet.</p>}
+      <form className="manage-users-search" onSubmit={handleSearchSubmit}>
+        <input
+          type="text"
+          aria-label="Search users by username or email"
+          placeholder="Search by username or email…"
+          maxLength={100}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        <button type="submit" className="btns">
+          Search
+        </button>
+      </form>
+      {!loading && users.length === 0 && <p className="empty-state">No users found.</p>}
       <ul className="manage-category-list">
         {users.map((targetUser) => (
           <ManageUserRow
             key={targetUser.id}
             targetUser={targetUser}
             isSelf={targetUser.username === currentUsername}
-            onChanged={() => load(offset)}
+            onChanged={() => load(offset, query)}
           />
         ))}
       </ul>
-      {total > USERS_PAGE_SIZE && <Pagination offset={offset} pageSize={USERS_PAGE_SIZE} total={total} loading={loading} onNavigate={load} />}
+      {total > USERS_PAGE_SIZE && (
+        <Pagination offset={offset} pageSize={USERS_PAGE_SIZE} total={total} loading={loading} onNavigate={(nextOffset) => load(nextOffset, query)} />
+      )}
     </div>
   )
 }

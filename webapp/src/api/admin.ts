@@ -6,8 +6,10 @@ interface UserPage {
   total: number | null
 }
 
-export async function listUsers(offset: number, limit: number): Promise<UserPage> {
-  const { data, total } = await requestJson<UserSummary[]>(`/listUsers?limit=${limit}&offset=${offset}`)
+export async function listUsers(offset: number, limit: number, query?: string): Promise<UserPage> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+  if (query) params.set('q', query)
+  const { data, total } = await requestJson<UserSummary[]>(`/listUsers?${params.toString()}`)
   return { users: data, total }
 }
 
