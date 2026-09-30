@@ -88,6 +88,56 @@ func createGroupConversation(name string, memberIDs []int) (int, error) {
 	return convID, nil
 }
 
+// addConversationMember adds userID to an already-existing conversation —
+// used when an existing member invites someone into a group after the
+// fact, unlike createGroupConversation's bulk insert at creation time.
+func addConversationMember(convID, userID int) error {
+	now := time.Now().Format("2006-01-02 15:04:05")
+	if _, err := database.ForumDB.Exec(
+		`INSERT OR IGNORE INTO conversation_member (conversation_id, user_id, joined_at) VALUES (?, ?, ?)`,
+		convID, userID, now,
+	); err != nil {
+		return fmt.Errorf("adding conversation member: %w", err)
+	}
+	return nil
+}
+
+// removeConversationMember removes userID from conversation convID — a
+// member leaving, or being removed by another member. If this empties the
+// conversation entirely, deletes it (and its messages/read-states) too:
+// nothing else in this schema ever deletes a conversation, so without this
+// an abandoned, memberless group would sit in the database permanently,
+// unreachable by anyone but still holding rows that reference it.
+func removeConversationMember(convID, userID int) error {
+	tx, err := database.ForumDB.Begin()
+	if err != nil {
+		return fmt.Errorf("beginning member removal transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM conversation_member WHERE conversation_id = ? AND user_id = ?`, convID, userID); err != nil {
+		return fmt.Errorf("removing conversation member: %w", err)
+	}
+
+	var remaining int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM conversation_member WHERE conversation_id = ?`, convID).Scan(&remaining); err != nil {
+		return fmt.Errorf("counting remaining members: %w", err)
+	}
+	if remaining == 0 {
+		if _, err := tx.Exec(`DELETE FROM message_read WHERE conversation_id = ?`, convID); err != nil {
+			return fmt.Errorf("deleting message_read for emptied conversation: %w", err)
+		}
+		if _, err := tx.Exec(`DELETE FROM message WHERE conversation_id = ?`, convID); err != nil {
+			return fmt.Errorf("deleting messages for emptied conversation: %w", err)
+		}
+		if _, err := tx.Exec(`DELETE FROM conversation WHERE id = ?`, convID); err != nil {
+			return fmt.Errorf("deleting emptied conversation: %w", err)
+		}
+	}
+
+	return tx.Commit()
+}
+
 // isConversationMember reports whether userID belongs to conversation
 // convID — every chat action that names a conversation_id has to check
 // this before doing anything with it, since the id itself is guessable and
@@ -164,6 +214,19 @@ func getConversationMembers(convID int) ([]ConversationMember, error) {
 		members = append(members, m)
 	}
 	return members, rows.Err()
+}
+
+// memberIDs extracts just the user ids from an already-loaded
+// ConversationInfo's member list — used to capture a group's membership
+// *before* a leave/add/remove mutation, since broadcastGroupMembershipChanged
+// needs to notify that old set too (a removed/leaving member is no longer
+// in the conversation by the time it queries the new state).
+func memberIDs(info *ConversationInfo) []int {
+	ids := make([]int, len(info.Members))
+	for i, m := range info.Members {
+		ids[i] = m.UserID
+	}
+	return ids
 }
 
 // getConversationMemberIDs returns the user ids of every member of a

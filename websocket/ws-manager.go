@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"rtForum/database"
+	"strings"
 	"sync"
 	"time"
 )
@@ -661,6 +662,180 @@ func createGroupChat(event Event, c *Client) error {
 	return nil
 }
 
+// leaveGroup removes the requester from a group conversation they belong
+// to. Direct conversations have no concept of "leaving" — rejected the same
+// way a nonexistent conversation is.
+func leaveGroup(event Event, c *Client) error {
+	var req LeaveGroupRequest
+	if err := json.Unmarshal(event.Payload, &req); err != nil {
+		return fmt.Errorf("event unmarshalling error: %s", err)
+	}
+
+	info, found, err := getConversationInfo(req.ConversationID)
+	if err != nil {
+		return fmt.Errorf("loading conversation: %s", err)
+	}
+	if !found || !info.IsGroup {
+		return sendChatError(c, "group conversation not found", "")
+	}
+	isMember, err := isConversationMember(req.ConversationID, c.userID)
+	if err != nil {
+		return fmt.Errorf("checking conversation membership: %s", err)
+	}
+	if !isMember {
+		return sendChatError(c, "you are not a member of this group", "")
+	}
+
+	oldMemberIDs := memberIDs(info)
+
+	if err := removeConversationMember(req.ConversationID, c.userID); err != nil {
+		return fmt.Errorf("leaving group: %s", err)
+	}
+
+	return broadcastGroupMembershipChanged(c.manager, req.ConversationID, oldMemberIDs)
+}
+
+// addGroupMember adds a named user to a group conversation the requester
+// already belongs to — any current member may add anyone else (see
+// AddGroupMemberRequest's doc comment for why there's no stricter "owner"
+// check).
+func addGroupMember(event Event, c *Client) error {
+	var req AddGroupMemberRequest
+	if err := json.Unmarshal(event.Payload, &req); err != nil {
+		return fmt.Errorf("event unmarshalling error: %s", err)
+	}
+
+	info, found, err := getConversationInfo(req.ConversationID)
+	if err != nil {
+		return fmt.Errorf("loading conversation: %s", err)
+	}
+	if !found || !info.IsGroup {
+		return sendChatError(c, "group conversation not found", "")
+	}
+	isMember, err := isConversationMember(req.ConversationID, c.userID)
+	if err != nil {
+		return fmt.Errorf("checking conversation membership: %s", err)
+	}
+	if !isMember {
+		return sendChatError(c, "you are not a member of this group", "")
+	}
+
+	username := strings.TrimSpace(req.Username)
+	targetUserID, err := lookupUserIDByUsername(username)
+	if err != nil {
+		return sendChatError(c, fmt.Sprintf("user %q not found", username), "")
+	}
+	alreadyMember, err := isConversationMember(req.ConversationID, targetUserID)
+	if err != nil {
+		return fmt.Errorf("checking target membership: %s", err)
+	}
+	if alreadyMember {
+		return sendChatError(c, fmt.Sprintf("%q is already a member of this group", username), "")
+	}
+
+	oldMemberIDs := memberIDs(info)
+
+	if err := addConversationMember(req.ConversationID, targetUserID); err != nil {
+		return fmt.Errorf("adding group member: %s", err)
+	}
+
+	return broadcastGroupMembershipChanged(c.manager, req.ConversationID, oldMemberIDs)
+}
+
+// removeGroupMember removes a named OTHER member from a group conversation
+// the requester belongs to — same flat permission model as addGroupMember.
+// Removing yourself is leaveGroup's job, not this one (a self-removal here
+// would behave identically, but leaveGroup is the clearer, intention-
+// revealing entry point for it).
+func removeGroupMember(event Event, c *Client) error {
+	var req RemoveGroupMemberRequest
+	if err := json.Unmarshal(event.Payload, &req); err != nil {
+		return fmt.Errorf("event unmarshalling error: %s", err)
+	}
+
+	info, found, err := getConversationInfo(req.ConversationID)
+	if err != nil {
+		return fmt.Errorf("loading conversation: %s", err)
+	}
+	if !found || !info.IsGroup {
+		return sendChatError(c, "group conversation not found", "")
+	}
+	isMember, err := isConversationMember(req.ConversationID, c.userID)
+	if err != nil {
+		return fmt.Errorf("checking conversation membership: %s", err)
+	}
+	if !isMember {
+		return sendChatError(c, "you are not a member of this group", "")
+	}
+
+	username := strings.TrimSpace(req.Username)
+	targetUserID, err := lookupUserIDByUsername(username)
+	if err != nil {
+		return sendChatError(c, fmt.Sprintf("user %q not found", username), "")
+	}
+	targetIsMember, err := isConversationMember(req.ConversationID, targetUserID)
+	if err != nil {
+		return fmt.Errorf("checking target membership: %s", err)
+	}
+	if !targetIsMember {
+		return sendChatError(c, fmt.Sprintf("%q is not a member of this group", username), "")
+	}
+
+	oldMemberIDs := memberIDs(info)
+
+	if err := removeConversationMember(req.ConversationID, targetUserID); err != nil {
+		return fmt.Errorf("removing group member: %s", err)
+	}
+
+	return broadcastGroupMembershipChanged(c.manager, req.ConversationID, oldMemberIDs)
+}
+
+// broadcastGroupMembershipChanged notifies everyone affected by a group's
+// membership changing — the union of who belonged to it BEFORE the
+// mutation and who belongs to it AFTER. A member who just left or was
+// removed is no longer in the post-mutation member list, but still needs
+// this push (to know to close their own window) — broadcastToConversation's
+// live-membership-only query would miss exactly them, which is why this
+// takes the pre-mutation set as an explicit parameter instead.
+func broadcastGroupMembershipChanged(m *Manager, convID int, oldMemberIDs []int) error {
+	info, found, err := getConversationInfo(convID)
+	if err != nil {
+		return fmt.Errorf("loading conversation after membership change: %s", err)
+	}
+
+	recipientSet := make(map[int]bool, len(oldMemberIDs))
+	for _, id := range oldMemberIDs {
+		recipientSet[id] = true
+	}
+
+	// found is false only when the change just emptied the conversation
+	// entirely (removeConversationMember deletes it in that case) — every
+	// old member still needs to hear it's gone, with an empty member list
+	// so their client knows to close/remove it, same as any other "I'm no
+	// longer a member" case.
+	payload := ConversationInfo{ConversationID: convID, IsGroup: true, Members: []ConversationMember{}, ReadStates: []ReadState{}}
+	if found {
+		payload = *info
+		for _, member := range info.Members {
+			recipientSet[member.UserID] = true
+		}
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal group-membership-changed event: %s", err)
+	}
+
+	var recipients []*Client
+	for _, recipient := range m.clientsSnapshot() {
+		if recipientSet[recipient.userID] {
+			recipients = append(recipients, recipient)
+		}
+	}
+	broadcastTo(recipients, Event{Type: GroupMembershipChanged, Payload: data})
+	return nil
+}
+
 // getConversations replies with every conversation the requester belongs
 // to — sent once right after connecting so existing group chats (which,
 // unlike a direct chat, can't be rediscovered just by clicking an online
@@ -762,6 +937,9 @@ func (m *Manager) RegisterEventHandlers() {
 	m.eventHandlers[CreateGroupChat] = createGroupChat
 	m.eventHandlers[GetConversations] = getConversations
 	m.eventHandlers[MarkRead] = markRead
+	m.eventHandlers[LeaveGroup] = leaveGroup
+	m.eventHandlers[AddGroupMember] = addGroupMember
+	m.eventHandlers[RemoveGroupMember] = removeGroupMember
 
 }
 
