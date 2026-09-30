@@ -144,8 +144,11 @@ CREATE INDEX idx_post_author ON post(author);
 -- no DB constraint backing that check up — two concurrent requests (two
 -- admin tabs, or a retry) could both pass the check and create/rename to
 -- the same name. Unlike user.uname/user.email, category_name had no UNIQUE
--- constraint at all until this.
-CREATE UNIQUE INDEX idx_category_name_unique ON category(category_name);
+-- constraint at all until this. COLLATE NOCASE so "Sports" and "sports"
+-- count as the same name too — category names are a case-preserving
+-- display string (unlike user.email, which is stored lowercase), so the
+-- comparison is made case-insensitive here instead of normalizing storage.
+CREATE UNIQUE INDEX idx_category_name_unique ON category(category_name COLLATE NOCASE);
 
 -- Insert in user table for testing
 -- INSERT INTO user ( id, fname, lname, uname, email, age, gender, pass, created_at) VALUES (1, admin, admin, admin, admin@example.com, 1, male, passHash!!!,  DateTime('now', 'localtime'))

@@ -93,6 +93,27 @@ func TestCreateCategoryHandler_RejectsDuplicateName(t *testing.T) {
 	}
 }
 
+// TestCreateCategoryHandler_RejectsDuplicateNameDifferingOnlyByCase guards
+// idx_category_name_unique's COLLATE NOCASE: "Cuisine" (seeded) and
+// "cuisine" must be treated as the same name, not as two distinct,
+// independently creatable categories.
+func TestCreateCategoryHandler_RejectsDuplicateNameDifferingOnlyByCase(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-admin", "admin", 1)
+
+	body := `{"name":"cuisine"}` // differs only by case from the seeded "Cuisine"
+	req := httptest.NewRequest(http.MethodPost, "/createCategory", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-admin"})
+	rr := httptest.NewRecorder()
+
+	websocket.RequireAdmin(websocket.CreateCategoryHandler)(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, rr.Code, rr.Body.String())
+	}
+}
+
 // TestCreateCategoryHandler_ConcurrentCreatesSameName_OnlyOneSucceeds covers
 // the actual bug: CreateCategoryHandler's COUNT(*)-then-INSERT is a TOCTOU
 // race, so two concurrent requests for the same brand-new name could both
@@ -199,6 +220,56 @@ func TestEditCategoryHandler_AsAdmin_Renames(t *testing.T) {
 	}
 	if name != "Food" {
 		t.Fatalf("expected category 1 to be renamed to 'Food', got %q", name)
+	}
+}
+
+// TestEditCategoryHandler_RejectsRenameToNameDifferingOnlyByCaseFromAnotherCategory
+// guards the same COLLATE NOCASE invariant on the rename path — id 2
+// ("Places") can't be renamed to "cuisine", a case-only variant of id 1's
+// existing "Cuisine".
+func TestEditCategoryHandler_RejectsRenameToNameDifferingOnlyByCaseFromAnotherCategory(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-admin", "admin", 1)
+
+	body := `{"id":2,"name":"cuisine"}`
+	req := httptest.NewRequest(http.MethodPost, "/editCategory", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-admin"})
+	rr := httptest.NewRecorder()
+
+	websocket.RequireAdmin(websocket.EditCategoryHandler)(rr, req)
+
+	if rr.Code != http.StatusConflict {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusConflict, rr.Code, rr.Body.String())
+	}
+}
+
+// TestEditCategoryHandler_AllowsChangingOnlyTheCaseOfItsOwnName guards
+// against the id != ? exclusion being broken by the COLLATE NOCASE change
+// — renaming a category to a pure case variant of its OWN current name
+// must still succeed (it's not a collision with a DIFFERENT category).
+func TestEditCategoryHandler_AllowsChangingOnlyTheCaseOfItsOwnName(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-admin", "admin", 1)
+
+	body := `{"id":1,"name":"CUISINE"}` // id 1 is "Cuisine" in the seed data
+	req := httptest.NewRequest(http.MethodPost, "/editCategory", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-admin"})
+	rr := httptest.NewRecorder()
+
+	websocket.RequireAdmin(websocket.EditCategoryHandler)(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var name string
+	if err := db.QueryRow(`SELECT category_name FROM category WHERE id = 1`).Scan(&name); err != nil {
+		t.Fatalf("failed to query category: %v", err)
+	}
+	if name != "CUISINE" {
+		t.Fatalf("expected category 1's name to be updated to 'CUISINE', got %q", name)
 	}
 }
 

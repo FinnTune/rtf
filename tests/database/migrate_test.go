@@ -241,6 +241,69 @@ func TestMigrate_SkipsCategoryNameUniqueIndexWhenDuplicatesAlreadyExist(t *testi
 	}
 }
 
+// TestMigrate_MakesCategoryNameUniqueIndexCaseInsensitive covers the actual
+// fix: an already-deployed database that only has the older, case-
+// sensitive idx_category_name_unique (exactly what
+// TestMigrate_AddsCategoryNameUniqueIndex above just created) must upgrade
+// it to COLLATE NOCASE on its next start, so "Cuisine" and "cuisine" are
+// correctly treated as the same name.
+func TestMigrate_MakesCategoryNameUniqueIndexCaseInsensitive(t *testing.T) {
+	db := openCategoryOnlyDB(t)
+	if _, err := db.Exec(`INSERT INTO category (category_name) VALUES ('Cuisine'), ('Places')`); err != nil {
+		t.Fatalf("failed to seed categories: %v", err)
+	}
+
+	if err := database.MigrateForTest(db); err != nil {
+		t.Fatalf("MigrateForTest: %v", err)
+	}
+
+	if _, err := db.Exec(`INSERT INTO category (category_name) VALUES ('cuisine')`); err == nil {
+		t.Fatal("expected the case-insensitive unique index to reject a case-only duplicate category name after migration")
+	}
+	// A genuinely new name must still be free to insert.
+	if _, err := db.Exec(`INSERT INTO category (category_name) VALUES ('Music')`); err != nil {
+		t.Fatalf("expected a new category name to still be insertable: %v", err)
+	}
+
+	// Running migrate() again (the normal case on every subsequent server
+	// start) must be a no-op, not attempt another DROP+CREATE — confirmed
+	// indirectly by it not erroring and the constraint still holding.
+	if err := database.MigrateForTest(db); err != nil {
+		t.Fatalf("second MigrateForTest (idempotency check): %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO category (category_name) VALUES ('CUISINE')`); err == nil {
+		t.Fatal("expected the case-insensitive unique index to still be in effect after a second migrate() run")
+	}
+}
+
+// TestMigrate_SkipsCategoryNameUniqueIndexCaseInsensitiveUpgradeWhenCollisionWouldOccur
+// covers the same fatal-migration safety concern as the sibling exact-
+// duplicate test above: two existing categories that already differ only
+// by case (impossible once both indexes are in place, but not ruled out
+// for an older database that only ever had the case-sensitive one) would,
+// if the index were blindly replaced, collide on the new COLLATE NOCASE
+// constraint and crash the server on every future start. Must skip
+// (loudly) rather than fail outright, leaving the old case-sensitive index
+// in place.
+func TestMigrate_SkipsCategoryNameUniqueIndexCaseInsensitiveUpgradeWhenCollisionWouldOccur(t *testing.T) {
+	db := openCategoryOnlyDB(t)
+	if _, err := db.Exec(`INSERT INTO category (category_name) VALUES ('Cuisine'), ('cuisine')`); err != nil {
+		t.Fatalf("failed to seed case-colliding categories: %v", err)
+	}
+
+	if err := database.MigrateForTest(db); err != nil {
+		t.Fatalf("expected MigrateForTest to skip rather than fail on a case-collision, got: %v", err)
+	}
+
+	// Confirms the upgrade genuinely didn't happen (rather than having
+	// silently succeeded some other way): the case-sensitive index from
+	// addCategoryNameUniqueIndex is still the only one in effect, so a
+	// THIRD variant differing only by case must still be insertable.
+	if _, err := db.Exec(`INSERT INTO category (category_name) VALUES ('CUISINE')`); err != nil {
+		t.Fatalf("expected the case-insensitive upgrade to have been skipped, but insert failed: %v", err)
+	}
+}
+
 // TestMigrate_LowercasesExistingMixedCaseEmails covers the backfill half of
 // normalizing email case (see validateRegistration's doc comment for why
 // email, unlike username, is treated as case-insensitive): an
