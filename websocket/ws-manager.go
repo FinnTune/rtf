@@ -719,6 +719,16 @@ func addGroupMember(event Event, c *Client) error {
 	if !isMember {
 		return sendChatError(c, "you are not a member of this group", "")
 	}
+	// Mirrors validateGroupChat's cap on a brand-new group's size (also
+	// maxGroupMembers, plus the creator) — without this, any member could
+	// grow an existing group past that same limit one add-group-member call
+	// at a time, defeating the bound createGroupChat enforces up front.
+	// Every broadcast to this conversation (broadcastToConversation,
+	// broadcastGroupMembershipChanged) iterates its full member list, so
+	// this is a real fan-out/notification-load cap, not just cosmetic.
+	if len(info.Members) > maxGroupMembers {
+		return sendChatError(c, fmt.Sprintf("a group may have at most %d members", maxGroupMembers+1), "")
+	}
 
 	username := strings.TrimSpace(req.Username)
 	targetUserID, err := lookupUserIDByUsername(username)
