@@ -46,6 +46,10 @@ func CheckOriginForTest(r *http.Request) bool {
 // a request right around the body-size limit without hardcoding it twice.
 const MaxJSONRequestBytesForTest = maxJSONRequestBytes
 
+// MaxGroupMembersForTest exposes maxGroupMembers so a test can build a
+// group right around the size cap without hardcoding it twice.
+const MaxGroupMembersForTest = maxGroupMembers
+
 // DecodeJSONBodyForTest exposes decodeJSONBody so a test can verify its
 // size-capping behavior directly, independent of any particular handler's
 // own downstream validation (which can otherwise mask whether a request

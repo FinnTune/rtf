@@ -1,7 +1,9 @@
 package websocket_test
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -271,6 +273,130 @@ func TestAddGroupMember_RejectsUnknownUser(t *testing.T) {
 	}
 	if eventType != websocket.ChatError {
 		t.Fatalf("expected chat-error event, got %q", eventType)
+	}
+}
+
+// seedSyntheticUsers inserts n minimal, distinct user rows directly (not
+// through registration, which isn't what these size-cap tests are about)
+// and returns their usernames — cheap bulk setup for tests that need many
+// real users to fill out a group's member list.
+func seedSyntheticUsers(t *testing.T, db *sql.DB, n int, prefix string) []string {
+	t.Helper()
+	usernames := make([]string, n)
+	for i := 0; i < n; i++ {
+		uname := fmt.Sprintf("%s%d", prefix, i)
+		usernames[i] = uname
+		if _, err := db.Exec(
+			`INSERT INTO user (fname, lname, uname, email, age, gender, pass, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+			"Synthetic", "User", uname, uname+"@example.com", "30", "other", "hash",
+		); err != nil {
+			t.Fatalf("failed to seed synthetic user %q: %v", uname, err)
+		}
+	}
+	return usernames
+}
+
+// addSyntheticConversationMembers adds every named (already-seeded) user to
+// convID directly via SQL, bypassing the add-group-member event entirely —
+// used to cheaply grow a group to a specific size for the size-cap tests
+// below, without needing that many real, connected WS clients.
+func addSyntheticConversationMembers(t *testing.T, db *sql.DB, convID int, usernames []string) {
+	t.Helper()
+	for _, uname := range usernames {
+		var userID int
+		if err := db.QueryRow(`SELECT id FROM user WHERE uname = ?`, uname).Scan(&userID); err != nil {
+			t.Fatalf("failed to look up seeded user %q: %v", uname, err)
+		}
+		if _, err := db.Exec(
+			`INSERT INTO conversation_member (conversation_id, user_id, joined_at) VALUES (?, ?, datetime('now'))`,
+			convID, userID,
+		); err != nil {
+			t.Fatalf("failed to add %q to conversation %d: %v", uname, convID, err)
+		}
+	}
+}
+
+// TestAddGroupMember_RejectsWhenGroupIsAtMaxSize guards the actual fix:
+// addGroupMember must enforce the same size cap createGroupChat already
+// does via validateGroupChat (maxGroupMembers other members, plus the
+// creator) — without this, any member could grow a group past that limit
+// one add-group-member call at a time.
+func TestAddGroupMember_RejectsWhenGroupIsAtMaxSize(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	creator := websocket.AddTestClient("s1", "admin", 1)
+	others := seedSyntheticUsers(t, db, websocket.MaxGroupMembersForTest, "capmember")
+	info := mustCreateGroupChat(t, creator, "Big Group", []string{others[0]})
+	// createGroupChat already added others[0] — fill in the rest to reach
+	// exactly maxGroupMembers other members (maxGroupMembers+1 total, the
+	// same ceiling validateGroupChat enforces at creation time).
+	addSyntheticConversationMembers(t, db, info.ConversationID, others[1:])
+
+	oneMore := seedSyntheticUsers(t, db, 1, "onemore")[0]
+	payload, _ := json.Marshal(websocket.AddGroupMemberRequest{ConversationID: info.ConversationID, Username: oneMore})
+	if err := websocket.AddGroupMemberForTest(payload, creator); err != nil {
+		t.Fatalf("addGroupMember should not error, got: %v", err)
+	}
+
+	eventType, _, ok := creator.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for chat-error")
+	}
+	if eventType != websocket.ChatError {
+		t.Fatalf("expected chat-error event, got %q", eventType)
+	}
+
+	var memberCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM conversation_member WHERE conversation_id = ?`, info.ConversationID).Scan(&memberCount); err != nil {
+		t.Fatalf("failed to count conversation members: %v", err)
+	}
+	if memberCount != websocket.MaxGroupMembersForTest+1 {
+		t.Fatalf("expected the rejected add to leave the member count unchanged at %d, got %d", websocket.MaxGroupMembersForTest+1, memberCount)
+	}
+}
+
+// TestAddGroupMember_AllowsAddingUpToMaxSize is the boundary-condition
+// sibling of the rejection test above: a group one below the cap must
+// still accept exactly one more member, ending at the same ceiling
+// createGroupChat's own validateGroupChat allows.
+func TestAddGroupMember_AllowsAddingUpToMaxSize(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+
+	creator := websocket.AddTestClient("s1", "admin", 1)
+	others := seedSyntheticUsers(t, db, websocket.MaxGroupMembersForTest-1, "capmember")
+	info := mustCreateGroupChat(t, creator, "Almost Full Group", []string{others[0]})
+	addSyntheticConversationMembers(t, db, info.ConversationID, others[1:])
+
+	var memberCountBefore int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM conversation_member WHERE conversation_id = ?`, info.ConversationID).Scan(&memberCountBefore); err != nil {
+		t.Fatalf("failed to count conversation members: %v", err)
+	}
+	if memberCountBefore != websocket.MaxGroupMembersForTest {
+		t.Fatalf("test setup bug: expected %d members before the final add, got %d", websocket.MaxGroupMembersForTest, memberCountBefore)
+	}
+
+	lastSlot := seedSyntheticUsers(t, db, 1, "lastslot")[0]
+	payload, _ := json.Marshal(websocket.AddGroupMemberRequest{ConversationID: info.ConversationID, Username: lastSlot})
+	if err := websocket.AddGroupMemberForTest(payload, creator); err != nil {
+		t.Fatalf("addGroupMember failed: %v", err)
+	}
+
+	eventType, _, ok := creator.WaitEvent(time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for group-membership-changed")
+	}
+	if eventType != websocket.GroupMembershipChanged {
+		t.Fatalf("expected group-membership-changed event, got %q", eventType)
+	}
+
+	var memberCountAfter int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM conversation_member WHERE conversation_id = ?`, info.ConversationID).Scan(&memberCountAfter); err != nil {
+		t.Fatalf("failed to count conversation members: %v", err)
+	}
+	if memberCountAfter != websocket.MaxGroupMembersForTest+1 {
+		t.Fatalf("expected the successful add to bring the member count to %d, got %d", websocket.MaxGroupMembersForTest+1, memberCountAfter)
 	}
 }
 
