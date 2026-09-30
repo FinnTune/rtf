@@ -14,30 +14,34 @@ type EventHandler func(event Event, c *Client) error
 
 const (
 	// Event types
-	GetChatHistory      = "get-chat-history"
-	GetMoreChatHistory  = "get-more-chat-history"
-	SendChatHistory     = "chat_history"
-	EventReceiveMessage = "new-message"
-	EventSendMessage    = "sent-message"
-	UserConnect         = "user-connect"
-	UsersList           = "users-online"
-	Typing              = "typing"
-	StopTyping          = "stop-typing"
-	OpenDirectChat      = "open-direct-chat"
-	CreateGroupChat     = "create-group-chat"
-	ChatOpened          = "chat-opened"
-	GetConversations    = "get-conversations"
-	ConversationsList   = "conversations-list"
-	ChatError           = "chat-error"
-	MarkRead            = "mark-read"
-	ReadReceipt         = "read-receipt"
-	MessageAck          = "message-ack"
-	PostReactionUpdated = "post-reaction-updated"
-	CommentDeleted      = "comment-deleted"
-	CommentEdited       = "comment-edited"
-	PostEdited          = "post-edited"
-	CommentAdded        = "comment-added"
-	PostDeleted         = "post-deleted"
+	GetChatHistory         = "get-chat-history"
+	GetMoreChatHistory     = "get-more-chat-history"
+	SendChatHistory        = "chat_history"
+	EventReceiveMessage    = "new-message"
+	EventSendMessage       = "sent-message"
+	UserConnect            = "user-connect"
+	UsersList              = "users-online"
+	Typing                 = "typing"
+	StopTyping             = "stop-typing"
+	OpenDirectChat         = "open-direct-chat"
+	CreateGroupChat        = "create-group-chat"
+	ChatOpened             = "chat-opened"
+	GetConversations       = "get-conversations"
+	ConversationsList      = "conversations-list"
+	ChatError              = "chat-error"
+	MarkRead               = "mark-read"
+	ReadReceipt            = "read-receipt"
+	MessageAck             = "message-ack"
+	PostReactionUpdated    = "post-reaction-updated"
+	CommentDeleted         = "comment-deleted"
+	CommentEdited          = "comment-edited"
+	PostEdited             = "post-edited"
+	CommentAdded           = "comment-added"
+	PostDeleted            = "post-deleted"
+	LeaveGroup             = "leave-group"
+	AddGroupMember         = "add-group-member"
+	RemoveGroupMember      = "remove-group-member"
+	GroupMembershipChanged = "group-membership-changed"
 )
 
 // ReceiveMessageEvent is the client->server "new-message" payload. Every
@@ -107,6 +111,27 @@ type OpenDirectChatRequest struct {
 type CreateGroupChatRequest struct {
 	Name      string   `json:"name"`
 	Usernames []string `json:"usernames"`
+}
+
+// LeaveGroupRequest is the "leave-group" client->server payload.
+type LeaveGroupRequest struct {
+	ConversationID int `json:"conversation_id"`
+}
+
+// AddGroupMemberRequest is the "add-group-member" client->server payload —
+// any current member may add anyone else, mirroring create-group-chat's own
+// flat, ownerless permission model (the schema has no concept of a group
+// "owner" to check against).
+type AddGroupMemberRequest struct {
+	ConversationID int    `json:"conversation_id"`
+	Username       string `json:"username"`
+}
+
+// RemoveGroupMemberRequest is the "remove-group-member" client->server
+// payload — same flat permission model as AddGroupMemberRequest.
+type RemoveGroupMemberRequest struct {
+	ConversationID int    `json:"conversation_id"`
+	Username       string `json:"username"`
 }
 
 // ConversationMember describes one participant of a conversation.

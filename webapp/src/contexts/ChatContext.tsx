@@ -3,7 +3,7 @@ import { isTabInBackground, requestNotificationPermission, showBrowserNotificati
 import { useAuth } from './AuthContext'
 import { useStatusMessage } from './StatusMessageContext'
 import { useWebSocket } from './WebSocketContext'
-import type { ChatMessageVM, ConversationInfo } from '../types'
+import type { ChatMessageVM, ConversationInfo, ConversationMember } from '../types'
 
 const HISTORY_PAGE_SIZE = 10
 // How long a received "typing" indicator stays shown without a follow-up
@@ -27,6 +27,10 @@ export interface ChatWindowState {
   // Every OTHER member's read watermark, keyed by username — the current
   // user's own entry isn't tracked here since there's no "seen by me" UI.
   readStates: Record<string, number>
+  // Only meaningfully populated/used for a group (empty for a direct chat)
+  // — backs the member list + leave/add/remove UI in ChatWindow. Kept
+  // current on every group-membership-changed push, not just at open time.
+  members: ConversationMember[]
 }
 
 interface ChatContextValue {
@@ -51,6 +55,9 @@ interface ChatContextValue {
   openConversationById: (conversationId: number) => void
   getConversationTitle: (conversationId: number) => string
   createGroupChat: (name: string, usernames: string[]) => void
+  leaveGroup: (conversationId: number) => void
+  addGroupMember: (conversationId: number, username: string) => void
+  removeGroupMember: (conversationId: number, username: string) => void
   closeChat: (conversationId: number) => void
   sendMessage: (conversationId: number, text: string) => void
   loadMoreHistory: (conversationId: number) => void
@@ -269,10 +276,24 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             loadingHistory: true,
             typingUsers: new Set(),
             readStates: readStatesFor(info, myUsername),
+            members: info.members,
           },
         }))
         pendingHistoryRef.current.push(info.conversation_id)
         send('get-chat-history', { conversation_id: info.conversation_id, offset: 0, limit: HISTORY_PAGE_SIZE })
+      } else {
+        // Keeps an already-open group window's roster/title current on a
+        // later push for the same conversation (e.g. group-membership-
+        // changed after someone else is added/removed) — doesn't touch
+        // messages/typingUsers/readStates, which this isn't about.
+        setOpenWindows((prev) => ({
+          ...prev,
+          [info.conversation_id]: {
+            ...prev[info.conversation_id],
+            title: titleFor(info, myUsername),
+            members: info.members,
+          },
+        }))
       }
     },
     [send, myUsername],
@@ -307,6 +328,41 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     const unsubChatOpened = subscribe('chat-opened', (payload) => {
       const info = payload as ConversationInfo
+      setConversations((prev) => ({ ...prev, [info.conversation_id]: info }))
+      revealWindowRef.current(info)
+    })
+
+    // Sent to the union of a group's old and new member sets whenever
+    // someone leaves, is removed, or is added — including to the specific
+    // member who just left/was removed (still an old member, though no
+    // longer a current one), since that's the only way their own client
+    // learns to close the window/drop it from the group list. Everyone
+    // still (or newly) a member gets their conversation/window state kept
+    // current the same way chat-opened does.
+    const unsubGroupMembershipChanged = subscribe('group-membership-changed', (payload) => {
+      const info = payload as ConversationInfo
+      const stillMember = info.members.some((m) => m.username === myUsername)
+      if (!stillMember) {
+        setConversations((prev) => {
+          if (!(info.conversation_id in prev)) return prev
+          const next = { ...prev }
+          delete next[info.conversation_id]
+          return next
+        })
+        setOpenWindows((prev) => {
+          if (!(info.conversation_id in prev)) return prev
+          const next = { ...prev }
+          delete next[info.conversation_id]
+          return next
+        })
+        setUnreadConversations((prev) => {
+          if (!prev.has(info.conversation_id)) return prev
+          const next = new Set(prev)
+          next.delete(info.conversation_id)
+          return next
+        })
+        return
+      }
       setConversations((prev) => ({ ...prev, [info.conversation_id]: info }))
       revealWindowRef.current(info)
     })
@@ -487,6 +543,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     return () => {
       unsubUsers()
       unsubChatOpened()
+      unsubGroupMembershipChanged()
       unsubConversationsList()
       unsubSent()
       unsubHistory()
@@ -515,6 +572,31 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const createGroupChat = useCallback(
     (name: string, usernames: string[]) => {
       send('create-group-chat', { name, usernames })
+    },
+    [send],
+  )
+
+  // The server never fails these silently — an unresolvable username, or
+  // the requester not being a member, comes back as the existing generic
+  // chat-error event (see its own subscription above), so no per-call error
+  // handling is needed here, same as createGroupChat/openDirectChat.
+  const leaveGroup = useCallback(
+    (conversationId: number) => {
+      send('leave-group', { conversation_id: conversationId })
+    },
+    [send],
+  )
+
+  const addGroupMember = useCallback(
+    (conversationId: number, username: string) => {
+      send('add-group-member', { conversation_id: conversationId, username })
+    },
+    [send],
+  )
+
+  const removeGroupMember = useCallback(
+    (conversationId: number, username: string) => {
+      send('remove-group-member', { conversation_id: conversationId, username })
     },
     [send],
   )
@@ -616,6 +698,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         openConversationById,
         getConversationTitle,
         createGroupChat,
+        leaveGroup,
+        addGroupMember,
+        removeGroupMember,
         closeChat,
         sendMessage,
         loadMoreHistory,

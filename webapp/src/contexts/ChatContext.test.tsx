@@ -423,6 +423,99 @@ describe('ChatContext', () => {
     expect(result.current.groupChats.map((g) => g.conversation_id)).toContain(9)
   })
 
+  it('leaveGroup/addGroupMember/removeGroupMember send the expected WS payloads', async () => {
+    const { result, socket } = await setup()
+
+    act(() => result.current.leaveGroup(9))
+    act(() => result.current.addGroupMember(9, 'dave'))
+    act(() => result.current.removeGroupMember(9, 'carol'))
+
+    const sentTypes = socket.sent.map((frame) => (JSON.parse(frame) as { type: string }).type)
+    expect(sentTypes.slice(-3)).toEqual(['leave-group', 'add-group-member', 'remove-group-member'])
+
+    const [leavePayload, addPayload, removePayload] = socket.sent
+      .slice(-3)
+      .map((frame) => (JSON.parse(frame) as { payload: unknown }).payload)
+    expect(leavePayload).toEqual({ conversation_id: 9 })
+    expect(addPayload).toEqual({ conversation_id: 9, username: 'dave' })
+    expect(removePayload).toEqual({ conversation_id: 9, username: 'carol' })
+  })
+
+  // Regression test for the actual point of group-membership-changed: a
+  // member who just left/was removed is no longer in the pushed member
+  // list, but the event still has to reach THEM too (they're in the old
+  // member set broadcastGroupMembershipChanged unions in) so their own
+  // client learns to close the window — simulating it arriving for alice
+  // herself (the current user) covers exactly that case.
+  it('a group-membership-changed push naming the current user as no longer a member closes their own window', async () => {
+    const { result, socket } = await setup()
+
+    act(() =>
+      socket.simulateMessage('chat-opened', {
+        conversation_id: 9,
+        is_group: true,
+        name: 'Trip Planning',
+        members: [
+          { user_id: 1, username: 'alice' },
+          { user_id: 2, username: 'bob' },
+        ],
+        read_states: [],
+      }),
+    )
+    await waitFor(() => expect(result.current.openWindows[9]).toBeDefined())
+
+    act(() =>
+      socket.simulateMessage('group-membership-changed', {
+        conversation_id: 9,
+        is_group: true,
+        name: 'Trip Planning',
+        members: [{ user_id: 2, username: 'bob' }],
+        read_states: [],
+      }),
+    )
+
+    expect(result.current.openWindows[9]).toBeUndefined()
+    expect(result.current.groupChats.map((g) => g.conversation_id)).not.toContain(9)
+  })
+
+  // The other direction: everyone who's STILL a member (including one
+  // freshly added, who never had a window open before at all) gets their
+  // window/roster kept current instead of closed.
+  it('a group-membership-changed push naming the current user as still a member updates their window roster', async () => {
+    const { result, socket } = await setup()
+
+    act(() =>
+      socket.simulateMessage('chat-opened', {
+        conversation_id: 9,
+        is_group: true,
+        name: 'Trip Planning',
+        members: [
+          { user_id: 1, username: 'alice' },
+          { user_id: 2, username: 'bob' },
+        ],
+        read_states: [],
+      }),
+    )
+    await waitFor(() => expect(result.current.openWindows[9]).toBeDefined())
+
+    act(() =>
+      socket.simulateMessage('group-membership-changed', {
+        conversation_id: 9,
+        is_group: true,
+        name: 'Trip Planning',
+        members: [
+          { user_id: 1, username: 'alice' },
+          { user_id: 2, username: 'bob' },
+          { user_id: 3, username: 'carol' },
+        ],
+        read_states: [],
+      }),
+    )
+
+    expect(result.current.openWindows[9]).toBeDefined()
+    expect(result.current.openWindows[9].members.map((m) => m.username)).toEqual(['alice', 'bob', 'carol'])
+  })
+
   it('shows an in-app toast when a message arrives for a conversation with no open window', async () => {
     const { result, socket } = await setupWithStatus()
 

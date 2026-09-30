@@ -253,6 +253,21 @@ func MarkReadForTest(payload json.RawMessage, client *TestClientHandle) error {
 	return markRead(Event{Type: MarkRead, Payload: payload}, client.client)
 }
 
+// LeaveGroupForTest invokes the leave-group handler for tests.
+func LeaveGroupForTest(payload json.RawMessage, client *TestClientHandle) error {
+	return leaveGroup(Event{Type: LeaveGroup, Payload: payload}, client.client)
+}
+
+// AddGroupMemberForTest invokes the add-group-member handler for tests.
+func AddGroupMemberForTest(payload json.RawMessage, client *TestClientHandle) error {
+	return addGroupMember(Event{Type: AddGroupMember, Payload: payload}, client.client)
+}
+
+// RemoveGroupMemberForTest invokes the remove-group-member handler for tests.
+func RemoveGroupMemberForTest(payload json.RawMessage, client *TestClientHandle) error {
+	return removeGroupMember(Event{Type: RemoveGroupMember, Payload: payload}, client.client)
+}
+
 // TestOtps wraps OTP map lifecycle for external tests.
 type TestOtps struct {
 	otps   *otpsMap

@@ -16,6 +16,7 @@ function makeState(overrides: Partial<ChatWindowState> = {}): ChatWindowState {
     loadingHistory: false,
     typingUsers: new Set(),
     readStates: {},
+    members: [],
     ...overrides,
   }
 }
@@ -245,5 +246,123 @@ describe('ChatWindow', () => {
       expect(historyFrame).toBeDefined()
       expect((JSON.parse(historyFrame!) as { payload: unknown }).payload).toEqual({ conversation_id: 5, offset: 10, limit: 10 })
     })
+  })
+
+  it('does not show a Members toggle for a direct conversation', async () => {
+    await renderWindow(makeState({ isGroup: false, title: 'bob' }))
+    expect(screen.queryByRole('button', { name: /Members/ })).not.toBeInTheDocument()
+  })
+
+  it('shows the member count and reveals the roster on click, for a group conversation', async () => {
+    await renderWindow(
+      makeState({
+        isGroup: true,
+        title: 'Trip Planning',
+        members: [
+          { user_id: 1, username: 'alice' },
+          { user_id: 2, username: 'bob' },
+        ],
+      }),
+    )
+
+    const toggle = screen.getByRole('button', { name: 'Members (2)' })
+    expect(screen.queryByText('bob')).not.toBeInTheDocument()
+
+    await userEvent.click(toggle)
+    expect(screen.getByText('alice')).toBeInTheDocument()
+    expect(screen.getByText('bob')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hide Members' })).toBeInTheDocument()
+  })
+
+  it('does not show a Remove button next to your own name, only next to other members', async () => {
+    await renderWindow(
+      makeState({
+        isGroup: true,
+        members: [
+          { user_id: 1, username: 'alice' },
+          { user_id: 2, username: 'bob' },
+        ],
+      }),
+    )
+    await userEvent.click(screen.getByRole('button', { name: /Members/ }))
+
+    expect(screen.queryByRole('button', { name: 'Remove alice' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove bob' })).toBeInTheDocument()
+  })
+
+  it('clicking Remove on another member sends remove-group-member, after confirming', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const { socket } = await renderWindow(
+      makeState({
+        isGroup: true,
+        members: [
+          { user_id: 1, username: 'alice' },
+          { user_id: 2, username: 'bob' },
+        ],
+      }),
+    )
+    await userEvent.click(screen.getByRole('button', { name: /Members/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Remove bob' }))
+
+    await waitFor(() => {
+      const frame = socket.sent.find((f) => (JSON.parse(f) as { type: string }).type === 'remove-group-member')
+      expect(frame).toBeDefined()
+      expect((JSON.parse(frame!) as { payload: unknown }).payload).toEqual({ conversation_id: 5, username: 'bob' })
+    })
+  })
+
+  it('declining the Remove confirmation does not send remove-group-member', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const { socket } = await renderWindow(
+      makeState({
+        isGroup: true,
+        members: [
+          { user_id: 1, username: 'alice' },
+          { user_id: 2, username: 'bob' },
+        ],
+      }),
+    )
+    await userEvent.click(screen.getByRole('button', { name: /Members/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Remove bob' }))
+
+    expect(socket.sent.some((f) => (JSON.parse(f) as { type: string }).type === 'remove-group-member')).toBe(false)
+  })
+
+  it('submitting the add-member form sends add-group-member and clears the input', async () => {
+    const { socket } = await renderWindow(makeState({ isGroup: true, members: [{ user_id: 1, username: 'alice' }] }))
+    await userEvent.click(screen.getByRole('button', { name: /Members/ }))
+
+    const input = screen.getByLabelText('Add a member by username')
+    await userEvent.type(input, 'carol')
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => {
+      const frame = socket.sent.find((f) => (JSON.parse(f) as { type: string }).type === 'add-group-member')
+      expect(frame).toBeDefined()
+      expect((JSON.parse(frame!) as { payload: unknown }).payload).toEqual({ conversation_id: 5, username: 'carol' })
+    })
+    expect(input).toHaveValue('')
+  })
+
+  it('clicking Leave Group sends leave-group, after confirming', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const { socket } = await renderWindow(makeState({ isGroup: true, members: [{ user_id: 1, username: 'alice' }] }))
+    await userEvent.click(screen.getByRole('button', { name: /Members/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Leave Group' }))
+
+    await waitFor(() => {
+      const frame = socket.sent.find((f) => (JSON.parse(f) as { type: string }).type === 'leave-group')
+      expect(frame).toBeDefined()
+      expect((JSON.parse(frame!) as { payload: unknown }).payload).toEqual({ conversation_id: 5 })
+    })
+  })
+
+  it('declining the Leave Group confirmation does not send leave-group', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const { socket } = await renderWindow(makeState({ isGroup: true, members: [{ user_id: 1, username: 'alice' }] }))
+    await userEvent.click(screen.getByRole('button', { name: /Members/ }))
+    await userEvent.click(screen.getByRole('button', { name: 'Leave Group' }))
+
+    expect(socket.sent.some((f) => (JSON.parse(f) as { type: string }).type === 'leave-group')).toBe(false)
   })
 })

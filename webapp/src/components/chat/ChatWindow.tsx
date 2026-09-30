@@ -1,4 +1,5 @@
-import { useRef, useState, type KeyboardEvent, type UIEvent } from 'react'
+import { useRef, useState, type FormEvent, type KeyboardEvent, type UIEvent } from 'react'
+import { useAuth } from '../../contexts/AuthContext'
 import { useChat, type ChatWindowState } from '../../contexts/ChatContext'
 import type { ChatMessageVM } from '../../types'
 
@@ -23,8 +24,11 @@ interface ChatWindowProps {
 }
 
 export function ChatWindow({ state }: ChatWindowProps) {
-  const { closeChat, sendMessage, loadMoreHistory, sendTyping, sendStopTyping } = useChat()
+  const { closeChat, sendMessage, loadMoreHistory, sendTyping, sendStopTyping, leaveGroup, addGroupMember, removeGroupMember } = useChat()
+  const { user } = useAuth()
   const [draft, setDraft] = useState('')
+  const [showMembers, setShowMembers] = useState(false)
+  const [newMemberUsername, setNewMemberUsername] = useState('')
   const scrollCooldownRef = useRef(false)
   const typingTimeoutRef = useRef<number | undefined>(undefined)
   const { conversationId } = state
@@ -34,6 +38,24 @@ export function ChatWindow({ state }: ChatWindowProps) {
     if (!text) return
     sendMessage(conversationId, text)
     setDraft('')
+  }
+
+  function handleLeaveGroup() {
+    if (!window.confirm('Leave this group?')) return
+    leaveGroup(conversationId)
+  }
+
+  function handleAddMember(event: FormEvent) {
+    event.preventDefault()
+    const trimmed = newMemberUsername.trim()
+    if (!trimmed) return
+    addGroupMember(conversationId, trimmed)
+    setNewMemberUsername('')
+  }
+
+  function handleRemoveMember(username: string) {
+    if (!window.confirm(`Remove ${username} from this group?`)) return
+    removeGroupMember(conversationId, username)
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -86,6 +108,49 @@ export function ChatWindow({ state }: ChatWindowProps) {
       <button type="button" className="close-chat" aria-label="Close chat" onClick={() => closeChat(conversationId)}>
         x
       </button>
+      {state.isGroup && (
+        <div className="group-members-toggle-row">
+          <button type="button" className="btns members-toggle" onClick={() => setShowMembers((prev) => !prev)}>
+            {showMembers ? 'Hide Members' : `Members (${state.members.length})`}
+          </button>
+        </div>
+      )}
+      {state.isGroup && showMembers && (
+        <div className="group-members-panel">
+          <ul className="group-members-list">
+            {state.members.map((member) => (
+              <li key={member.user_id}>
+                {member.username}
+                {member.username !== user?.username && (
+                  <button
+                    type="button"
+                    className="btns"
+                    aria-label={`Remove ${member.username}`}
+                    onClick={() => handleRemoveMember(member.username)}
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          <form className="add-group-member-form" onSubmit={handleAddMember}>
+            <input
+              type="text"
+              aria-label="Add a member by username"
+              placeholder="Add someone by username…"
+              value={newMemberUsername}
+              onChange={(event) => setNewMemberUsername(event.target.value)}
+            />
+            <button type="submit" className="btns" disabled={!newMemberUsername.trim()}>
+              Add
+            </button>
+          </form>
+          <button type="button" className="btns btn-danger leave-group-button" onClick={handleLeaveGroup}>
+            Leave Group
+          </button>
+        </div>
+      )}
       <div
         className="chat-messages"
         id={`chat-messages-${conversationId}`}
