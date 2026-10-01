@@ -39,6 +39,27 @@ mkdir -p "$DB_DIR"
 rm -f "$DB_PATH"
 sqlite3 "$DB_PATH" < "$REPO_ROOT/database/createTables.sql"
 
+# Seeds a fixed admin account directly (bypassing registration — this isn't
+# about testing registration, and it keeps auth.setup.ts's login to a
+# single rate-limited call for this identity instead of two) so admin-only
+# E2E flows have a real admin to log in as. migrate()'s own "promote a user
+# literally named admin" convenience (see database/sqlFuncs.go) picks this
+# row up and sets its role the moment the server starts below — the exact
+# mechanism a real deployment's documented manual bootstrap relies on.
+#
+# The password hash is a precomputed bcrypt hash (cost 12) of
+# "E2eAdminPassword123" (see e2e/helpers/users.ts's adminUser) — fixed and
+# reused across runs rather than regenerated, since bcrypt verification
+# doesn't care that the hash itself is reused. Uses a single-quoted heredoc
+# delimiter so the shell never tries to expand the hash's literal $
+# characters as variable references.
+sqlite3 "$DB_PATH" <<'SQL'
+INSERT INTO user (fname, lname, uname, email, age, gender, pass, created_at)
+VALUES ('E2E', 'Admin', 'admin', 'e2e_admin@example.com', '30', 'other',
+  '$2a$12$1teOdcDT5dyAbrXgZAZUKeTHn1wJVPh4M5NAp.jXncwBg2hBerTpO',
+  datetime('now'));
+SQL
+
 mkdir -p "$BIN_DIR"
 (
   cd "$REPO_ROOT"

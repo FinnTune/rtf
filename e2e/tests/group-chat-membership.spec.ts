@@ -1,5 +1,5 @@
-import { test, expect, type Page } from '@playwright/test'
-import { authFile, users } from '../helpers/users'
+import { test, expect } from '@playwright/test'
+import { authFile, registerDisposableUser, users } from '../helpers/users'
 
 // Group chat membership (leave/add/remove) is the most complex live-update
 // feature added this project's history — every change broadcasts to the
@@ -8,31 +8,6 @@ import { authFile, users } from '../helpers/users'
 // }): every assertion here is specifically about one user's live-open
 // window updating from an action taken by the OTHER user, which a single
 // page/context can't exercise.
-
-// Registers (but deliberately does not log in — these tests never need
-// this identity online) a brand-new user directly through the real
-// register form, so CSRFProtect's Origin check is satisfied the same way
-// a real browser request satisfies it (a bare API POST from here, with no
-// Origin header, would be rejected outright). Consumes exactly one token
-// from the shared per-IP auth rate limiter — see auth.setup.ts's own doc
-// comment on why that budget is tight.
-async function registerOfflineUser(page: Page, uname: string) {
-  await page.goto('/')
-  await page.getByRole('button', { name: 'Register' }).click()
-  const registerForm = page.locator('form.register-form')
-  await registerForm.locator('#regfname').fill('E2E')
-  await registerForm.locator('#reglname').fill('OfflineMember')
-  await registerForm.locator('#reguname').fill(uname)
-  await registerForm.locator('#regemail').fill(`${uname}@example.com`)
-  await registerForm.locator('#regage').fill('30')
-  await registerForm.locator('#reggender').selectOption('other')
-  await registerForm.locator('#regpassword').fill('E2ePassword123')
-  await registerForm.locator('#regconfpassword').fill('E2ePassword123')
-  await registerForm.getByRole('button', { name: 'Register' }).click()
-  // RegisterForm switches straight to the login view on success — confirms
-  // registration actually succeeded, without this test ever logging in.
-  await expect(page.locator('form.login-form')).toBeVisible()
-}
 
 test('userA creates a group with userB, and userB leaving updates userA live', async ({ browser }) => {
   const contextA = await browser.newContext({ storageState: authFile('userA') })
@@ -91,7 +66,7 @@ test('adding and removing a member updates every other open window live', async 
 
   try {
     const offlineUsername = `e2e_offline_${Date.now()}`
-    await registerOfflineUser(pageOffline, offlineUsername)
+    await registerDisposableUser(pageOffline, offlineUsername)
 
     await pageA.goto('/')
     await pageB.goto('/')
