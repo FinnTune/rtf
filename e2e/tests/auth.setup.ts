@@ -43,3 +43,17 @@ setup('register and log in userB', async ({ page }) => {
   await registerAndLogIn(page, users.userB)
   await page.context().storageState({ path: authFile('userB') })
 })
+
+// adminUser is seeded directly by setup/run-server.sh, not registered
+// through the UI — only the login half of registerAndLogIn's flow applies.
+setup('log in adminUser (seeded directly, not registered)', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Login' }).click()
+  const loginForm = page.locator('form.login-form')
+  await loginForm.locator('#username').fill(users.adminUser.uname)
+  await loginForm.locator('#password').fill(users.adminUser.password)
+  await loginForm.getByRole('button', { name: 'Login' }).click()
+  await expect(page.locator('#topbar-username')).toHaveText(users.adminUser.uname)
+
+  await page.context().storageState({ path: authFile('adminUser') })
+})
