@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"rtForum/tests/testutil"
@@ -246,6 +247,62 @@ func TestUpdateProfileHandler_RejectsInvalidEmail(t *testing.T) {
 
 	if rr.Code != http.StatusBadRequest {
 		t.Fatalf("expected status %d, got %d: %s", http.StatusBadRequest, rr.Code, rr.Body.String())
+	}
+}
+
+// TestUpdateProfileHandler_ConcurrentEmailRace_OnlyOneSucceeds guards the
+// UNIQUE-constraint backstop below the COUNT(*) pre-check: two different
+// users racing to claim the same brand-new email (neither owns it yet, so
+// both pass the pre-check) must resolve to exactly one 200 and the rest
+// clean 409s — never a 500, and never two rows sharing the email. Same
+// shared-single-connection pattern as
+// TestReactToPostHandler_ConcurrentInsertRace_NoServerErrors.
+func TestUpdateProfileHandler_ConcurrentEmailRace_OnlyOneSucceeds(t *testing.T) {
+	websocket.ResetTestState()
+	db := testutil.UseForumDB(t)
+	db.SetMaxOpenConns(1)
+	websocket.AddAuthenticatedClient("session-alice", "alice", 2)
+	websocket.AddAuthenticatedClient("session-actual", "actual_user", 42)
+
+	sessions := []string{"session-alice", "session-actual"}
+	var wg sync.WaitGroup
+	codes := make([]int, len(sessions))
+	bodies := make([]string, len(sessions))
+	for i, sessionID := range sessions {
+		wg.Add(1)
+		go func(i int, sessionID string) {
+			defer wg.Done()
+			body, _ := json.Marshal(map[string]string{"fname": "Racer", "lname": "User", "email": "raceclaimed@example.com"})
+			req := authenticatedRequest(http.MethodPost, "/updateProfile", bytes.NewBuffer(body), sessionID)
+			rr := httptest.NewRecorder()
+			websocket.UpdateProfileHandler(rr, req)
+			codes[i] = rr.Code
+			bodies[i] = rr.Body.String()
+		}(i, sessionID)
+	}
+	wg.Wait()
+
+	var successes, conflicts int
+	for i, code := range codes {
+		switch code {
+		case http.StatusOK:
+			successes++
+		case http.StatusConflict:
+			conflicts++
+		default:
+			t.Fatalf("request %d: expected %d or %d, got %d: %s", i, http.StatusOK, http.StatusConflict, code, bodies[i])
+		}
+	}
+	if successes != 1 || conflicts != 1 {
+		t.Fatalf("expected exactly 1 success and 1 conflict, got %d successes and %d conflicts", successes, conflicts)
+	}
+
+	var rowCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM user WHERE email = 'raceclaimed@example.com'`).Scan(&rowCount); err != nil {
+		t.Fatalf("failed to count rows with the raced email: %v", err)
+	}
+	if rowCount != 1 {
+		t.Fatalf("expected exactly 1 row with the raced email, got %d — the UNIQUE constraint was violated", rowCount)
 	}
 }
 
