@@ -306,6 +306,42 @@ func TestUpdateProfileHandler_ConcurrentEmailRace_OnlyOneSucceeds(t *testing.T) 
 	}
 }
 
+// TestUpdatePasswordHandler_KicksAllSessionsForThisUser guards the one
+// self-service remediation a user has after suspecting a session was
+// compromised (a stolen-but-still-valid session_id cookie, the standard
+// reason to change a password at all): changing it must invalidate every
+// live session for this account, including a second tab/device (standing
+// in for an attacker's stolen cookie) and the request's own current
+// session — mirrors
+// TestSetUserBannedHandler_DisconnectsLiveClientImmediately's shape, same
+// kickUser mechanism.
+func TestUpdatePasswordHandler_KicksAllSessionsForThisUser(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	owner := websocket.AddTestClient("session-owner", "actual_user", 42)
+	otherDevice := websocket.AddTestClient("session-other-device", "actual_user", 42)
+	websocket.SetLoggedInList("actual_user")
+
+	body, _ := json.Marshal(map[string]string{"current_password": "secret123", "new_password": "newpassword1"})
+	req := authenticatedRequest(http.MethodPost, "/updatePassword", bytes.NewBuffer(body), "session-owner")
+	rr := httptest.NewRecorder()
+
+	websocket.UpdatePasswordHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+	if !owner.IsRemovedFromManager() {
+		t.Fatal("expected the request's own session to be removed from the manager too, not just other sessions")
+	}
+	if !otherDevice.IsRemovedFromManager() {
+		t.Fatal("expected a second session for this same user (a stolen cookie, another tab) to be removed from the manager")
+	}
+	if websocket.IsInLoggedInList("actual_user") {
+		t.Fatal("expected the user to be removed from LoggedInList")
+	}
+}
+
 func TestUpdatePasswordHandler_RejectsUnauthenticatedRequest(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)

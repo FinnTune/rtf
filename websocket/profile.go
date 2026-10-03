@@ -171,6 +171,17 @@ func UpdatePasswordHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Mirrors SetUserBannedHandler's own kickUser call: a changed password
+	// is the one self-service remediation a user has after suspecting their
+	// session was compromised (a stolen-but-still-valid session_id cookie,
+	// the standard reason to change it at all), and that remediation is
+	// worthless if a session minted before the change keeps working
+	// regardless — this includes the request's own current session, which
+	// the frontend already handles gracefully (the same "kicked, redirected
+	// to login" path a ban triggers), same as every other tab/device for
+	// this account.
+	manager.kickUser(client.userID)
+
 	slog.Info("password changed", "user_id", client.userID)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Password updated"))
