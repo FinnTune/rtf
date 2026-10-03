@@ -82,6 +82,25 @@ func TestCleanupRotatedLogs_KeepsOnlyMostRecentN(t *testing.T) {
 	}
 }
 
+// TestCheckLog_CreatesFreshFileWhenNoneExists covers CheckLog's other
+// branch — a brand-new deployment (or any run where forum.log doesn't
+// already exist) must get a fresh log file created outright, with nothing
+// to rename and no forum_*.log left behind from a rotation that never
+// happened.
+func TestCheckLog_CreatesFreshFileWhenNoneExists(t *testing.T) {
+	dir := t.TempDir() + string(filepath.Separator)
+
+	CheckLog(dir, "forum.log")
+
+	if _, err := os.Stat(dir + "forum.log"); err != nil {
+		t.Fatalf("expected a fresh forum.log to exist after CheckLog: %v", err)
+	}
+	remaining := remainingRotatedLogs(t, dir)
+	if len(remaining) != 0 {
+		t.Fatalf("expected no rotated logs (nothing existed to rotate), got %d: %v", len(remaining), remaining)
+	}
+}
+
 // TestCheckLog_CleansUpOldRotatedLogsOnRotation covers CheckLog's actual
 // production entry point: a directory that already has more than
 // maxRotatedLogs old rotated files (e.g. from many prior restarts, before
