@@ -392,6 +392,23 @@ func TestDeletePostHandler_ReusedPostIDHasNoLeftoverReactions(t *testing.T) {
 	}
 }
 
+func TestDeletePostHandler_NonexistentID_NotFound(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-owner", "actual_user", 42)
+
+	body := `{"id":9999}`
+	req := httptest.NewRequest(http.MethodPost, "/deletePost", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-owner"})
+	rr := httptest.NewRecorder()
+
+	websocket.DeletePostHandler(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusNotFound, rr.Code, rr.Body.String())
+	}
+}
+
 func TestDeletePostHandler_RejectsNonOwner(t *testing.T) {
 	websocket.ResetTestState()
 	db := testutil.UseForumDB(t)

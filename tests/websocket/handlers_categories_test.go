@@ -330,6 +330,23 @@ func TestDeleteCategoryHandler_AsAdmin_RemovesCategoryAndRelations(t *testing.T)
 	}
 }
 
+func TestDeleteCategoryHandler_NonexistentID_NotFound(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+	websocket.AddAuthenticatedClient("session-admin", "admin", 1)
+
+	body := `{"id":9999}`
+	req := httptest.NewRequest(http.MethodPost, "/deleteCategory", bytes.NewBufferString(body))
+	req.AddCookie(&http.Cookie{Name: "session_id", Value: "session-admin"})
+	rr := httptest.NewRecorder()
+
+	websocket.RequireAdmin(websocket.DeleteCategoryHandler)(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusNotFound, rr.Code, rr.Body.String())
+	}
+}
+
 func TestDeleteCategoryHandler_AsNonAdmin_Rejected(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
