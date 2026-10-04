@@ -1979,6 +1979,15 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
+	// Must run before the comment delete below: a notification row
+	// references both post_id and comment_id, and foreign keys are
+	// enforced on this connection — deleting a comment a notification
+	// still points to would fail the transaction outright otherwise.
+	if _, err := tx.Exec("DELETE FROM notification WHERE post_id = ?", requestBody.ID); err != nil {
+		slog.Error("failed to delete post notifications", "error", err, "post_id", requestBody.ID)
+		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
+		return
+	}
 	if _, err := tx.Exec("DELETE FROM comment WHERE post_id = ?", requestBody.ID); err != nil {
 		slog.Error("failed to delete post comments", "error", err, "post_id", requestBody.ID)
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
@@ -2175,14 +2184,17 @@ func AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 	// user_post_reaction on post delete), so a comment attached to a
 	// nonexistent post_id could later resurface as attached to an unrelated
 	// future post.
-	var postExists int
-	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM post WHERE id = ?", comment.PostID).Scan(&postExists); err != nil {
+	// Also fetches the post's owner/title, not just a COUNT(*) — needed to
+	// notify the post's author below.
+	var postOwnerID int
+	var postTitle string
+	err = database.ForumDB.QueryRow("SELECT user_id, title FROM post WHERE id = ?", comment.PostID).Scan(&postOwnerID, &postTitle)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	} else if err != nil {
 		slog.Error("failed to check post existence", "error", err, "post_id", comment.PostID)
 		http.Error(w, "Failed to add comment", http.StatusInternalServerError)
-		return
-	}
-	if postExists == 0 {
-		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	}
 
@@ -2215,6 +2227,32 @@ func AddCommentHandler(w http.ResponseWriter, r *http.Request) {
 	// without this, a comment list visible in another tab/user's
 	// SinglePostView stays stale until they reload.
 	broadcastCommentAdded(comment, client.userID)
+
+	// No self-notification for commenting on your own post. Best-effort:
+	// logged, not fatal — the comment itself already succeeded and is
+	// already committed by this point, and a failed notification is far
+	// less costly than failing an otherwise-successful comment post.
+	if postOwnerID != client.userID {
+		notifResult, err := database.ForumDB.Exec(`
+			INSERT INTO notification (user_id, post_id, comment_id, actor_username, created_at)
+			VALUES (?, ?, ?, ?, ?)`,
+			postOwnerID, comment.PostID, comment.ID, client.username, created)
+		if err != nil {
+			slog.Error("failed to insert notification", "error", err, "post_id", comment.PostID, "comment_id", comment.ID)
+		} else if notifID, err := notifResult.LastInsertId(); err != nil {
+			slog.Error("failed to fetch inserted notification id", "error", err)
+		} else {
+			broadcastNotificationAdded(postOwnerID, Notification{
+				ID:            int(notifID),
+				PostID:        comment.PostID,
+				PostTitle:     postTitle,
+				CommentID:     comment.ID,
+				ActorUsername: client.username,
+				CreatedAt:     created,
+				Read:          false,
+			})
+		}
+	}
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(comment)
@@ -2401,8 +2439,30 @@ func DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if _, err := database.ForumDB.Exec("DELETE FROM comment WHERE id = ?", requestBody.ID); err != nil {
+	tx, err := database.ForumDB.Begin()
+	if err != nil {
+		slog.Error("failed to begin comment deletion transaction", "error", err)
+		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	// Must run before the comment delete below: a notification row
+	// references comment_id, and foreign keys are enforced on this
+	// connection — deleting a comment a notification still points to would
+	// fail outright otherwise.
+	if _, err := tx.Exec("DELETE FROM notification WHERE comment_id = ?", requestBody.ID); err != nil {
+		slog.Error("failed to delete comment notifications", "error", err, "comment_id", requestBody.ID)
+		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
+		return
+	}
+	if _, err := tx.Exec("DELETE FROM comment WHERE id = ?", requestBody.ID); err != nil {
 		slog.Error("failed to delete comment", "error", err, "comment_id", requestBody.ID)
+		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		slog.Error("failed to commit comment deletion", "error", err)
 		http.Error(w, "Failed to delete comment", http.StatusInternalServerError)
 		return
 	}
@@ -2414,4 +2474,143 @@ func DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Comment deleted"))
+}
+
+// GetNotificationsHandler returns the requesting user's own "someone
+// commented on your post" notifications, newest first — never another
+// user's, since user_id in the query is always the verified client's own,
+// never client-supplied.
+func GetNotificationsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	client, err := authenticatedClientFromRequest(r)
+	if err != nil {
+		utility.ClearCookie(w)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	limit := defaultNotificationsPageSize
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 {
+		limit = v
+	}
+	if limit > maxNotificationsPageSize {
+		limit = maxNotificationsPageSize
+	}
+	offset := 0
+	if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v >= 0 {
+		offset = v
+	}
+
+	var total int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM notification WHERE user_id = ?", client.userID).Scan(&total); err != nil {
+		slog.Error("failed to count notifications", "error", err, "user_id", client.userID)
+		http.Error(w, "Failed to load notifications", http.StatusInternalServerError)
+		return
+	}
+
+	var unread int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM notification WHERE user_id = ? AND read_at IS NULL", client.userID).Scan(&unread); err != nil {
+		slog.Error("failed to count unread notifications", "error", err, "user_id", client.userID)
+		http.Error(w, "Failed to load notifications", http.StatusInternalServerError)
+		return
+	}
+
+	rows, err := database.ForumDB.Query(`
+		SELECT n.id, n.post_id, p.title, n.comment_id, n.actor_username, n.created_at, n.read_at
+		FROM notification n
+		INNER JOIN post p ON n.post_id = p.id
+		WHERE n.user_id = ?
+		ORDER BY n.created_at DESC, n.id DESC
+		LIMIT ? OFFSET ?`, client.userID, limit, offset)
+	if err != nil {
+		slog.Error("failed to query notifications", "error", err, "user_id", client.userID)
+		http.Error(w, "Failed to load notifications", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	notifications := make([]Notification, 0)
+	for rows.Next() {
+		var n Notification
+		var readAt sql.NullString
+		if err := rows.Scan(&n.ID, &n.PostID, &n.PostTitle, &n.CommentID, &n.ActorUsername, &n.CreatedAt, &readAt); err != nil {
+			slog.Error("failed to scan notification row", "error", err)
+			http.Error(w, "Failed to load notifications", http.StatusInternalServerError)
+			return
+		}
+		n.Read = readAt.Valid
+		notifications = append(notifications, n)
+	}
+
+	// unread_count rides in the body, not a second header alongside
+	// X-Total-Count — every other paginated list endpoint's "how many
+	// total" is the one number its callers need from a header; this is the
+	// only one that also needs a second, differently-filtered count, which
+	// doesn't fit that shared convention.
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Total-Count", strconv.Itoa(total))
+	json.NewEncoder(w).Encode(struct {
+		Notifications []Notification `json:"notifications"`
+		UnreadCount   int            `json:"unread_count"`
+	}{notifications, unread})
+}
+
+// MarkNotificationsReadHandler marks either one notification (if an id is
+// given) or every one of the requesting user's unread notifications (if
+// not) as read. Scoped to client.userID in every case — the id variant
+// re-verifies ownership via the WHERE clause itself rather than trusting
+// that the id belongs to this user, so one user can never mark (or even
+// detect the existence of) another user's notification by guessing an id.
+func MarkNotificationsReadHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	client, err := authenticatedClientFromRequest(r)
+	if err != nil {
+		utility.ClearCookie(w)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var requestBody struct {
+		ID *int `json:"id"`
+	}
+	// An empty body (mark-all, the common case) is not an error — only a
+	// malformed one is.
+	if r.ContentLength != 0 {
+		if err := decodeJSONBody(w, r, &requestBody); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+	}
+
+	readAt := time.Now().Format("2006-01-02 15:04:05")
+	if requestBody.ID != nil {
+		if _, err := database.ForumDB.Exec(
+			"UPDATE notification SET read_at = ? WHERE id = ? AND user_id = ? AND read_at IS NULL",
+			readAt, *requestBody.ID, client.userID,
+		); err != nil {
+			slog.Error("failed to mark notification read", "error", err, "notification_id", *requestBody.ID, "user_id", client.userID)
+			http.Error(w, "Failed to update notifications", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		if _, err := database.ForumDB.Exec(
+			"UPDATE notification SET read_at = ? WHERE user_id = ? AND read_at IS NULL",
+			readAt, client.userID,
+		); err != nil {
+			slog.Error("failed to mark notifications read", "error", err, "user_id", client.userID)
+			http.Error(w, "Failed to update notifications", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Notifications updated"))
 }

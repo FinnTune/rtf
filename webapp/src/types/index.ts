@@ -127,3 +127,16 @@ export interface UserSummary {
   role: string
   banned: boolean
 }
+
+// Matches websocket/structs.go's Notification JSON tags exactly — the
+// "someone commented on your post" live push (notification-added) and
+// GetNotificationsHandler's list both use this same shape.
+export interface NotificationItem {
+  id: number
+  post_id: number
+  post_title: string
+  comment_id: number
+  actor_username: string
+  created_at: string
+  read: boolean
+}

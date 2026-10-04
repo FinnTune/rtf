@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFeedView } from '../../contexts/FeedViewContext'
+import { NotificationsBell } from './NotificationsBell'
 import { SearchBox } from './SearchBox'
 
 export function Topbar() {
@@ -27,6 +28,7 @@ export function Topbar() {
       </h1>
       <SearchBox key={searchResetToken} showClear={view.type === 'search'} onSubmit={handleSearchSubmit} onClear={handleClear} />
       <div className="topbar-user">
+        <NotificationsBell />
         <span id="topbar-username">{user?.username}</span>
         <button type="button" className="header-btns" id="logout-button" onClick={() => void logout()}>
           Logout

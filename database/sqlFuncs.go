@@ -117,6 +117,25 @@ func migrate(db *sql.DB) error {
 	// EXISTS is all the idempotency an already-deployed database needs —
 	// no column-existence dance required.
 	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS notification (
+			id INTEGER NOT NULL PRIMARY KEY,
+			user_id INTEGER NOT NULL,
+			post_id INTEGER NOT NULL,
+			comment_id INTEGER NOT NULL,
+			actor_username VARCHAR(30) NOT NULL,
+			created_at DATETIME NOT NULL,
+			read_at DATETIME,
+			FOREIGN KEY(user_id) REFERENCES user(id),
+			FOREIGN KEY(post_id) REFERENCES post(id),
+			FOREIGN KEY(comment_id) REFERENCES comment(id)
+		)`); err != nil {
+		return fmt.Errorf("creating notification table: %w", err)
+	}
+
+	// A brand-new table, unlike user.role above, so CREATE TABLE IF NOT
+	// EXISTS is all the idempotency an already-deployed database needs —
+	// no column-existence dance required.
+	if _, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS message_read (
 			id INTEGER NOT NULL PRIMARY KEY,
 			conversation_id INTEGER NOT NULL,
@@ -144,6 +163,7 @@ func migrate(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_user_post_reaction_post_id ON user_post_reaction(post_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_conversation_member_user_id ON conversation_member(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_post_author ON post(author)`,
+		`CREATE INDEX IF NOT EXISTS idx_notification_user_id ON notification(user_id)`,
 	}
 	for _, stmt := range indexStatements {
 		if _, err := db.Exec(stmt); err != nil {

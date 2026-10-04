@@ -42,6 +42,7 @@ const (
 	AddGroupMember         = "add-group-member"
 	RemoveGroupMember      = "remove-group-member"
 	GroupMembershipChanged = "group-membership-changed"
+	NotificationAdded      = "notification-added"
 )
 
 // ReceiveMessageEvent is the client->server "new-message" payload. Every

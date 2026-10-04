@@ -1,10 +1,13 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from '../../contexts/AuthContext'
 import { FeedViewProvider, useFeedView } from '../../contexts/FeedViewContext'
-import { checkLoginResponse } from '../../testUtils/chatTestHarness'
+import { NotificationsProvider } from '../../contexts/NotificationsContext'
+import { StatusMessageProvider } from '../../contexts/StatusMessageContext'
+import { WebSocketProvider } from '../../contexts/WebSocketContext'
+import { ControllableFakeWebSocket, checkLoginResponse } from '../../testUtils/chatTestHarness'
 import { Topbar } from './Topbar'
 
 function requestUrl(input: string | URL | Request): string {
@@ -20,6 +23,7 @@ function ViewProbe() {
 }
 
 function mockBackend() {
+  vi.stubGlobal('WebSocket', ControllableFakeWebSocket)
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string | URL | Request) => {
@@ -30,38 +34,53 @@ function mockBackend() {
       if (url.startsWith('/logout')) {
         return new Response(null, { status: 200 })
       }
+      if (url.startsWith('/notifications')) {
+        return new Response(JSON.stringify({ notifications: [], unread_count: 0 }), { status: 200, headers: { 'X-Total-Count': '0' } })
+      }
       throw new Error('Unexpected fetch: ' + url)
     }),
   )
 }
 
-function renderTopbar() {
-  return render(
+async function renderTopbar() {
+  const result = render(
     <MemoryRouter initialEntries={['/']}>
-      <AuthProvider>
-        <FeedViewProvider>
-          <Topbar />
-          <ViewProbe />
-        </FeedViewProvider>
-      </AuthProvider>
+      <StatusMessageProvider>
+        <AuthProvider>
+          <WebSocketProvider>
+            <NotificationsProvider>
+              <FeedViewProvider>
+                <Topbar />
+                <ViewProbe />
+              </FeedViewProvider>
+            </NotificationsProvider>
+          </WebSocketProvider>
+        </AuthProvider>
+      </StatusMessageProvider>
     </MemoryRouter>,
   )
+  // Settles the WS connection before returning — see NotificationsBell.test.tsx's
+  // identical comment on why every WS-dependent test does this.
+  await waitFor(() => expect(ControllableFakeWebSocket.instances.length).toBe(1))
+  act(() => ControllableFakeWebSocket.instances[0].simulateOpen())
+  return result
 }
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  ControllableFakeWebSocket.instances = []
 })
 
 describe('Topbar', () => {
   it("shows the logged-in user's username", async () => {
     mockBackend()
-    renderTopbar()
+    await renderTopbar()
     expect(await screen.findByText('alice')).toHaveAttribute('id', 'topbar-username')
   })
 
   it('submitting a search moves the feed view to search and shows Clear', async () => {
     mockBackend()
-    renderTopbar()
+    await renderTopbar()
     await screen.findByText('alice')
 
     expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument()
@@ -74,7 +93,7 @@ describe('Topbar', () => {
 
   it('Clear returns the view to all and remounts SearchBox, discarding any unsubmitted typed text', async () => {
     mockBackend()
-    renderTopbar()
+    await renderTopbar()
     await screen.findByText('alice')
 
     await userEvent.type(screen.getByLabelText('Search posts'), 'dragons')
@@ -93,7 +112,7 @@ describe('Topbar', () => {
 
   it('logging out clears the displayed username', async () => {
     mockBackend()
-    renderTopbar()
+    await renderTopbar()
     await screen.findByText('alice')
 
     await userEvent.click(screen.getByRole('button', { name: 'Logout' }))

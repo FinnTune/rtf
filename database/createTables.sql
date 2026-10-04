@@ -44,6 +44,24 @@ CREATE TABLE comment (
  FOREIGN KEY(post_id) REFERENCES post(id)
 );
 
+-- One row per "someone commented on your post" event. user_id is the
+-- recipient (the post's author), not the commenter — actor_username is
+-- denormalized (like post.author) so a notification still reads sensibly
+-- even if the commenting account were ever removed. read_at NULL means
+-- unread; set once, never cleared.
+CREATE TABLE notification (
+ id INTEGER NOT NULL PRIMARY KEY,
+ user_id INTEGER NOT NULL,
+ post_id INTEGER NOT NULL,
+ comment_id INTEGER NOT NULL,
+ actor_username VARCHAR(30) NOT NULL,
+ created_at DATETIME NOT NULL,
+ read_at DATETIME,
+ FOREIGN KEY(user_id) REFERENCES user(id),
+ FOREIGN KEY(post_id) REFERENCES post(id),
+ FOREIGN KEY(comment_id) REFERENCES comment(id)
+);
+
 CREATE TABLE user_post_reaction (
  id INTEGER NOT NULL PRIMARY KEY,
  user_id INTEGER NOT NULL,

@@ -62,6 +62,9 @@ const (
 	defaultUsersPageSize = 20
 	maxUsersPageSize     = 100
 
+	defaultNotificationsPageSize = 20
+	maxNotificationsPageSize     = 100
+
 	// The frontend always requests HISTORY_PAGE_SIZE (10) at a time; the max
 	// is generous headroom for that, not a normal request size.
 	defaultChatHistoryPageSize = 10
