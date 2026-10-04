@@ -157,6 +157,8 @@ func buildServer() *http.Server {
 	http.HandleFunc("/editComment", writeLimiter.Limit(websocket.CSRFProtect(websocket.EditCommentHandler)))
 	http.HandleFunc("/deleteComment", writeLimiter.Limit(websocket.CSRFProtect(websocket.DeleteCommentHandler)))
 	http.HandleFunc("/comments", readLimiter.Limit(websocket.GetCommentsHandler))
+	http.HandleFunc("/notifications", readLimiter.Limit(websocket.GetNotificationsHandler))
+	http.HandleFunc("/markNotificationsRead", writeLimiter.Limit(websocket.CSRFProtect(websocket.MarkNotificationsReadHandler)))
 
 	port := getEnv("PORT", "8443")
 	return &http.Server{

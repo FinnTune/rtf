@@ -197,6 +197,22 @@ type Comment struct {
 	CreatedAt string `json:"created_at"`
 }
 
+// Notification is a "someone commented on your post" event, both as stored
+// (notification table) and as returned by GetNotificationsHandler/pushed by
+// broadcastNotificationAdded — the same shape serves both, like Comment
+// above. PostTitle is joined in at read time (not stored) so a later post
+// title edit is reflected without needing to touch every notification row
+// that references it.
+type Notification struct {
+	ID            int    `json:"id"`
+	PostID        int    `json:"post_id"`
+	PostTitle     string `json:"post_title"`
+	CommentID     int    `json:"comment_id"`
+	ActorUsername string `json:"actor_username"`
+	CreatedAt     string `json:"created_at"`
+	Read          bool   `json:"read"`
+}
+
 // type Post struct {
 // 	ID             int
 // 	UserID         int

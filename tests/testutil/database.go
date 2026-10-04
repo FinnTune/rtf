@@ -60,6 +60,19 @@ CREATE TABLE category_relation (
 	FOREIGN KEY(post_id) REFERENCES post(id)
 );
 
+CREATE TABLE notification (
+	id INTEGER NOT NULL PRIMARY KEY,
+	user_id INTEGER NOT NULL,
+	post_id INTEGER NOT NULL,
+	comment_id INTEGER NOT NULL,
+	actor_username VARCHAR(30) NOT NULL,
+	created_at DATETIME NOT NULL,
+	read_at DATETIME,
+	FOREIGN KEY(user_id) REFERENCES user(id),
+	FOREIGN KEY(post_id) REFERENCES post(id),
+	FOREIGN KEY(comment_id) REFERENCES comment(id)
+);
+
 CREATE TABLE user_post_reaction (
 	id INTEGER NOT NULL PRIMARY KEY,
 	user_id INTEGER NOT NULL,

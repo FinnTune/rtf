@@ -5,6 +5,7 @@ import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 import { ChatProvider } from './contexts/ChatContext'
 import { FeedViewProvider } from './contexts/FeedViewContext'
+import { NotificationsProvider } from './contexts/NotificationsContext'
 import { StatusMessageProvider } from './contexts/StatusMessageContext'
 import { WebSocketProvider } from './contexts/WebSocketContext'
 
@@ -65,6 +66,9 @@ function mockBackend(loggedIn: boolean) {
       if (url.startsWith('/comments')) {
         return new Response(JSON.stringify([]), { status: 200, headers: { 'X-Total-Count': '0' } })
       }
+      if (url.startsWith('/notifications')) {
+        return new Response(JSON.stringify({ notifications: [], unread_count: 0 }), { status: 200, headers: { 'X-Total-Count': '0' } })
+      }
       throw new Error('Unexpected fetch in test: ' + url)
     }),
   )
@@ -77,9 +81,11 @@ function renderAt(path: string) {
         <AuthProvider>
           <WebSocketProvider>
             <ChatProvider>
-              <FeedViewProvider>
-                <App />
-              </FeedViewProvider>
+              <NotificationsProvider>
+                <FeedViewProvider>
+                  <App />
+                </FeedViewProvider>
+              </NotificationsProvider>
             </ChatProvider>
           </WebSocketProvider>
         </AuthProvider>

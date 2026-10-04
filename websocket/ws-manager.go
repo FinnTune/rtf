@@ -404,6 +404,30 @@ func broadcastCommentAdded(comment Comment, excludeUserID int) {
 	broadcastTo(recipients, Event{Type: CommentAdded, Payload: data})
 }
 
+// broadcastNotificationAdded pushes a freshly-created notification to every
+// one of recipientUserID's currently-connected clients (every open tab/
+// device for that one user) — unlike broadcastCommentAdded above, this is
+// targeted at a single recipient, not "everyone but the actor". Same
+// filter-manager.clients-by-userID shape as kickUser, for the same reason:
+// one account can have more than one live Client at once. A no-op if the
+// recipient isn't currently connected — GetNotificationsHandler is what
+// they see it through on their next visit instead.
+func broadcastNotificationAdded(recipientUserID int, notification Notification) {
+	data, err := json.Marshal(notification)
+	if err != nil {
+		slog.Error("failed to marshal notification-added broadcast", "error", err, "notification_id", notification.ID)
+		return
+	}
+
+	var recipients []*Client
+	for _, c := range manager.clientsSnapshot() {
+		if c.userID == recipientUserID {
+			recipients = append(recipients, c)
+		}
+	}
+	broadcastTo(recipients, Event{Type: NotificationAdded, Payload: data})
+}
+
 // addUserInfo handles the user-connect event, marking an already-identified
 // client as online. It deliberately ignores any identity fields in
 // event.Payload — c.username/c.userID/c.email/c.joined were already bound
