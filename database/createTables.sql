@@ -73,6 +73,23 @@ CREATE TABLE user_post_reaction (
  FOREIGN KEY(post_id) REFERENCES post(id)
 );
 
+-- One row per "this user saved this post for later." Binary (bookmarked or
+-- not), unlike user_post_reaction's like/dislike — no is_liked-style column
+-- needed, a row's mere existence is the signal. UNIQUE enforces the same
+-- "at most once per user per post" invariant reactions have, for the same
+-- reason: BookmarkPostHandler's toggle is a plain exists-check-then-insert/
+-- delete, not an upsert, so two concurrent bookmark requests racing past
+-- that check would otherwise both insert.
+CREATE TABLE bookmark (
+ id INTEGER NOT NULL PRIMARY KEY,
+ user_id INTEGER NOT NULL,
+ post_id INTEGER NOT NULL,
+ created_at DATETIME NOT NULL,
+ UNIQUE(user_id, post_id),
+ FOREIGN KEY(user_id) REFERENCES user(id),
+ FOREIGN KEY(post_id) REFERENCES post(id)
+);
+
 -- CREATE TABLE user_comment_reaction (
 --  id INTEGER NOT NULL PRIMARY KEY,
 --  user_id INTEGER NOT NULL,

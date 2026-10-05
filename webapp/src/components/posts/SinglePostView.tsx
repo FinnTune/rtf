@@ -7,6 +7,7 @@ import { useStatusMessage } from '../../contexts/StatusMessageContext'
 import { useOptionalWebSocket } from '../../contexts/WebSocketContext'
 import type { Post } from '../../types'
 import { LoadingButton } from '../common/LoadingButton'
+import { BookmarkButton } from './BookmarkButton'
 import { CommentList } from './CommentList'
 import { PostEditForm } from './PostEditForm'
 import { ReactionButtons } from './ReactionButtons'
@@ -125,7 +126,10 @@ export function SinglePostView() {
           onCancel={() => setEditing(false)}
         />
       )}
-      <ReactionButtons post={post} />
+      <div className="post-card-actions">
+        <ReactionButtons post={post} />
+        <BookmarkButton post={post} />
+      </div>
       <p>
         Author:{' '}
         <Link to={`/users/${encodeURIComponent(post.Author)}`} className="author-link">

@@ -21,6 +21,7 @@ function makePost(overrides: Partial<Post> = {}): Post {
     LikeCount: 2,
     DislikeCount: 1,
     MyReaction: 'none',
+    MyBookmark: false,
     ...overrides,
   }
 }

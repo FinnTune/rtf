@@ -69,6 +69,11 @@ type Post struct {
 	LikeCount    int
 	DislikeCount int
 	MyReaction   string
+	// Populated by attachBookmarkData, the same reason/pattern as
+	// MyReaction above — false (its zero value) is already correct for an
+	// anonymous viewer or one who hasn't bookmarked this post, so unlike
+	// MyReaction there's no separate "reset to a default" step needed.
+	MyBookmark bool
 }
 
 type DBPost struct {

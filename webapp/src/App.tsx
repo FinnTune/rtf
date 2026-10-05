@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom'
 import { AddPostForm } from './components/posts/AddPostForm'
 import { AuthorPostsPage } from './components/posts/AuthorPostsPage'
+import { BookmarksPage } from './components/posts/BookmarksPage'
 import { Feed } from './components/posts/Feed'
 import { SinglePostView } from './components/posts/SinglePostView'
 import { ManageCategoriesPage } from './components/admin/ManageCategoriesPage'
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/" element={<Feed />} />
         <Route path="/posts/:id" element={<SinglePostView />} />
         <Route path="/users/:username" element={<AuthorPostsPage />} />
+        <Route path="/bookmarks" element={<BookmarksPage />} />
         <Route path="/new-post" element={<AddPostForm />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/admin/categories" element={<ManageCategoriesPage />} />

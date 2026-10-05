@@ -124,3 +124,20 @@ export async function reactToPost(postId: number, isLiked: boolean): Promise<Rea
   })
   return { likeCount: data.like_count, dislikeCount: data.dislike_count, myReaction: data.my_reaction }
 }
+
+// One request both bookmarks and un-bookmarks — mirrors reactToPost's own
+// toggle shape (submit again to undo). Returns the resulting state rather
+// than the caller having to track "which way am I toggling" itself.
+export async function bookmarkPost(postId: number): Promise<boolean> {
+  const { data } = await requestJson<{ bookmarked: boolean }>('/bookmarkPost', {
+    method: 'POST',
+    headers: jsonHeaders,
+    body: JSON.stringify({ post_id: postId }),
+  })
+  return data.bookmarked
+}
+
+export async function getBookmarks(offset: number, limit: number): Promise<PostPage> {
+  const { data, total } = await requestJson<Post[]>(`/getBookmarks?limit=${limit}&offset=${offset}`)
+  return { posts: data, total }
+}

@@ -208,6 +208,219 @@ func attachReactionData(posts []Post, viewerUserID int) error {
 	return viewerRows.Err()
 }
 
+// attachBookmarkData sets MyBookmark true on every post in posts the viewer
+// has bookmarked — simpler than attachReactionData above, since a bookmark
+// has no aggregate "how many people bookmarked this" count to show anyone,
+// only the viewer's own yes/no state.
+func attachBookmarkData(posts []Post, viewerUserID int) error {
+	if len(posts) == 0 || viewerUserID <= 0 {
+		return nil
+	}
+
+	ids := make([]int, len(posts))
+	indexByPostID := make(map[int]int, len(posts))
+	for i := range posts {
+		ids[i] = posts[i].PostId
+		indexByPostID[posts[i].PostId] = i
+	}
+
+	placeholders := strings.Repeat("?,", len(ids))
+	placeholders = placeholders[:len(placeholders)-1]
+	args := make([]interface{}, len(ids)+1)
+	args[0] = viewerUserID
+	for i, id := range ids {
+		args[i+1] = id
+	}
+
+	rows, err := database.ForumDB.Query(
+		"SELECT post_id FROM bookmark WHERE user_id = ? AND post_id IN ("+placeholders+")",
+		args...,
+	)
+	if err != nil {
+		return fmt.Errorf("querying viewer's bookmarks: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var postID int
+		if err := rows.Scan(&postID); err != nil {
+			return fmt.Errorf("scanning viewer's bookmarks: %w", err)
+		}
+		if idx, ok := indexByPostID[postID]; ok {
+			posts[idx].MyBookmark = true
+		}
+	}
+	return rows.Err()
+}
+
+// toggleBookmark adds or removes postID from userID's bookmarks and reports
+// which it ended up doing. A concurrent-insert race backstop, same shape as
+// insertOrReconcileReaction/applyReactionToExistingRow for
+// user_post_reaction's identical UNIQUE(user_id, post_id) constraint — but
+// simpler: a bookmark has no "switch to a different value" case to
+// reconcile, so losing the race just means the row already exists, which is
+// still success (bookmarked: true) from this caller's point of view.
+func toggleBookmark(userID, postID int) (bookmarked bool, err error) {
+	var existingID int
+	err = database.ForumDB.QueryRow(
+		"SELECT id FROM bookmark WHERE user_id = ? AND post_id = ?", userID, postID,
+	).Scan(&existingID)
+	switch {
+	case err == nil:
+		_, err := database.ForumDB.Exec("DELETE FROM bookmark WHERE id = ?", existingID)
+		return false, err
+	case err != sql.ErrNoRows:
+		return false, err
+	}
+
+	_, err = database.ForumDB.Exec(
+		"INSERT INTO bookmark (user_id, post_id, created_at) VALUES (?, ?, ?)",
+		userID, postID, time.Now().Format("2006-01-02 15:04:05"),
+	)
+	if err == nil {
+		return true, nil
+	}
+	if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.Code == sqlite3.ErrConstraint {
+		return true, nil
+	}
+	return false, err
+}
+
+// BookmarkPostHandler toggles whether the requesting user has postId
+// bookmarked — one request both bookmarks and un-bookmarks, mirroring
+// ReactToPostHandler's own toggle shape (submit again to undo).
+func BookmarkPostHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	client, err := authenticatedClientFromRequest(r)
+	if err != nil {
+		utility.ClearCookie(w)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var requestBody struct {
+		PostID int `json:"post_id"`
+	}
+	if err := decodeJSONBody(w, r, &requestBody); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if requestBody.PostID <= 0 {
+		http.Error(w, "a valid post_id is required", http.StatusBadRequest)
+		return
+	}
+
+	var postExists int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM post WHERE id = ?", requestBody.PostID).Scan(&postExists); err != nil {
+		slog.Error("failed to check post existence", "error", err, "post_id", requestBody.PostID)
+		http.Error(w, "Failed to update bookmark", http.StatusInternalServerError)
+		return
+	}
+	if postExists == 0 {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+
+	bookmarked, err := toggleBookmark(client.userID, requestBody.PostID)
+	if err != nil {
+		slog.Error("failed to toggle bookmark", "error", err, "post_id", requestBody.PostID, "user_id", client.userID)
+		http.Error(w, "Failed to update bookmark", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]bool{"bookmarked": bookmarked})
+}
+
+// GetBookmarksHandler returns the requesting user's own bookmarked posts,
+// most-recently-bookmarked first — never another user's, since user_id in
+// the query is always the verified client's own, never client-supplied.
+func GetBookmarksHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	client, err := authenticatedClientFromRequest(r)
+	if err != nil {
+		utility.ClearCookie(w)
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	limit := defaultPostsPageSize
+	if v, err := strconv.Atoi(r.URL.Query().Get("limit")); err == nil && v > 0 {
+		limit = v
+	}
+	if limit > maxPostsPageSize {
+		limit = maxPostsPageSize
+	}
+	offset := 0
+	if v, err := strconv.Atoi(r.URL.Query().Get("offset")); err == nil && v >= 0 {
+		offset = v
+	}
+
+	var total int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM bookmark WHERE user_id = ?", client.userID).Scan(&total); err != nil {
+		slog.Error("failed to count bookmarks", "error", err, "user_id", client.userID)
+		http.Error(w, "Failed to load bookmarks", http.StatusInternalServerError)
+		return
+	}
+
+	rows, err := database.ForumDB.Query(`
+		SELECT post.id, post.user_id, post.title, post.content, post.author, post.created_at, COALESCE(post.img_url, '')
+		FROM post
+		INNER JOIN bookmark ON bookmark.post_id = post.id
+		WHERE bookmark.user_id = ?
+		ORDER BY bookmark.created_at DESC, bookmark.id DESC
+		LIMIT ? OFFSET ?`, client.userID, limit, offset)
+	if err != nil {
+		slog.Error("failed to query bookmarks", "error", err, "user_id", client.userID)
+		http.Error(w, "Failed to load bookmarks", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	posts := []Post{}
+	for rows.Next() {
+		var post Post
+		if err := rows.Scan(&post.PostId, &post.UserId, &post.Title, &post.Content, &post.Author, &post.Created, &post.ImgURL); err != nil {
+			slog.Error("failed to scan bookmarked post row", "error", err)
+			http.Error(w, "Failed to load bookmarks", http.StatusInternalServerError)
+			return
+		}
+		posts = append(posts, post)
+	}
+	if err := rows.Err(); err != nil {
+		slog.Error("error iterating bookmarked posts", "error", err)
+		http.Error(w, "Failed to load bookmarks", http.StatusInternalServerError)
+		return
+	}
+
+	if err := attachReactionData(posts, client.userID); err != nil {
+		slog.Error("error attaching reaction data", "error", err)
+		http.Error(w, "Failed to load bookmarks", http.StatusInternalServerError)
+		return
+	}
+	// Every post here is already bookmarked by definition — attachBookmarkData
+	// still runs rather than setting MyBookmark: true by hand, so this list
+	// uses the exact same code path (and the exact same column) every other
+	// listing does, with nothing special-cased.
+	if err := attachBookmarkData(posts, client.userID); err != nil {
+		slog.Error("error attaching bookmark data", "error", err)
+		http.Error(w, "Failed to load bookmarks", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Total-Count", strconv.Itoa(total))
+	json.NewEncoder(w).Encode(posts)
+}
+
 // postSortJoinAndOrder returns the SQL JOIN fragment (empty for the default
 // "newest" sort) and ORDER BY clause for a normalized sort value. The
 // ranking has to happen in SQL, via a joined grouped-count subquery, rather
@@ -848,6 +1061,11 @@ func AllPostsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
+		if err := attachBookmarkData(posts, currentUserIDOrZero(r)); err != nil {
+			slog.Error("error attaching bookmark data", "error", err)
+			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+			return
+		}
 
 		//Encode posts slice to json and send to w
 		w.Header().Set("Content-Type", "application/json")
@@ -925,6 +1143,11 @@ func GetPostsByAuthorHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 		return
 	}
+	if err := attachBookmarkData(posts, currentUserIDOrZero(r)); err != nil {
+		slog.Error("error attaching bookmark data", "error", err)
+		http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("X-Total-Count", strconv.Itoa(total))
@@ -960,6 +1183,11 @@ func GetPostHandler(w http.ResponseWriter, r *http.Request) {
 	posts := []Post{post}
 	if err := attachReactionData(posts, currentUserIDOrZero(r)); err != nil {
 		slog.Error("error attaching reaction data", "error", err)
+		http.Error(w, "Failed to load post", http.StatusInternalServerError)
+		return
+	}
+	if err := attachBookmarkData(posts, currentUserIDOrZero(r)); err != nil {
+		slog.Error("error attaching bookmark data", "error", err)
 		http.Error(w, "Failed to load post", http.StatusInternalServerError)
 		return
 	}
@@ -1598,6 +1826,11 @@ func SearchPostsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to search posts", http.StatusInternalServerError)
 		return
 	}
+	if err := attachBookmarkData(posts, currentUserIDOrZero(r)); err != nil {
+		slog.Error("error attaching bookmark data", "error", err)
+		http.Error(w, "Failed to search posts", http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(posts)
@@ -1998,6 +2231,11 @@ func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
 		return
 	}
+	if _, err := tx.Exec("DELETE FROM bookmark WHERE post_id = ?", requestBody.ID); err != nil {
+		slog.Error("failed to delete post bookmarks", "error", err, "post_id", requestBody.ID)
+		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
+		return
+	}
 	if _, err := tx.Exec("DELETE FROM category_relation WHERE post_id = ?", requestBody.ID); err != nil {
 		slog.Error("failed to delete post category relations", "error", err, "post_id", requestBody.ID)
 		http.Error(w, "Failed to delete post", http.StatusInternalServerError)
@@ -2132,6 +2370,11 @@ func PostsByCategoryHandler(w http.ResponseWriter, r *http.Request) {
 
 		if err := attachReactionData(posts, currentUserIDOrZero(r)); err != nil {
 			slog.Error("error attaching reaction data", "error", err)
+			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
+			return
+		}
+		if err := attachBookmarkData(posts, currentUserIDOrZero(r)); err != nil {
+			slog.Error("error attaching bookmark data", "error", err)
 			http.Error(w, "Failed to load posts", http.StatusInternalServerError)
 			return
 		}
