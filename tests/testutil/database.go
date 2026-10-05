@@ -73,6 +73,16 @@ CREATE TABLE notification (
 	FOREIGN KEY(comment_id) REFERENCES comment(id)
 );
 
+CREATE TABLE bookmark (
+	id INTEGER NOT NULL PRIMARY KEY,
+	user_id INTEGER NOT NULL,
+	post_id INTEGER NOT NULL,
+	created_at DATETIME NOT NULL,
+	UNIQUE(user_id, post_id),
+	FOREIGN KEY(user_id) REFERENCES user(id),
+	FOREIGN KEY(post_id) REFERENCES post(id)
+);
+
 CREATE TABLE user_post_reaction (
 	id INTEGER NOT NULL PRIMARY KEY,
 	user_id INTEGER NOT NULL,

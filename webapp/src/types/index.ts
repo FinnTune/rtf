@@ -16,6 +16,9 @@ export interface Post {
   LikeCount: number
   DislikeCount: number
   MyReaction: string
+  // false (never absent) for an anonymous viewer or one who hasn't
+  // bookmarked this post — see attachBookmarkData's Go-side doc comment.
+  MyBookmark: boolean
 }
 
 export interface Category {

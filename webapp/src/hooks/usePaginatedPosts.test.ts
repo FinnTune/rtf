@@ -16,6 +16,7 @@ function makePost(id: number): Post {
     LikeCount: 0,
     DislikeCount: 0,
     MyReaction: 'none',
+    MyBookmark: false,
   }
 }
 

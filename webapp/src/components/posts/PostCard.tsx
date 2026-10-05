@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import type { Post } from '../../types'
+import { BookmarkButton } from './BookmarkButton'
 import { ReactionButtons } from './ReactionButtons'
 
 export function PostCard({ post }: { post: Post }) {
@@ -21,7 +22,10 @@ export function PostCard({ post }: { post: Post }) {
         {' · '}
         {post.Created}
       </div>
-      <ReactionButtons post={post} />
+      <div className="post-card-actions">
+        <ReactionButtons post={post} />
+        <BookmarkButton post={post} />
+      </div>
     </li>
   )
 }

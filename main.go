@@ -149,6 +149,14 @@ func buildServer() *http.Server {
 	http.HandleFunc("/editPost", writeLimiter.Limit(websocket.CSRFProtect(websocket.EditPostHandler)))
 	http.HandleFunc("/deletePost", writeLimiter.Limit(websocket.CSRFProtect(websocket.DeletePostHandler)))
 	http.HandleFunc("/reactToPost", writeLimiter.Limit(websocket.CSRFProtect(websocket.ReactToPostHandler)))
+	http.HandleFunc("/bookmarkPost", writeLimiter.Limit(websocket.CSRFProtect(websocket.BookmarkPostHandler)))
+	// Named /getBookmarks, not the shorter /bookmarks, to match every other
+	// GET list endpoint's naming (/getAllPosts, /getPostsByAuthor, ...) —
+	// also avoids an exact-path collision with the frontend's own
+	// client-side /bookmarks route: a bare /bookmarks here would make a
+	// full page load (not just client-side navigation) of that page hit
+	// this API handler directly instead of falling through to index.html.
+	http.HandleFunc("/getBookmarks", readLimiter.Limit(websocket.GetBookmarksHandler))
 	http.HandleFunc("/uploadPostImage", writeLimiter.Limit(websocket.CSRFProtect(websocket.UploadPostImageHandler)))
 	http.HandleFunc("/getPostsByCategory", readLimiter.Limit(websocket.PostsByCategoryHandler))
 	http.HandleFunc("/searchPosts", readLimiter.Limit(websocket.SearchPostsHandler))

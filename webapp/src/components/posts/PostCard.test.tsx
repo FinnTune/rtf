@@ -17,6 +17,7 @@ function makePost(overrides: Partial<Post> = {}): Post {
     LikeCount: 0,
     DislikeCount: 0,
     MyReaction: 'none',
+    MyBookmark: false,
     ...overrides,
   }
 }
@@ -43,5 +44,10 @@ describe('PostCard', () => {
   it('renders no image when ImgURL is empty', () => {
     renderCard(makePost())
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
+  })
+
+  it("renders a bookmark button reflecting the post's MyBookmark state", () => {
+    renderCard(makePost({ MyBookmark: true }))
+    expect(screen.getByRole('button', { name: 'Bookmarked' })).toHaveClass('active')
   })
 })

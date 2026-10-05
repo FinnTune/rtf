@@ -69,6 +69,9 @@ function mockBackend(loggedIn: boolean) {
       if (url.startsWith('/notifications')) {
         return new Response(JSON.stringify({ notifications: [], unread_count: 0 }), { status: 200, headers: { 'X-Total-Count': '0' } })
       }
+      if (url.startsWith('/getBookmarks')) {
+        return new Response(JSON.stringify([]), { status: 200, headers: { 'X-Total-Count': '0' } })
+      }
       throw new Error('Unexpected fetch in test: ' + url)
     }),
   )
@@ -137,5 +140,12 @@ describe('App', () => {
     renderAt('/users/bob')
     expect(await screen.findByText('Posts by bob')).toBeInTheDocument()
     expect(await screen.findByText("bob hasn't posted yet.")).toBeInTheDocument()
+  })
+
+  it('renders the bookmarks page at /bookmarks once logged in', async () => {
+    mockBackend(true)
+    renderAt('/bookmarks')
+    expect(await screen.findByText('Bookmarked Posts')).toBeInTheDocument()
+    expect(await screen.findByText("You haven't bookmarked any posts yet.")).toBeInTheDocument()
   })
 })
