@@ -1154,6 +1154,63 @@ func GetPostsByAuthorHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(posts)
 }
 
+// GetUserProfileHandler returns a username's own public profile summary
+// (when they joined, how many posts/comments they've made) — the
+// author-posts page's own data (GetPostsByAuthorHandler) plus this is the
+// whole public profile; no authentication required to view it, the same as
+// browsing anyone's posts already is.
+func GetUserProfileHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	username, err := validateAuthorQuery(r.URL.Query().Get("username"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var userID int
+	var joined string
+	err = database.ForumDB.QueryRow("SELECT id, created_at FROM user WHERE uname = ?", username).Scan(&userID, &joined)
+	if err == sql.ErrNoRows {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	} else if err != nil {
+		slog.Error("failed to look up user for profile", "error", err, "username", username)
+		http.Error(w, "Failed to load profile", http.StatusInternalServerError)
+		return
+	}
+
+	// post.author, not user_id — the same loose, string-based reference
+	// GetPostsByAuthorHandler itself queries by (see UpdateProfileHandler's
+	// doc comment on why: post.author isn't a real FK to user.id).
+	var postCount int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM post WHERE author = ?", username).Scan(&postCount); err != nil {
+		slog.Error("failed to count posts for profile", "error", err, "username", username)
+		http.Error(w, "Failed to load profile", http.StatusInternalServerError)
+		return
+	}
+
+	// comment.user_id, unlike post.author above, genuinely is a FK to
+	// user.id — no username-based column to query by instead.
+	var commentCount int
+	if err := database.ForumDB.QueryRow("SELECT COUNT(*) FROM comment WHERE user_id = ?", userID).Scan(&commentCount); err != nil {
+		slog.Error("failed to count comments for profile", "error", err, "username", username)
+		http.Error(w, "Failed to load profile", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(struct {
+		Username     string `json:"username"`
+		Joined       string `json:"joined"`
+		PostCount    int    `json:"post_count"`
+		CommentCount int    `json:"comment_count"`
+	}{username, joined, postCount, commentCount})
+}
+
 // GetPostHandler returns a single post by id, for deep-linking to a post
 // via /posts/:id.
 func GetPostHandler(w http.ResponseWriter, r *http.Request) {

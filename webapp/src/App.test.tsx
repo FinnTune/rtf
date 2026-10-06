@@ -72,6 +72,10 @@ function mockBackend(loggedIn: boolean) {
       if (url.startsWith('/getBookmarks')) {
         return new Response(JSON.stringify([]), { status: 200, headers: { 'X-Total-Count': '0' } })
       }
+      if (url.startsWith('/getUserProfile')) {
+        const username = new URL(url, 'https://example.com').searchParams.get('username')
+        return new Response(JSON.stringify({ username, joined: '2026-01-01', post_count: 0, comment_count: 0 }), { status: 200 })
+      }
       throw new Error('Unexpected fetch in test: ' + url)
     }),
   )
