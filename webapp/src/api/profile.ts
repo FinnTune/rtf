@@ -26,3 +26,19 @@ export async function updatePassword(currentPassword: string, newPassword: strin
     body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
   })
 }
+
+// Matches websocket/handlers.go's GetUserProfileHandler JSON tags exactly.
+// Distinct from Profile above: this is a PUBLIC summary of any username
+// (join date, post/comment counts), not the authenticated caller's own
+// editable fname/lname/email.
+export interface UserProfile {
+  username: string
+  joined: string
+  post_count: number
+  comment_count: number
+}
+
+export async function getUserProfile(username: string): Promise<UserProfile> {
+  const { data } = await requestJson<UserProfile>(`/getUserProfile?username=${encodeURIComponent(username)}`)
+  return data
+}

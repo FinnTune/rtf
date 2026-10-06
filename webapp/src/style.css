@@ -196,6 +196,15 @@ justify-content: space-between;
 gap: 12px;
 }
 
+.profile-summary {
+margin-bottom: 16px;
+}
+
+.profile-summary p {
+color: var(--text-muted);
+margin: 4px 0 0;
+}
+
 .post-list-header h3 {
 flex: 1;
 min-width: 0;
