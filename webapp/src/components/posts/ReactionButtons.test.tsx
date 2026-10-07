@@ -56,6 +56,15 @@ describe('ReactionButtons', () => {
     expect(screen.getByRole('button', { name: 'Like (2)' })).toHaveClass('active')
   })
 
+  // aria-pressed, not just the .active class, so the current state isn't a
+  // color-only signal invisible to screen readers — mirrors BookmarkButton's
+  // own aria-pressed usage for the same reason.
+  it('reflects the current reaction via aria-pressed on both buttons, not just the active class', () => {
+    renderButtons(makePost({ MyReaction: 'liked' }))
+    expect(screen.getByRole('button', { name: 'Like (2)' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Dislike (1)' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
   it('optimistically updates the count and active state immediately on click, before the server responds', async () => {
     let resolveFetch: (value: Response) => void = () => {}
     vi.stubGlobal(

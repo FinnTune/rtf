@@ -66,6 +66,17 @@ describe('CategoryPicker', () => {
     expect(onChange).toHaveBeenCalledWith([{ id: 1, name: 'Sports' }])
   })
 
+  it('Escape closes the dropdown and returns focus to the toggle button', async () => {
+    renderPicker()
+    const toggle = screen.getByText('Select Categories>>')
+    await userEvent.click(toggle)
+    await screen.findByText('Sports')
+
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByText('Sports')).not.toBeInTheDocument()
+    expect(toggle).toHaveFocus()
+  })
+
   it('reloads the list when notified of an external category change', async () => {
     renderPicker()
     await userEvent.click(screen.getByText('Select Categories>>'))

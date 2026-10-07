@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { getCategories, subscribeToCategoryChanges } from '../../api/categories'
 import type { PostCategoryRef } from '../../api/posts'
 import { useStatusMessage } from '../../contexts/StatusMessageContext'
+import { useDismissibleOpen } from '../../hooks/useDismissibleOpen'
 import type { Category } from '../../types'
 
 interface CategoryPickerProps {
@@ -16,7 +17,7 @@ interface CategoryPickerProps {
 // wasn't buying anything.
 export function CategoryPicker({ selected, onChange }: CategoryPickerProps) {
   const [categories, setCategories] = useState<Category[]>([])
-  const [isOpen, setIsOpen] = useState(false)
+  const { isOpen, setIsOpen, toggleRef } = useDismissibleOpen()
   const { showMessage } = useStatusMessage()
 
   const load = useCallback(() => {
@@ -44,7 +45,7 @@ export function CategoryPicker({ selected, onChange }: CategoryPickerProps) {
 
   return (
     <div className="dropdown">
-      <button type="button" className="dropdown-toggle" aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)}>
+      <button ref={toggleRef} type="button" className="dropdown-toggle" aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)}>
         Select Categories&gt;&gt;
       </button>
       {isOpen && (
