@@ -147,6 +147,29 @@ describe('ChatWindow', () => {
     expect(closeButton).toBeInTheDocument()
   })
 
+  it('focuses the message textarea when the window first opens', async () => {
+    const { container } = await renderWindow(makeState())
+    const textarea = container.querySelector('textarea')
+    expect(textarea).toHaveFocus()
+  })
+
+  it('does not steal focus back to the textarea when an already-open window is merely revealed again', async () => {
+    const { rerender } = await renderWindow(makeState())
+
+    // Simulate the user having moved focus elsewhere since the window
+    // opened (e.g. to the Close button) before ChatContext pushes an
+    // update to this same window (new title/members, say) — the component
+    // instance is reused (same conversationId key, same as
+    // ChatWindowsLayer's real keying), so the focus-on-open effect must
+    // not re-fire.
+    const closeButton = screen.getByRole('button', { name: 'Close chat' })
+    act(() => closeButton.focus())
+    expect(closeButton).toHaveFocus()
+
+    rerender(<ChatWindow state={makeState({ title: 'bob (updated)' })} />)
+    expect(closeButton).toHaveFocus()
+  })
+
   it('shows the typing indicator image when someone else is typing', async () => {
     await renderWindow(makeState({ typingUsers: new Set(['bob']) }))
     expect(document.querySelector('img[id^="typing-indicator-"]')).not.toBeNull()
