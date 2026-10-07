@@ -33,6 +33,10 @@ test('two users exchange messages in real time over a direct chat', async ({ bro
     // the direct message table doesn't broadcast) until B opens it too.
     await pageA.locator('#users-list').getByRole('button', { name: users.userB.uname }).click()
     const chatWindowA = pageA.locator('.chat-window')
+    // Opening a chat window focuses its message textarea — a keyboard/
+    // screen-reader user gets an immediate cue a new panel appeared,
+    // rather than having to tab-hunt for it.
+    await expect(chatWindowA.getByPlaceholder('Type your message')).toBeFocused()
     const messageFromA = `Hello from A ${Date.now()}`
     await chatWindowA.getByPlaceholder('Type your message').fill(messageFromA)
     await chatWindowA.getByRole('button', { name: 'Send' }).click()

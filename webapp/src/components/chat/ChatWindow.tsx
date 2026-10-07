@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent, type KeyboardEvent, type UIEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent, type UIEvent } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useChat, type ChatWindowState } from '../../contexts/ChatContext'
 import type { ChatMessageVM } from '../../types'
@@ -31,7 +31,18 @@ export function ChatWindow({ state }: ChatWindowProps) {
   const [newMemberUsername, setNewMemberUsername] = useState('')
   const scrollCooldownRef = useRef(false)
   const typingTimeoutRef = useRef<number | undefined>(undefined)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { conversationId } = state
+
+  // Fires exactly once, when this window is first created — ChatWindow is
+  // keyed by conversationId (see ChatWindowsLayer), so React reuses the
+  // same instance (not remounting, not re-running this empty-deps effect)
+  // for every later reveal of an already-open window. Without this, a
+  // keyboard/screen-reader user gets no cue that a new interactive panel
+  // appeared and has to manually tab-hunt to find its input.
+  useEffect(() => {
+    textareaRef.current?.focus()
+  }, [])
 
   function handleSend() {
     const text = draft.trim()
@@ -189,6 +200,7 @@ export function ChatWindow({ state }: ChatWindowProps) {
       </div>
       <div className="chat-footer">
         <textarea
+          ref={textareaRef}
           id={`new-message-${conversationId}`}
           placeholder="Type your message"
           maxLength={1000}
