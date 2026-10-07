@@ -116,6 +116,17 @@ describe('NotificationsBell', () => {
     expect(screen.queryByText(/commented on/)).not.toBeInTheDocument()
   })
 
+  it('Escape closes the dropdown and returns focus to the toggle button', async () => {
+    await renderBell([makeNotification()], 1)
+    const toggle = await screen.findByRole('button', { name: /Notifications/ })
+    await userEvent.click(toggle)
+    await screen.findByText(/commented on/)
+
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByText(/commented on/)).not.toBeInTheDocument()
+    expect(toggle).toHaveFocus()
+  })
+
   it('"Mark all read" clears the unread badge without navigating', async () => {
     await renderBell([makeNotification({ read: false }), makeNotification({ id: 2, read: false })], 2)
     await userEvent.click(await screen.findByRole('button', { name: /Notifications/ }))

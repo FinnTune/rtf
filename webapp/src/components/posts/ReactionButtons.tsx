@@ -10,6 +10,7 @@ export function ReactionButtons({ post }: { post: Post }) {
         type="button"
         className={myReaction === 'liked' ? 'btns reaction-btn active' : 'btns reaction-btn'}
         disabled={pending}
+        aria-pressed={myReaction === 'liked'}
         onClick={(event) => {
           event.preventDefault()
           like()
@@ -21,6 +22,7 @@ export function ReactionButtons({ post }: { post: Post }) {
         type="button"
         className={myReaction === 'disliked' ? 'btns reaction-btn active' : 'btns reaction-btn'}
         disabled={pending}
+        aria-pressed={myReaction === 'disliked'}
         onClick={(event) => {
           event.preventDefault()
           dislike()

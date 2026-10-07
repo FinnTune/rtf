@@ -1,10 +1,10 @@
-import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useNotifications } from '../../contexts/NotificationsContext'
+import { useDismissibleOpen } from '../../hooks/useDismissibleOpen'
 
 export function NotificationsBell() {
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications()
-  const [isOpen, setIsOpen] = useState(false)
+  const { isOpen, setIsOpen, toggleRef } = useDismissibleOpen()
   const navigate = useNavigate()
 
   function openNotification(id: number, postId: number) {
@@ -15,7 +15,7 @@ export function NotificationsBell() {
 
   return (
     <div className="dropdown" id="notifications-bell">
-      <button type="button" className="dropdown-toggle" aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)}>
+      <button ref={toggleRef} type="button" className="dropdown-toggle" aria-expanded={isOpen} onClick={() => setIsOpen((open) => !open)}>
         Notifications
         {unreadCount > 0 && (
           <span className="msg-alert" aria-label={`${unreadCount} unread notifications`}>
