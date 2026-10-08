@@ -173,6 +173,10 @@ CREATE INDEX idx_category_relation_category_id ON category_relation(category_id)
 CREATE INDEX idx_user_post_reaction_post_id ON user_post_reaction(post_id);
 CREATE INDEX idx_conversation_member_user_id ON conversation_member(user_id);
 CREATE INDEX idx_post_author ON post(author);
+CREATE INDEX idx_notification_user_id ON notification(user_id);
+CREATE INDEX idx_notification_post_id ON notification(post_id);
+CREATE INDEX idx_bookmark_user_id ON bookmark(user_id);
+CREATE INDEX idx_bookmark_post_id ON bookmark(post_id);
 
 -- CreateCategoryHandler/EditCategoryHandler only ever checked-then-acted
 -- ("does a category with this name already exist?" then INSERT/UPDATE) with
