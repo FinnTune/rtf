@@ -27,7 +27,27 @@ func OpenDB(path string) *sql.DB {
 	// because database/sql pools multiple underlying connections; the
 	// driver applies this to every connection it opens, matching what
 	// tests/testutil/database.go already does for the test schema.
-	dataBase, err := sql.Open("sqlite3", path+"?_foreign_keys=on")
+	//
+	// _journal_mode=WAL: the default rollback-journal mode locks the whole
+	// database file for the duration of any write transaction — a reader
+	// (any GET endpoint) blocks behind a concurrent writer (any POST), not
+	// just two writers blocking each other. WAL lets readers keep going
+	// concurrently with a single writer instead, which is the realistic
+	// access pattern here (far more reads than writes) — this is the one
+	// behavior change in this DSN, verified against a real file-backed
+	// database in TestOpenDB_EnablesWALMode (:memory: databases, like
+	// tests/testutil/database.go's, don't use a journal file at all, so
+	// this option is moot there).
+	//
+	// _busy_timeout=5000: WAL still allows only one writer at a time, so
+	// this is the backstop for the write-vs-write case WAL alone doesn't
+	// remove — a second concurrent writer retries for up to 5s instead of
+	// failing outright with SQLITE_BUSY. Already go-sqlite3's own default
+	// (confirmed in TestOpenDB_SetsBusyTimeout), so this isn't a behavior
+	// change today, but makes the value explicit and pinned rather than
+	// resting on an undocumented driver default a future driver upgrade
+	// could silently change.
+	dataBase, err := sql.Open("sqlite3", path+"?_foreign_keys=on&_journal_mode=WAL&_busy_timeout=5000")
 	if err != nil {
 		slog.Error("error opening database", "error", err, "path", path)
 		os.Exit(1)
@@ -180,7 +200,12 @@ func migrate(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_conversation_member_user_id ON conversation_member(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_post_author ON post(author)`,
 		`CREATE INDEX IF NOT EXISTS idx_notification_user_id ON notification(user_id)`,
+		// post_id, unlike user_id above, backs DeletePostHandler's own
+		// cleanup (DELETE FROM notification/bookmark WHERE post_id = ?) —
+		// without it, deleting a post full-scans both tables.
+		`CREATE INDEX IF NOT EXISTS idx_notification_post_id ON notification(post_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_bookmark_user_id ON bookmark(user_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_bookmark_post_id ON bookmark(post_id)`,
 	}
 	for _, stmt := range indexStatements {
 		if _, err := db.Exec(stmt); err != nil {
