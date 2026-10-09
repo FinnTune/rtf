@@ -6,6 +6,12 @@
 *.csr
 node_modules/
 database/forum.db
+# WAL mode's sidecar files (see database.OpenDB's _journal_mode=WAL) —
+# unlike rollback-journal mode's transient *-journal file, these persist
+# between runs until a checkpoint merges them back into forum.db, so they
+# show up locally for anyone who's actually run the app.
+database/forum.db-shm
+database/forum.db-wal
 logfiles/*.log
 uploads/
 .VSCodeCounter/

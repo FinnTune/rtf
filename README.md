@@ -8,7 +8,7 @@ Created by André J. Teetor as a learning project to explore:
 - SQLite persistence
 - basic security and state management patterns
 
-This repository runs a forum with posts (categories, reactions, images, search, sort) plus real-time private and group chat with online-user presence.
+This repository runs a forum with posts (categories, reactions, bookmarks, images, search, sort), comment notifications, and public user profiles, plus real-time private and group chat with online-user presence.
 
 ![Screenshot](screenshot.png)
 
@@ -122,18 +122,22 @@ docker compose up --build
 ## Core Features
 
 - User registration, login, and session cookie auth (`session_id`)
+- Self-service profile editing (name/email) and password change — changing your password invalidates every other live session for the account, not just the one making the request
+- Public per-user profile summary (join date, post count, comment count) on each author's post-list page
 - Post creation, editing, and deletion, with category tagging
 - Category browsing/filtering (multi-select) and admin category management
 - Post sort/trending (newest, most liked, most commented)
 - Like/dislike reactions on posts
+- Post bookmarking ("save for later"), with a dedicated bookmarks page
 - Image upload/attachment on posts
 - Post comments, with edit/delete for the comment's own author
+- In-app notifications when someone comments on your post, with a live-updating unread badge
 - Full-text search across posts and, separately, across a user's own private messages
 - Real-time private (1:1) and group chat via WebSocket
 - Live online-user list and typing indicators
 - Chat history pagination, read receipts, and unread badges
 - In-app and native browser chat notifications
-- Admin moderation: delete any post/comment, ban/unban users
+- Admin moderation: delete any post/comment, ban/unban users (an admin can't ban a fellow admin)
 
 ## HTTP / WS Endpoints
 
@@ -147,11 +151,14 @@ HTTP:
 - `GET /checkLogin`
 - `GET /getAllPosts` (`?limit=&offset=&sort=`)
 - `GET /getPostsByAuthor` (`?author=&limit=&offset=&sort=`)
+- `GET /getUserProfile` (`?username=`) - join date, post count, comment count for any user
 - `GET /getPost` (`?id=`)
 - `POST /addPost`
 - `POST /editPost`
 - `POST /deletePost` - own post, or any post if admin
 - `POST /reactToPost`
+- `POST /bookmarkPost` - toggles the requesting user's bookmark on a post
+- `GET /getBookmarks` (`?limit=&offset=`) - the requesting user's own bookmarked posts
 - `POST /uploadPostImage`
 - `POST /getPostsByCategory` (`?limit=&offset=&sort=`)
 - `GET /searchPosts` (`?q=&sort=`)
@@ -164,6 +171,10 @@ HTTP:
 - `POST /editComment`
 - `POST /deleteComment` - own comment, or any comment if admin
 - `GET /comments` (`?postId=&limit=&offset=`)
+- `GET /profile` - the requesting user's own editable profile fields
+- `POST /updateProfile`, `POST /updatePassword` - the latter invalidates every live session for the account
+- `GET /notifications` (`?limit=&offset=`) - the requesting user's own "someone commented on your post" notifications, plus an unread count
+- `POST /markNotificationsRead` - marks one notification (`{"id": ...}`) or all of them (empty body) read
 
 WebSocket:
 
@@ -173,11 +184,15 @@ Event types include:
 
 - `user-connect` / `users-online`
 - `open-direct-chat` / `create-group-chat` / `chat-opened` / `chat-error`
+- `leave-group` / `add-group-member` / `remove-group-member` / `group-membership-changed`
 - `get-conversations` / `conversations-list`
 - `new-message` / `sent-message` / `message-ack`
 - `get-chat-history` / `get-more-chat-history` / `chat_history`
 - `typing` / `stop-typing`
 - `mark-read` / `read-receipt`
+- `post-edited` / `post-deleted` / `post-reaction-updated` - pushed to every other connected client when a post changes, so an open permalink/feed stays live without a reload
+- `comment-added` / `comment-edited` / `comment-deleted` - same, for comments on an open post
+- `notification-added` - pushed only to the post's author's own connections when someone comments on their post
 
 ## Security Notes
 
@@ -190,6 +205,7 @@ Recent hardening includes:
 - per-IP rate limiting on every write endpoint plus the read-only listing/search endpoints, each rejecting over-limit requests with `429` and a `Retry-After` header (see `utility/ratelimit.go`)
 - input length/format validation on registration, login, posts, comments, category filters, and chat messages at the API boundary (see `websocket/validate.go`) — a chat message previously had no server-side bound, and an over-sized WebSocket frame would silently kill the whole connection rather than being rejected gracefully
 - session cookie is rotated on login, actively cleared on logout, and expires server-side after 24h of inactivity with a sliding refresh on active use (see `Client.expired`/`Client.touch` in `websocket/ws-client.go` and `utility.RefreshCookie`/`ClearCookie`)
+- changing your password invalidates every live session for the account, including the request's own current one — not just a defense against an attacker who's already compromised a session, but the one self-service remediation a user has once they suspect it (see `UpdatePasswordHandler` in `websocket/profile.go`)
 - state-changing routes reject requests whose `Origin` header doesn't match `ALLOWED_ORIGIN`, blocking cross-site CSRF submissions (see `websocket/csrf.go`)
 - every response carries a strict CSP plus `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and HSTS headers (see `securityHeaders` in `main.go`)
 - admin-gated actions (category management, delete-any-post/comment, user ban) are re-verified server-side on every request, never trusted from client-sent role claims (see `websocket.RequireAdmin`/`isAdmin`)
@@ -237,7 +253,7 @@ Dependabot (`.github/dependabot.yml`) opens weekly PRs for Go module, npm, and G
 
 ## Testing
 
-The backend has **~190 automated tests** across `main_test.go` and `tests/` (Go), and the frontend has **~140 tests** under `webapp/src/**/*.test.{ts,tsx}` (Vitest + React Testing Library). Go tests use an in-memory SQLite database so they do not touch `database/forum.db`.
+The backend has **~320 automated tests** across `main_test.go` and `tests/` (Go), and the frontend has **~250 tests** under `webapp/src/**/*.test.{ts,tsx}` (Vitest + React Testing Library). Go tests use an in-memory SQLite database so they do not touch `database/forum.db`.
 
 ### Test layout
 
@@ -254,16 +270,18 @@ Internal test hooks used by `tests/websocket/` live in `websocket/testhooks.go`.
 
 ### Coverage areas
 
-- **Security**: origin/CSRF validation, session-based identity for writes (client-sent user/role fields are always ignored server-side), admin-gate re-verification, rate limiting (burst/refill/per-IP isolation/`Retry-After`), password hashing, credential redaction in logs
+- **Security**: origin/CSRF validation, session-based identity for writes (client-sent user/role fields are always ignored server-side), admin-gate re-verification, rate limiting (burst/refill/per-IP isolation/`Retry-After`), password hashing, credential redaction in logs, session invalidation on password change
 - **Auth**: registration, login (valid/invalid/banned), logout, session expiry and OTP lifecycle
-- **Forum API**: posts (CRUD, category tagging, sort/trending, search), comments (CRUD), category management, reactions, image upload
+- **Forum API**: posts (CRUD, category tagging, sort/trending, search), comments (CRUD), category management, reactions, bookmarks (including a concurrent-toggle race test), image upload
+- **Profiles**: self-service profile/password editing, public per-user profile summaries (join date, post/comment counts)
+- **Notifications**: comment-on-your-post notification creation, targeted WebSocket delivery (only the post's author's own connections, never the commenter's), mark-read (single and all), and cleanup when the underlying post/comment is deleted
 - **Real-time**: real WebSocket upgrade handshake and event routing (not just handler functions in isolation), direct/group chat creation (including a concurrency/race-safety test), message send/history/search, typing indicators, read receipts, reconnect backoff (frontend)
 - **Moderation**: delete-any-post/comment, ban/unban and its immediate effect on a live connection
 - **Migrations**: idempotency, and correctness against both a fresh schema and an already-deployed one predating each change
 
 ### End-to-end tests (`e2e/`)
 
-A small Playwright suite drives the actual built frontend against the actual running Go server — the one thing the Go/Vitest suites above structurally can't do, since they each only exercise their own layer. Deliberately modest in scope (a smoke suite, not a re-run of what's already covered): register/login, create a post and view it, and two real browser sessions exchanging a chat message in real time over a live WebSocket connection.
+A Playwright suite drives the actual built frontend against the actual running Go server — the one thing the Go/Vitest suites above structurally can't do, since they each only exercise their own layer. 19 tests across 11 spec files: auth, admin moderation (category CRUD, user search/ban), public author profiles, bookmarks, direct chat, comments/reactions, group chat membership (live multi-tab updates), notifications (live delivery + mark-read), post editing/deletion (live multi-tab updates), post creation, post/message search, and a couple of accessibility checks (keyboard dismissal, ARIA state). Not a re-run of everything the Go/Vitest suites already cover in isolation — the ones worth a real browser are specifically the live, multi-connection behaviors (two tabs seeing the same update) that unit/integration tests can't exercise end-to-end.
 
 It builds its own disposable SQLite database and Go binary and runs them on a dedicated port (`8543`) via `e2e/setup/run-server.sh`, so it never touches a developer's real `database/forum.db` or collides with an already-running dev/Docker instance on `8443`.
 
@@ -298,8 +316,8 @@ CGO_ENABLED=1 go test ./tests/websocket -run TestLoginHandler_Success -v
 Current coverage (`go test ./tests/... -coverpkg=./websocket/...,./utility/...,./database/... -coverprofile=...`, plus `main_test.go`'s own in-package coverage):
 
 - `websocket/`: ~77%
-- `utility/`: ~57%
-- `database/`: ~36%
+- `utility/`: ~87%
+- `database/`: ~38%
 - `main` (root package): ~2% — only `healthzHandler` and `securityHeaders` are unit-tested; route registration and TLS server startup are exercised live (Docker + manual/browser verification) but not by `go test`
 
 Lagging areas: `database/` (mostly the historical one-time migration helpers, exercised structurally rather than line-by-line), and anything in `main.go` beyond the two handlers above.
@@ -344,7 +362,7 @@ PORT=9443 go run .
 
 - Docker Compose (see [Docker](#docker)) gives a containerized single-instance run, but there's still no reverse proxy/TLS termination, log aggregation, or multi-instance orchestration for actual production deployment
 - No self-service password reset or recovery — there's no email-sending capability in this app, so a lost password currently requires direct database access, the same way promoting an admin does (see [Admin Access](#admin-access))
-- The E2E suite (see [Testing](#testing)) is intentionally a small smoke suite (auth, posting, one real-time chat exchange) — it isn't a substitute for exhaustive manual/exploratory testing of every feature combination
+- The E2E suite (see [Testing](#testing)) covers every major flow at least once, including live multi-tab updates, but it isn't a substitute for exhaustive manual/exploratory testing of every feature combination or edge case
 
 ## Contributing
 
