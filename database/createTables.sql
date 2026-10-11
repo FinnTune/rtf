@@ -177,6 +177,8 @@ CREATE INDEX idx_notification_user_id ON notification(user_id);
 CREATE INDEX idx_notification_post_id ON notification(post_id);
 CREATE INDEX idx_bookmark_user_id ON bookmark(user_id);
 CREATE INDEX idx_bookmark_post_id ON bookmark(post_id);
+CREATE INDEX idx_comment_user_id ON comment(user_id);
+CREATE INDEX idx_notification_comment_id ON notification(comment_id);
 
 -- CreateCategoryHandler/EditCategoryHandler only ever checked-then-acted
 -- ("does a category with this name already exist?" then INSERT/UPDATE) with

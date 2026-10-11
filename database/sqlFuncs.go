@@ -206,6 +206,15 @@ func migrate(db *sql.DB) error {
 		`CREATE INDEX IF NOT EXISTS idx_notification_post_id ON notification(post_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_bookmark_user_id ON bookmark(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_bookmark_post_id ON bookmark(post_id)`,
+		// comment.user_id backs GetUserProfileHandler's comment count
+		// (SELECT COUNT(*) FROM comment WHERE user_id = ?) — the public,
+		// unauthenticated profile-summary endpoint, so every profile view
+		// was a full scan of comment without this.
+		`CREATE INDEX IF NOT EXISTS idx_comment_user_id ON comment(user_id)`,
+		// notification.comment_id backs DeleteCommentHandler's own cleanup
+		// (DELETE FROM notification WHERE comment_id = ?), same reasoning
+		// as idx_notification_post_id above but for comment deletion.
+		`CREATE INDEX IF NOT EXISTS idx_notification_comment_id ON notification(comment_id)`,
 	}
 	for _, stmt := range indexStatements {
 		if _, err := db.Exec(stmt); err != nil {
