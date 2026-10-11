@@ -115,3 +115,52 @@ func TestOpenDB_IndexesNotificationAndBookmarkByPostID(t *testing.T) {
 		}
 	}
 }
+
+// TestOpenDB_IndexesCommentUserIDAndNotificationCommentID guards two further
+// FK-column indexes: comment.user_id backs GetUserProfileHandler's comment
+// count (SELECT COUNT(*) FROM comment WHERE user_id = ?) on the public,
+// unauthenticated profile-summary endpoint, and notification.comment_id
+// backs DeleteCommentHandler's own cleanup (DELETE FROM notification WHERE
+// comment_id = ?) — without them, both are a full table scan. Same approach
+// as TestOpenDB_IndexesNotificationAndBookmarkByPostID above: confirm the
+// index exists in sqlite_master and that the query planner actually picks
+// it for the exact query each handler runs.
+func TestOpenDB_IndexesCommentUserIDAndNotificationCommentID(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "forum.db")
+
+	seedDB := openPlainSQLiteFile(t, dbPath)
+	if _, err := seedDB.Exec(foreignKeySchema); err != nil {
+		t.Fatalf("failed to create schema: %v", err)
+	}
+	if err := seedDB.Close(); err != nil {
+		t.Fatalf("failed to close seeding connection: %v", err)
+	}
+
+	db := database.OpenDB(dbPath)
+	t.Cleanup(func() { db.Close() })
+
+	for _, c := range []struct {
+		indexName string
+		table     string
+		query     string
+	}{
+		{"idx_comment_user_id", "comment", `SELECT COUNT(*) FROM comment WHERE user_id = 1`},
+		{"idx_notification_comment_id", "notification", `DELETE FROM notification WHERE comment_id = 1`},
+	} {
+		var count int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = ?`, c.indexName).Scan(&count); err != nil {
+			t.Fatalf("failed to check for index %s: %v", c.indexName, err)
+		}
+		if count != 1 {
+			t.Fatalf("expected index %s to exist after migration, got %d matching sqlite_master rows", c.indexName, count)
+		}
+
+		var queryPlan string
+		if err := db.QueryRow(`EXPLAIN QUERY PLAN ` + c.query).Scan(new(int), new(int), new(int), &queryPlan); err != nil {
+			t.Fatalf("failed to explain query plan for %s: %v", c.table, err)
+		}
+		if !strings.Contains(queryPlan, c.indexName) {
+			t.Fatalf("expected %q to use %s, got query plan: %q", c.query, c.indexName, queryPlan)
+		}
+	}
+}
