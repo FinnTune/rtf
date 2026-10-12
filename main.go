@@ -226,7 +226,12 @@ func isDir(path string) bool {
 // securityHeaders sets a conservative set of security response headers on
 // every response. The CSP has no external origins and no inline
 // scripts/styles because the whole frontend is same-origin static assets
-// and ES modules - it would need loosening if that ever changes.
+// and ES modules - it would need loosening if that ever changes. Likewise
+// Permissions-Policy denies every sensitive feature outright: the frontend
+// (webapp/src) has no camera/microphone/geolocation/sensor/payment/usb
+// calls anywhere, so there's nothing legitimate to carve an allowance for -
+// a future feature that genuinely needs one of these would need to loosen
+// this policy explicitly, the same tradeoff the CSP above already makes.
 func securityHeaders(next http.Handler) http.Handler {
 	const csp = "default-src 'self'; " +
 		"script-src 'self'; " +
@@ -237,6 +242,9 @@ func securityHeaders(next http.Handler) http.Handler {
 		"base-uri 'self'; " +
 		"form-action 'self'"
 
+	const permissionsPolicy = "camera=(), microphone=(), geolocation=(), " +
+		"usb=(), payment=(), accelerometer=(), gyroscope=(), magnetometer=()"
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
@@ -244,6 +252,7 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 		h.Set("Content-Security-Policy", csp)
+		h.Set("Permissions-Policy", permissionsPolicy)
 		next.ServeHTTP(w, r)
 	})
 }
