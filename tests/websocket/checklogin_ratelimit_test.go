@@ -31,7 +31,7 @@ func TestCheckLoginHandler_RateLimited_RejectsWithoutReachingHandler(t *testing.
 	// A near-zero refill rate isolates this test to burst behavior alone —
 	// matching tests/utility/ratelimit_test.go's own convention — so nothing
 	// refills mid-test regardless of how long it takes to run.
-	rl := utility.NewIPRateLimiter(rate.Every(time.Hour), 2)
+	rl := utility.NewIPRateLimiter(t.Context(), rate.Every(time.Hour), 2)
 	limited := rl.Limit(websocket.CheckLoginHandler)
 
 	newCheckLoginRequest := func() *http.Request {
