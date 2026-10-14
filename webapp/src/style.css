@@ -43,6 +43,10 @@ a {
 color: inherit;
 }
 
+/* A more specific selector setting outline: none on :focus (rather than
+   :focus-visible) silently defeats this for keyboard users while still
+   looking fine on a mouse click - several form inputs did exactly that
+   until this was noticed; don't reintroduce it. */
 :focus-visible {
 outline: 2px solid #fff;
 outline-offset: 2px;
@@ -496,7 +500,6 @@ transition: border-color var(--transition), background-color var(--transition);
 }
 
 .login-form input:focus {
-outline: none;
 border-color: var(--border-strong);
 background-color: rgba(255, 255, 255, 0.1);
 }
@@ -564,7 +567,6 @@ transition: border-color var(--transition), background-color var(--transition);
 
 .register-form input:focus,
 .register-form select:focus {
-outline: none;
 border-color: var(--border-strong);
 background-color: rgba(255, 255, 255, 0.1);
 }
@@ -650,7 +652,6 @@ color: rgba(255, 255, 255, 0.6);
 }
 
 #search-input:focus {
-outline: none;
 border-color: rgba(255, 255, 255, 0.6);
 background-color: rgba(255, 255, 255, 0.16);
 }
@@ -699,7 +700,6 @@ transition: border-color var(--transition), background-color var(--transition);
 
 #add-post input[type="text"]:focus,
 #add-post textarea:focus {
-outline: none;
 border-color: var(--border-strong);
 background-color: rgba(255, 255, 255, 0.1);
 }
@@ -794,7 +794,6 @@ padding: 10px 14px 14px;
     }
 
 .chat-window textarea:focus {
-    outline: none;
     border-color: var(--border-strong);
 }
 
@@ -1436,7 +1435,6 @@ font-size: 13px;
 }
 
 .settings-form input:focus {
-    outline: none;
     border-color: var(--border-strong);
     background-color: rgba(255, 255, 255, 0.1);
 }
