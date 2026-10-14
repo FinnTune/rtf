@@ -1,6 +1,7 @@
 package utility
 
 import (
+	"context"
 	"math"
 	"net"
 	"net/http"
@@ -26,14 +27,18 @@ type IPRateLimiter struct {
 
 // NewIPRateLimiter creates a limiter allowing r requests/second per IP, with
 // burst b. Idle IPs are forgotten after a few minutes so memory doesn't grow
-// unbounded.
-func NewIPRateLimiter(r rate.Limit, b int) *IPRateLimiter {
+// unbounded. cleanupVisitors' background goroutine stops when ctx is
+// cancelled, the same convention websocket.otpsMap/Manager's own sweep
+// goroutines follow (see newOtpsMap/checkOtps) - without it, every test that
+// builds its own limiter (and every test in this codebase does) leaks one
+// permanently-running goroutine for the rest of the test binary's life.
+func NewIPRateLimiter(ctx context.Context, r rate.Limit, b int) *IPRateLimiter {
 	rl := &IPRateLimiter{
 		visitors: make(map[string]*visitor),
 		r:        r,
 		b:        b,
 	}
-	go rl.cleanupVisitors()
+	go rl.cleanupVisitors(ctx)
 	return rl
 }
 
@@ -51,16 +56,23 @@ func (rl *IPRateLimiter) getVisitor(ip string) *rate.Limiter {
 	return v.limiter
 }
 
-func (rl *IPRateLimiter) cleanupVisitors() {
+func (rl *IPRateLimiter) cleanupVisitors(ctx context.Context) {
+	ticker := time.NewTicker(time.Minute)
+	defer ticker.Stop()
+
 	for {
-		time.Sleep(time.Minute)
-		rl.mu.Lock()
-		for ip, v := range rl.visitors {
-			if time.Since(v.lastSeen) > 3*time.Minute {
-				delete(rl.visitors, ip)
+		select {
+		case <-ticker.C:
+			rl.mu.Lock()
+			for ip, v := range rl.visitors {
+				if time.Since(v.lastSeen) > 3*time.Minute {
+					delete(rl.visitors, ip)
+				}
 			}
+			rl.mu.Unlock()
+		case <-ctx.Done():
+			return
 		}
-		rl.mu.Unlock()
 	}
 }
 

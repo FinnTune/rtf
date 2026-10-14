@@ -59,8 +59,11 @@ func getEnv(key, fallback string) string {
 	return value
 }
 
-// buildServer registers all routes/handlers and returns the configured HTTP server.
-func buildServer() *http.Server {
+// buildServer registers all routes/handlers and returns the configured HTTP
+// server. ctx governs the lifetime of the rate limiters' background cleanup
+// goroutines (see utility.NewIPRateLimiter) - cancelled by runServer on
+// shutdown, same as websocket's own sweep goroutines.
+func buildServer(ctx context.Context) *http.Server {
 	slog.Info("file servers started")
 	fileServer := http.FileServer(http.Dir(distDir))
 
@@ -102,16 +105,16 @@ func buildServer() *http.Server {
 	// authLimiter guards login/registration against brute-force and signup
 	// spam: ~5 requests/minute per IP, with a small burst for legitimate
 	// typo-and-retry flows.
-	authLimiter := utility.NewIPRateLimiter(rate.Every(12*time.Second), 5)
+	authLimiter := utility.NewIPRateLimiter(ctx, rate.Every(12*time.Second), 5)
 	// writeLimiter guards authenticated write endpoints against automated
 	// abuse while staying out of the way of normal posting/commenting.
-	writeLimiter := utility.NewIPRateLimiter(rate.Every(2*time.Second), 10)
+	writeLimiter := utility.NewIPRateLimiter(ctx, rate.Every(2*time.Second), 10)
 	// readLimiter guards unauthenticated, DB-backed read endpoints (post
 	// listing/search/comments) against scraping and query-flood abuse.
 	// Generous relative to writeLimiter since normal use (paging through
 	// posts, searching, opening a post's comments) can legitimately fire
 	// several of these per second.
-	readLimiter := utility.NewIPRateLimiter(rate.Every(200*time.Millisecond), 20)
+	readLimiter := utility.NewIPRateLimiter(ctx, rate.Every(200*time.Millisecond), 20)
 
 	http.HandleFunc("/healthz", healthzHandler)
 	// checkLogin needs no authentication to reach — any request carrying a
@@ -268,7 +271,7 @@ func runServer(ctx context.Context) {
 		slog.Info("database closed")
 	}()
 
-	ser := buildServer()
+	ser := buildServer(ctx)
 
 	// localhost.crt and localhost.key files were created using the following CLI commands:
 	// openssl req  -new  -newkey rsa:2048  -nodes  -keyout localhost.key  -out localhost.csr

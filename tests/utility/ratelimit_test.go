@@ -31,7 +31,7 @@ func doRequest(handler http.HandlerFunc, remoteAddr string) int {
 func TestIPRateLimiter_AllowsUpToBurstThenBlocks(t *testing.T) {
 	// A near-zero refill rate isolates this test to burst behavior alone:
 	// once the burst is exhausted, nothing refills during the test.
-	rl := utility.NewIPRateLimiter(rate.Every(time.Hour), 3)
+	rl := utility.NewIPRateLimiter(t.Context(), rate.Every(time.Hour), 3)
 	handler, _ := newTestLimiterHandler(rl)
 
 	for i := 0; i < 3; i++ {
@@ -45,7 +45,7 @@ func TestIPRateLimiter_AllowsUpToBurstThenBlocks(t *testing.T) {
 }
 
 func TestIPRateLimiter_BlockedRequestNeverReachesHandler(t *testing.T) {
-	rl := utility.NewIPRateLimiter(rate.Every(time.Hour), 1)
+	rl := utility.NewIPRateLimiter(t.Context(), rate.Every(time.Hour), 1)
 	handler, calls := newTestLimiterHandler(rl)
 
 	doRequest(handler, "1.2.3.4:5555") // consumes the single token
@@ -56,7 +56,7 @@ func TestIPRateLimiter_BlockedRequestNeverReachesHandler(t *testing.T) {
 }
 
 func TestIPRateLimiter_RefillsOverTime(t *testing.T) {
-	rl := utility.NewIPRateLimiter(rate.Every(50*time.Millisecond), 1)
+	rl := utility.NewIPRateLimiter(t.Context(), rate.Every(50*time.Millisecond), 1)
 	handler, _ := newTestLimiterHandler(rl)
 
 	if code := doRequest(handler, "1.2.3.4:5555"); code != http.StatusOK {
@@ -76,7 +76,7 @@ func TestIPRateLimiter_RefillsOverTime(t *testing.T) {
 }
 
 func TestIPRateLimiter_IsolatesPerIP(t *testing.T) {
-	rl := utility.NewIPRateLimiter(rate.Every(time.Hour), 1)
+	rl := utility.NewIPRateLimiter(t.Context(), rate.Every(time.Hour), 1)
 	handler, _ := newTestLimiterHandler(rl)
 
 	if code := doRequest(handler, "1.1.1.1:1111"); code != http.StatusOK {
@@ -96,7 +96,7 @@ func TestIPRateLimiter_TreatsMalformedRemoteAddrAsSingleSharedKey(t *testing.T) 
 	// host:port (net.SplitHostPort errors) — this locks in that the fallback
 	// still keys consistently per distinct string, rather than e.g. every
 	// malformed address colliding into one bucket or being ignored entirely.
-	rl := utility.NewIPRateLimiter(rate.Every(time.Hour), 1)
+	rl := utility.NewIPRateLimiter(t.Context(), rate.Every(time.Hour), 1)
 	handler, _ := newTestLimiterHandler(rl)
 
 	if code := doRequest(handler, "no-port-here"); code != http.StatusOK {
@@ -113,7 +113,7 @@ func TestIPRateLimiter_TreatsMalformedRemoteAddrAsSingleSharedKey(t *testing.T) 
 func TestIPRateLimiter_SetsRetryAfterHeaderOnlyWhenBlocked(t *testing.T) {
 	// rate.Every(200ms) makes the expected wait exact and quick to assert on:
 	// Retry-After should round the ~200ms delay up to 1 whole second.
-	rl := utility.NewIPRateLimiter(rate.Every(200*time.Millisecond), 1)
+	rl := utility.NewIPRateLimiter(t.Context(), rate.Every(200*time.Millisecond), 1)
 	handler, _ := newTestLimiterHandler(rl)
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -148,7 +148,7 @@ func TestIPRateLimiter_RetryAfterDoesNotConsumeAnExtraToken(t *testing.T) {
 	// would hide that, since it comfortably outlasts an extra interval too.
 	// This uses a tight window instead: past the correct 1-interval wait,
 	// short of the buggy 2-interval one, so a leaked reservation fails it.
-	rl := utility.NewIPRateLimiter(rate.Every(300*time.Millisecond), 1)
+	rl := utility.NewIPRateLimiter(t.Context(), rate.Every(300*time.Millisecond), 1)
 	handler, _ := newTestLimiterHandler(rl)
 
 	doRequest(handler, "1.2.3.4:5555")             // consumes the single token
