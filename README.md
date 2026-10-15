@@ -313,14 +313,14 @@ Run one test by name:
 CGO_ENABLED=1 go test ./tests/websocket -run TestLoginHandler_Success -v
 ```
 
-Current coverage (`go test ./tests/... -coverpkg=./websocket/...,./utility/...,./database/... -coverprofile=...`, plus `main_test.go`'s own in-package coverage):
+Current coverage, each measured with its own `go test ./tests/... -coverpkg=./<pkg>/... -coverprofile=...` run (scoped to one package at a time deliberately — listing all three packages together in one `-coverpkg` inflates whichever of them is imported by more than one test binary, since each importing binary's test run contributes its own separate copy of that package's statement blocks to the merged profile; `database/` is imported by all three `tests/*` packages, so a combined run reads as ~38%, well below its real, scoped number below), plus `main_test.go`'s own in-package coverage:
 
-- `websocket/`: ~77%
-- `utility/`: ~87%
-- `database/`: ~38%
-- `main` (root package): ~2% — only `healthzHandler` and `securityHeaders` are unit-tested; route registration and TLS server startup are exercised live (Docker + manual/browser verification) but not by `go test`
+- `websocket/`: ~73%
+- `utility/`: ~85%
+- `database/`: ~74%
+- `main` (root package): ~13% — `healthzHandler` and `securityHeaders` are unit-tested; route registration and TLS server startup are exercised live (Docker + manual/browser verification) but not by `go test`
 
-Lagging areas: `database/` (mostly the historical one-time migration helpers, exercised structurally rather than line-by-line), and anything in `main.go` beyond the two handlers above.
+Lagging areas: error/rollback branches in the historical one-time migration helpers (`database/migrate_conversations.go`) and in `migrate()`/`OpenDB` (`database/sqlFuncs.go`) — the transaction/rollback plumbing is correct, but nothing forces a mid-migration failure to prove the rollback actually fires, so a regression there wouldn't be caught; and anything in `main.go` beyond the two handlers above.
 
 ## Troubleshooting
 
