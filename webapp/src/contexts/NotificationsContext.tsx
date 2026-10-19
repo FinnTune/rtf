@@ -60,14 +60,18 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   // Live push for a notification landing while this tab is open — see
   // broadcastNotificationAdded's own doc comment for why this is targeted
   // (every other connected client for this one user, not a feed-wide
-  // broadcast like comment-added).
+  // broadcast like comment-added). showMessage mirrors ChatContext's own
+  // incoming-message toast: without it, this was the one async push with no
+  // accessible announcement at all - the bell's badge count updates only in
+  // the DOM, which assistive tech never picks up without a live region.
   useEffect(() => {
     return subscribe('notification-added', (payload) => {
       const notification = payload as NotificationItem
       setNotifications((prev) => [notification, ...prev])
       setUnreadCount((prev) => prev + 1)
+      showMessage(`${notification.actor_username} commented on "${notification.post_title}"`, 'info')
     })
-  }, [subscribe])
+  }, [subscribe, showMessage])
 
   const markRead = useCallback((id: number) => {
     const target = notificationsRef.current.find((n) => n.id === id)

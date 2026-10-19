@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ControllableFakeWebSocket, checkLoginResponse, requestUrl } from '../testUtils/chatTestHarness'
 import { AuthProvider } from './AuthContext'
 import { NotificationsProvider, useNotifications } from './NotificationsContext'
-import { StatusMessageProvider } from './StatusMessageContext'
+import { StatusMessageProvider, useStatusMessage } from './StatusMessageContext'
 import { WebSocketProvider } from './WebSocketContext'
 
 function notificationsWrapper({ children }: { children: ReactNode }) {
@@ -88,6 +88,36 @@ describe('NotificationsContext', () => {
     expect(result.current.notifications).toHaveLength(2)
     expect(result.current.notifications[0].id).toBe(2)
     expect(result.current.unreadCount).toBe(2)
+  })
+
+  it('a notification-added push announces itself via the shared status message, mirroring ChatContext\'s incoming-message toast', async () => {
+    vi.stubGlobal('WebSocket', ControllableFakeWebSocket)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = requestUrl(input)
+        if (url.startsWith('/checkLogin')) return checkLoginResponse('alice')
+        if (url.startsWith('/notifications')) return notificationsListResponse([], 0)
+        throw new Error('Unexpected fetch: ' + url)
+      }),
+    )
+
+    const { result } = renderHook(() => ({ notifications: useNotifications(), status: useStatusMessage() }), {
+      wrapper: notificationsWrapper,
+    })
+    await waitFor(() => expect(result.current.notifications.notifications).toHaveLength(0))
+
+    await waitFor(() => expect(ControllableFakeWebSocket.instances.length).toBe(1))
+    const socket = ControllableFakeWebSocket.instances[0]
+    act(() => socket.simulateOpen())
+    act(() =>
+      socket.simulateMessage(
+        'notification-added',
+        makeNotification({ id: 2, actor_username: 'bob', post_title: 'Another Post' }),
+      ),
+    )
+
+    await waitFor(() => expect(result.current.status.text).toBe('bob commented on "Another Post"'))
   })
 
   it('markRead marks just that notification read, decrements unreadCount, and calls the API with its id', async () => {
