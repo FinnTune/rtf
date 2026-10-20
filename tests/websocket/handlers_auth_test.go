@@ -8,6 +8,7 @@ import (
 	"rtForum/tests/testutil"
 	"rtForum/websocket"
 	"testing"
+	"time"
 )
 
 func TestRegistrationHandler_Success(t *testing.T) {
@@ -315,6 +316,34 @@ func TestLoginHandler_UserNotFound(t *testing.T) {
 
 	if rr.Code != http.StatusUnauthorized {
 		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rr.Code)
+	}
+}
+
+// TestLoginHandler_UnknownUserStillPaysBcryptCost guards against a timing
+// side channel: without a dummy-hash comparison on the not-found path, a
+// login for a nonexistent user returns almost immediately (just a failed
+// SELECT), while one for a real user pays bcrypt's ~tens-of-ms cost -
+// letting an attacker enumerate valid usernames/emails by latency alone,
+// never guessing a password. bcrypt cost 12 reliably takes tens of
+// milliseconds on any real hardware, so a 10ms floor distinguishes "ran a
+// real comparison" from "returned immediately" without being flaky.
+func TestLoginHandler_UnknownUserStillPaysBcryptCost(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	body := `{"username":"nobody","password":"secret123"}`
+	req := httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString(body))
+	rr := httptest.NewRecorder()
+
+	start := time.Now()
+	websocket.LoginHandler(rr, req)
+	elapsed := time.Since(start)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d", http.StatusUnauthorized, rr.Code)
+	}
+	if elapsed < 10*time.Millisecond {
+		t.Fatalf("expected the unknown-user path to still pay a real bcrypt comparison (>=10ms), took %s", elapsed)
 	}
 }
 

@@ -577,6 +577,15 @@ func CheckLoginHandler(w http.ResponseWriter, r *http.Request) {
 	manager.checkLogin(w, r)
 }
 
+// dummyPasswordHash is a real bcrypt hash (cost 12, same as HashPassword)
+// of a fixed, never-used string - not a credential, just something for
+// bcrypt.CompareHashAndPassword to spend its ~constant ~100ms against. See
+// serveLogin: without this, a request for a username/email that doesn't
+// exist returns almost immediately (just a failed SELECT), while one that
+// does exist pays bcrypt's cost - a timing oracle an attacker can use to
+// enumerate valid accounts without ever guessing a password.
+const dummyPasswordHash = "$2a$12$eO2qT70CIkxEpffagUQ3ZuDiSzD7x4kX7ctlnKCtBUYyr27alxJBO"
+
 func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 	slog.Debug("login handler reached")
 	//Check if user is already logged in
@@ -619,16 +628,28 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			"SELECT id, uname, email, pass, created_at, role, banned FROM user WHERE uname = ? OR LOWER(email) = LOWER(?)",
 			req.Username, req.Username,
 		).Scan(&userInfo.ID, &userInfo.Username, &userInfo.Email, &userInfo.Password, &userInfo.Joined, &userInfo.Role, &userInfo.Banned)
-		if err != nil {
+		userFound := err == nil
+		if err != nil && err != sql.ErrNoRows {
+			slog.Error("error querying database for login", "error", err)
+		} else if err == sql.ErrNoRows {
 			// Never log userInfo here — never populated on this path, but
 			// this is also the wrong-username/wrong-password failure path in
 			// general, so treat it as an expected auth failure, not an error.
-			if err == sql.ErrNoRows {
-				slog.Warn("login attempt for unknown user", "username", req.Username)
-			} else {
-				slog.Error("error querying database for login", "error", err)
-			}
-		} else if !utility.CheckPasswordHash(req.Password, userInfo.Password) {
+			slog.Warn("login attempt for unknown user", "username", req.Username)
+		}
+
+		// Always runs exactly one bcrypt comparison, found or not, against
+		// dummyPasswordHash when there's no real one — see its doc comment
+		// on why. userFound is checked explicitly rather than trusting
+		// passwordMatches alone so a (practically impossible) dummy-hash
+		// collision still can't authenticate as a nonexistent user.
+		passwordHash := dummyPasswordHash
+		if userFound {
+			passwordHash = userInfo.Password
+		}
+		passwordMatches := utility.CheckPasswordHash(req.Password, passwordHash)
+
+		if !userFound || !passwordMatches {
 			// Falls through to the unauthenticated response below.
 		} else if userInfo.Banned {
 			slog.Warn("login attempt for banned user", "username", userInfo.Username, "user_id", userInfo.ID)
