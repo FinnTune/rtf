@@ -2232,7 +2232,7 @@ func GetPostCategoriesHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeletePostHandler removes a post along with its comments and category
-// relations. Only the post's author may delete it.
+// relations. Only the post's author or an admin may delete it.
 func DeletePostHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -2710,8 +2710,8 @@ func EditCommentHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"content": content})
 }
 
-// DeleteCommentHandler removes a comment. Only the comment's author may
-// delete it.
+// DeleteCommentHandler removes a comment. Only the comment's author or an
+// admin may delete it.
 func DeleteCommentHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
