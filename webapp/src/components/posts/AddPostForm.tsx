@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type ChangeEvent, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { addPost, uploadPostImage, type PostCategoryRef } from '../../api/posts'
+import { addPost, maxPostImageBytes, uploadPostImage, type PostCategoryRef } from '../../api/posts'
 import { useFeedView } from '../../contexts/FeedViewContext'
 import { useStatusMessage } from '../../contexts/StatusMessageContext'
 import { LoadingButton } from '../common/LoadingButton'
@@ -15,6 +15,20 @@ export function AddPostForm() {
   const { showMessage } = useStatusMessage()
   const { showAllPosts } = useFeedView()
   const navigate = useNavigate()
+
+  // Rejects an oversized file at selection time rather than letting the
+  // user wait through a full upload that /uploadPostImage would reject
+  // anyway once it exceeds maxPostImageBytes server-side.
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null
+    if (file && file.size > maxPostImageBytes) {
+      showMessage(`Image is too large (max ${Math.floor(maxPostImageBytes / (1024 * 1024))} MB).`, 'error')
+      event.target.value = ''
+      setImageFile(null)
+      return
+    }
+    setImageFile(file)
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -83,7 +97,7 @@ export function AddPostForm() {
           type="file"
           id="post-image"
           accept="image/png, image/jpeg, image/gif, image/webp"
-          onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
+          onChange={handleImageChange}
         />
         <LoadingButton type="submit" id="add-post-submit" loading={submitting} loadingText="Posting...">
           Submit Post

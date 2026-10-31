@@ -150,6 +150,22 @@ describe('PostEditForm', () => {
     expect((formData.get('image') as File).name).toBe('photo.png')
   })
 
+  it('rejects an oversized image at selection, leaving the upload button disabled and never uploading it', async () => {
+    mockBackend()
+    renderForm(makePost())
+
+    const oversized = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'huge.png', { type: 'image/png' })
+    await userEvent.upload(screen.getByLabelText('Image'), oversized)
+
+    expect(await screen.findByText('Image is too large (max 5 MB).')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Upload Image' })).toBeDisabled()
+
+    const fetchMock = vi.mocked(fetch)
+    expect(fetchMock.mock.calls.some(([input]) => requestUrl(input as string | URL | Request).startsWith('/uploadPostImage'))).toBe(
+      false,
+    )
+  })
+
   it('labels the button Replace Image (not Upload Image) when the post already has one', () => {
     mockBackend()
     renderForm(makePost({ ImgURL: '/uploads/posts/existing.png' }))

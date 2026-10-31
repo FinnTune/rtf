@@ -92,6 +92,11 @@ export async function deletePost(id: number): Promise<void> {
   })
 }
 
+// Mirrors maxPostImageBytes in websocket/images.go — lets callers reject an
+// oversized file before spending the upload itself on a guaranteed server
+// rejection.
+export const maxPostImageBytes = 5 * 1024 * 1024
+
 // Uploads (or replaces) the image attached to a post the caller owns. No
 // Content-Type header is set — the browser fills in the multipart boundary
 // itself from the FormData body.

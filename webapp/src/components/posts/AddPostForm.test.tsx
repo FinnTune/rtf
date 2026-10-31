@@ -104,4 +104,24 @@ describe('AddPostForm', () => {
     expect(formData.get('post_id')).toBe('7')
     expect((formData.get('image') as File).name).toBe('photo.png')
   })
+
+  it('rejects an oversized image at selection and never uploads it', async () => {
+    mockBackend()
+    renderAddPostForm()
+
+    await userEvent.type(screen.getByLabelText('Title:'), 'My New Post')
+    await userEvent.type(screen.getByLabelText('Content:'), 'Some interesting content.')
+    const oversized = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'huge.png', { type: 'image/png' })
+    await userEvent.upload(screen.getByLabelText('Image (optional):'), oversized)
+
+    expect(await screen.findByText('Image is too large (max 5 MB).')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Submit Post' }))
+    await waitFor(() => expect(screen.getByText('Feed placeholder')).toBeInTheDocument())
+
+    const fetchMock = vi.mocked(fetch)
+    expect(fetchMock.mock.calls.some(([input]) => requestUrl(input as string | URL | Request).startsWith('/uploadPostImage'))).toBe(
+      false,
+    )
+  })
 })
