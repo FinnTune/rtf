@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ChangeEvent } from 'react'
 import { getPostCategories } from '../../api/categories'
-import { editPost, uploadPostImage, type PostCategoryRef } from '../../api/posts'
+import { editPost, maxPostImageBytes, uploadPostImage, type PostCategoryRef } from '../../api/posts'
 import { useStatusMessage } from '../../contexts/StatusMessageContext'
 import type { Post } from '../../types'
 import { LoadingButton } from '../common/LoadingButton'
@@ -47,6 +47,20 @@ export function PostEditForm({ post, onSaved, onImageUploaded, onCancel }: PostE
     }
   }
 
+  // Rejects an oversized file at selection time rather than letting the
+  // user wait through a full upload that /uploadPostImage would reject
+  // anyway once it exceeds maxPostImageBytes server-side.
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null
+    if (file && file.size > maxPostImageBytes) {
+      showMessage(`Image is too large (max ${Math.floor(maxPostImageBytes / (1024 * 1024))} MB).`, 'error')
+      event.target.value = ''
+      setImageFile(null)
+      return
+    }
+    setImageFile(file)
+  }
+
   // Image upload is its own request against the existing post, independent
   // of Save, since /uploadPostImage is multipart and takes effect immediately.
   async function handleUploadImage() {
@@ -82,7 +96,7 @@ export function PostEditForm({ post, onSaved, onImageUploaded, onCancel }: PostE
           type="file"
           aria-label="Image"
           accept="image/png, image/jpeg, image/gif, image/webp"
-          onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
+          onChange={handleImageChange}
         />
         <LoadingButton
           type="button"
