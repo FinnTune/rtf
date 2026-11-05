@@ -14,6 +14,14 @@ import (
 
 type Manager struct {
 	clients ClientsMapList
+	// clientsBySessionID indexes clients by their session cookie value, so
+	// authenticatedClientFromRequest/checkLogin/serveLogout/ServeWS — all on
+	// the hot path of some request type — can look up "the client for this
+	// session_id" in O(1) instead of a linear scan of clients. Kept in sync
+	// with clients by construction: addClientLocked/deleteClientLocked are
+	// the only places either map is ever written, so one can never drift
+	// out of sync with the other.
+	clientsBySessionID map[string]*Client
 	sync.RWMutex
 	eventHandlers map[string]EventHandler
 	otps          *otpsMap
@@ -29,9 +37,10 @@ const clientSweepInterval = 10 * time.Minute
 func newManager(ctx context.Context) *Manager {
 	slog.Info("manager created")
 	m := &Manager{
-		clients:       make(ClientsMapList),
-		eventHandlers: make(map[string]EventHandler),
-		otps:          newOtpsMap(ctx, 5*time.Second),
+		clients:            make(ClientsMapList),
+		clientsBySessionID: make(map[string]*Client),
+		eventHandlers:      make(map[string]EventHandler),
+		otps:               newOtpsMap(ctx, 5*time.Second),
 	}
 
 	//Register event handlers
@@ -74,9 +83,40 @@ func (m *Manager) sweepOnce() {
 	for client := range m.clients {
 		if client.expired() {
 			client.closeConnection()
-			delete(m.clients, client)
+			m.deleteClientLocked(client)
 		}
 	}
+}
+
+// addClientLocked registers client in both m.clients and its session-id
+// index. Callers must already hold m's write lock.
+func (m *Manager) addClientLocked(client *Client) {
+	m.clients[client] = true
+	m.clientsBySessionID[client.sessionID] = client
+}
+
+// deleteClientLocked removes client from both m.clients and its session-id
+// index, mirroring delete's own silent no-op if client isn't registered.
+// Callers must already hold m's write lock.
+func (m *Manager) deleteClientLocked(client *Client) {
+	delete(m.clients, client)
+	// Only clear the index entry if it still points at this exact client —
+	// a session_id is only ever rebound to a different *Client within the
+	// same locked critical section that first removed the old one (see
+	// ServeWS and serveLogin), so this guards against double-deleting a
+	// newer client's entry if a caller ever deletes a stale one out of
+	// order.
+	if m.clientsBySessionID[client.sessionID] == client {
+		delete(m.clientsBySessionID, client.sessionID)
+	}
+}
+
+// clientBySessionIDLocked looks up the connected client for sessionID in
+// O(1), replacing a linear scan of m.clients. Callers must already hold m's
+// read or write lock.
+func (m *Manager) clientBySessionIDLocked(sessionID string) (*Client, bool) {
+	client, ok := m.clientsBySessionID[sessionID]
+	return client, ok
 }
 
 // clientsSnapshot returns a point-in-time copy of the connected clients,
@@ -1007,7 +1047,7 @@ func (m *Manager) removeClient(client *Client) {
 
 	if _, ok := m.clients[client]; ok { //Checko if client exists in manager
 		client.closeConnection()
-		delete(m.clients, client)
+		m.deleteClientLocked(client)
 	}
 }
 

@@ -289,6 +289,83 @@ func TestLoginHandler_BindsSessionToVerifiedIdentity(t *testing.T) {
 	}
 }
 
+func sessionCookieFrom(t *testing.T, rr *httptest.ResponseRecorder) *http.Cookie {
+	t.Helper()
+	for _, c := range rr.Result().Cookies() {
+		if c.Name == "session_id" {
+			return c
+		}
+	}
+	t.Fatal("expected a session_id cookie")
+	return nil
+}
+
+// TestLoginHandler_LoggingInAgainEvictsOldSessionFromLookup guards
+// serveLogin's "already logged in, replacing" branch against
+// manager.clientsBySessionID (the O(1) session lookup index
+// authenticatedClientFromRequest/checkLogin/serveLogout/ServeWS all rely on)
+// going stale: evicting the old client must also clear its old session_id's
+// index entry, or that entry would keep pointing at a client no longer in
+// manager.clients/LoggedInList — a ghost entry that could otherwise still
+// authenticate on a session_id that was supposed to be dead.
+func TestLoginHandler_LoggingInAgainEvictsOldSessionFromLookup(t *testing.T) {
+	websocket.ResetTestState()
+	testutil.UseForumDB(t)
+
+	body := `{"username":"alice","password":"secret123"}`
+
+	firstRR := httptest.NewRecorder()
+	websocket.LoginHandler(firstRR, httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString(body)))
+	if firstRR.Code != http.StatusOK {
+		t.Fatalf("first login: expected status %d, got %d: %s", http.StatusOK, firstRR.Code, firstRR.Body.String())
+	}
+	oldSessionCookie := sessionCookieFrom(t, firstRR)
+
+	secondRR := httptest.NewRecorder()
+	websocket.LoginHandler(secondRR, httptest.NewRequest(http.MethodPost, "/login", bytes.NewBufferString(body)))
+	if secondRR.Code != http.StatusOK {
+		t.Fatalf("second login: expected status %d, got %d: %s", http.StatusOK, secondRR.Code, secondRR.Body.String())
+	}
+	newSessionCookie := sessionCookieFrom(t, secondRR)
+
+	if oldSessionCookie.Value == newSessionCookie.Value {
+		t.Fatal("expected the second login to rotate to a new session_id")
+	}
+
+	// The old session must no longer authenticate anything, not even
+	// through a stale index entry.
+	checkReq := httptest.NewRequest(http.MethodGet, "/checkLogin", nil)
+	checkReq.AddCookie(oldSessionCookie)
+	checkRR := httptest.NewRecorder()
+	websocket.CheckLoginHandler(checkRR, checkReq)
+
+	var resp websocket.UserLoginResponse
+	if err := json.NewDecoder(checkRR.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode checkLogin response: %v", err)
+	}
+	if resp.LoggedIn {
+		t.Fatal("expected the evicted old session to no longer be recognized as logged in")
+	}
+
+	// The new session must still work.
+	newCheckReq := httptest.NewRequest(http.MethodGet, "/checkLogin", nil)
+	newCheckReq.AddCookie(newSessionCookie)
+	newCheckRR := httptest.NewRecorder()
+	websocket.CheckLoginHandler(newCheckRR, newCheckReq)
+
+	var newResp websocket.UserLoginResponse
+	if err := json.NewDecoder(newCheckRR.Body).Decode(&newResp); err != nil {
+		t.Fatalf("failed to decode checkLogin response: %v", err)
+	}
+	if !newResp.LoggedIn {
+		t.Fatal("expected the new session to be recognized as logged in")
+	}
+
+	if got := websocket.ClientCountForTest(); got != 1 {
+		t.Fatalf("expected exactly 1 client after the old one was evicted, got %d", got)
+	}
+}
+
 func TestLoginHandler_WrongPassword(t *testing.T) {
 	websocket.ResetTestState()
 	testutil.UseForumDB(t)
