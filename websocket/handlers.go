@@ -60,11 +60,11 @@ func checkOrigin(r *http.Request) bool {
 
 // authenticatedClientFromRequest is on the hot path for every authenticated
 // REST call (14+ handlers). The common case — an existing, non-expired
-// session — only needs to find the client (a read of the map) and touch()
-// it (lock-free, see Client.lastSeen's doc comment), so it scans under
-// RLock() rather than the full write Lock() this used to take
-// unconditionally, which serialized all authenticated traffic globally
-// regardless of which session each request was for.
+// session — only needs to find the client (an O(1) lookup via
+// clientsBySessionID) and touch() it (lock-free, see Client.lastSeen's doc
+// comment), so it looks up under RLock() rather than the full write Lock()
+// this used to take unconditionally, which serialized all authenticated
+// traffic globally regardless of which session each request was for.
 //
 // The rare expired-session cleanup path still needs the write lock to
 // delete from the map, acquired only once that case is actually hit. There's
@@ -81,12 +81,9 @@ func authenticatedClientFromRequest(r *http.Request) (*Client, error) {
 	}
 
 	manager.RLock()
-	var found *Client
-	for client := range manager.clients {
-		if client.sessionID == sessionCookie.Value && client.loggedIn {
-			found = client
-			break
-		}
+	found, ok := manager.clientBySessionIDLocked(sessionCookie.Value)
+	if !ok || !found.loggedIn {
+		found = nil
 	}
 	manager.RUnlock()
 
@@ -103,7 +100,7 @@ func authenticatedClientFromRequest(r *http.Request) (*Client, error) {
 	if _, ok := manager.clients[found]; ok && found.expired() {
 		slog.Info("session expired for client", "username", found.username)
 		found.closeConnection()
-		delete(manager.clients, found)
+		manager.deleteClientLocked(found)
 	}
 	manager.Unlock()
 	return nil, fmt.Errorf("no authenticated client found")
@@ -464,18 +461,55 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 	// Never log m.clients directly — each *Client formats with its
 	// sessionID (a live bearer credential) included.
 	slog.Debug("checking login against connected clients", "count", len(m.clients))
-	for client := range m.clients {
-		if client.sessionID == sessionCookie.Value {
-			if client.expired() {
-				slog.Info("session expired for client", "username", client.username)
+	if client, ok := m.clientBySessionIDLocked(sessionCookie.Value); ok {
+		if client.expired() {
+			slog.Info("session expired for client", "username", client.username)
+			client.closeConnection()
+			m.deleteClientLocked(client)
+			// Same presence gap as the banned branch below: this
+			// client's own readMessages/writeMesssage cleanup won't do
+			// this for us, since closeConnection() (not
+			// closeConnectionIfCurrent) already cleared c.connection by
+			// the time their deferred cleanup runs.
+			LoggedInList.Remove(client.username)
+			broadcastUsersListLocked(m)
+			utility.ClearCookie(w)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(UserLoginResponse{
+				LoggedIn: false,
+			})
+			return
+		}
+		client.touch()
+		utility.RefreshCookie(w, client.sessionID)
+		if !client.loggedIn {
+			slog.Debug("client found, not yet logged in", "username", client.username)
+			json.NewEncoder(w).Encode(UserLoginResponse{
+				LoggedIn: client.loggedIn,
+			})
+			return
+		} else if client.loggedIn {
+			// If the client is found, the user is logged in
+			slog.Debug("session cookie found, user logged in", "username", client.username)
+
+			// Looked up fresh rather than cached on Client so a role
+			// change (promote/demote) or a ban takes effect on the
+			// user's very next checkLogin poll instead of only their
+			// next login.
+			var role string
+			var banned bool
+			if err := database.ForumDB.QueryRow("SELECT role, banned FROM user WHERE id = ?", client.userID).Scan(&role, &banned); err != nil {
+				slog.Error("error looking up role for checkLogin", "username", client.username, "error", err)
+			}
+			if banned {
+				slog.Info("banned user's session terminated at checkLogin", "username", client.username)
 				client.closeConnection()
-				delete(m.clients, client)
-				// Same presence gap as the banned branch below: this
-				// client's own readMessages/writeMesssage cleanup won't do
-				// this for us, since closeConnection() (not
-				// closeConnectionIfCurrent) already cleared c.connection by
-				// the time their deferred cleanup runs.
+				m.deleteClientLocked(client)
 				LoggedInList.Remove(client.username)
+				// Not broadcastUsersList: this whole function holds
+				// m.Lock() via defer above, and that calls
+				// m.clientsSnapshot(), which would deadlock trying to
+				// RLock the same non-reentrant mutex.
 				broadcastUsersListLocked(m)
 				utility.ClearCookie(w)
 				w.Header().Set("Content-Type", "application/json")
@@ -484,82 +518,43 @@ func (m *Manager) checkLogin(w http.ResponseWriter, r *http.Request) {
 				})
 				return
 			}
-			client.touch()
-			utility.RefreshCookie(w, client.sessionID)
-			if !client.loggedIn {
-				slog.Debug("client found, not yet logged in", "username", client.username)
-				json.NewEncoder(w).Encode(UserLoginResponse{
-					LoggedIn: client.loggedIn,
-				})
-				return
-			} else if client.loggedIn {
-				// If the client is found, the user is logged in
-				slog.Debug("session cookie found, user logged in", "username", client.username)
 
-				// Looked up fresh rather than cached on Client so a role
-				// change (promote/demote) or a ban takes effect on the
-				// user's very next checkLogin poll instead of only their
-				// next login.
-				var role string
-				var banned bool
-				if err := database.ForumDB.QueryRow("SELECT role, banned FROM user WHERE id = ?", client.userID).Scan(&role, &banned); err != nil {
-					slog.Error("error looking up role for checkLogin", "username", client.username, "error", err)
-				}
-				if banned {
-					slog.Info("banned user's session terminated at checkLogin", "username", client.username)
-					client.closeConnection()
-					delete(m.clients, client)
-					LoggedInList.Remove(client.username)
-					// Not broadcastUsersList: this whole function holds
-					// m.Lock() via defer above, and that calls
-					// m.clientsSnapshot(), which would deadlock trying to
-					// RLock the same non-reentrant mutex.
-					broadcastUsersListLocked(m)
-					utility.ClearCookie(w)
-					w.Header().Set("Content-Type", "application/json")
-					json.NewEncoder(w).Encode(UserLoginResponse{
-						LoggedIn: false,
-					})
-					return
-				}
+			client.loggedIn = true
 
-				client.loggedIn = true
+			// checkLogin used to unconditionally closeConnection() here.
+			// It fires on every mount/reconnect attempt of every tab
+			// sharing this session's cookie (AuthContext and
+			// WebSocketContext each call it), so with multiple tabs
+			// open it would force-close a perfectly healthy, unrelated
+			// tab's live connection just because a status check ran —
+			// e.g. opening tab B silently killed tab A's socket, whose
+			// own reconnect then called checkLogin again and killed
+			// tab B's, flapping indefinitely. checkLogin only needs to
+			// report status and mint an OTP; the one place a stale
+			// connection should actually be torn down is ServeWS,
+			// right before a new connection really does replace it
+			// (see the existing-client branch there).
+			//
+			// Otp
+			//Create new OTP and store in manager otps map, bound to this
+			//session so it can't be redeemed against a different one at
+			//the /ws upgrade (see otp.go's otpObj doc).
+			otp := m.otps.newOtp(client.sessionID)
 
-				// checkLogin used to unconditionally closeConnection() here.
-				// It fires on every mount/reconnect attempt of every tab
-				// sharing this session's cookie (AuthContext and
-				// WebSocketContext each call it), so with multiple tabs
-				// open it would force-close a perfectly healthy, unrelated
-				// tab's live connection just because a status check ran —
-				// e.g. opening tab B silently killed tab A's socket, whose
-				// own reconnect then called checkLogin again and killed
-				// tab B's, flapping indefinitely. checkLogin only needs to
-				// report status and mint an OTP; the one place a stale
-				// connection should actually be torn down is ServeWS,
-				// right before a new connection really does replace it
-				// (see the existing-client branch there).
-				//
-				// Otp
-				//Create new OTP and store in manager otps map, bound to this
-				//session so it can't be redeemed against a different one at
-				//the /ws upgrade (see otp.go's otpObj doc).
-				otp := m.otps.newOtp(client.sessionID)
-
-				// Send the login status to the client
-				w.Header().Set("Content-Type", "application/json")
-				json.NewEncoder(w).Encode(UserLoginResponse{
-					Username: client.username,
-					Email:    client.email,
-					Joined:   client.joined,
-					LoggedIn: client.loggedIn,
-					OTP:      otp.Key,
-					Role:     role,
-				})
-				// The OTP key itself is a live, short-lived credential —
-				// never logged, only that one was minted.
-				slog.Debug("otp minted for checkLogin", "username", client.username)
-				return
-			}
+			// Send the login status to the client
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(UserLoginResponse{
+				Username: client.username,
+				Email:    client.email,
+				Joined:   client.joined,
+				LoggedIn: client.loggedIn,
+				OTP:      otp.Key,
+				Role:     role,
+			})
+			// The OTP key itself is a live, short-lived credential —
+			// never logged, only that one was minted.
+			slog.Debug("otp minted for checkLogin", "username", client.username)
+			return
 		}
 	}
 
@@ -674,7 +669,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 						slog.Info("client already logged in, replacing", "username", client.username)
 						client.closeConnection()
 						//Delete client from manage client list
-						delete(m.clients, client)
+						m.deleteClientLocked(client)
 						//Delete client from LoggedInList map
 						LoggedInList.Remove(client.username)
 					}
@@ -687,7 +682,7 @@ func (m *Manager) serveLogin(w http.ResponseWriter, r *http.Request) {
 			// request/connection from" — it must never be set from
 			// client-supplied data (see addUserInfo), only from a server-side
 			// credential check like the one above.
-			m.clients[newAuthenticatedClient(m, sessionID, userInfo.ID, userInfo.Username, userInfo.Email, userInfo.Joined)] = true
+			m.addClientLocked(newAuthenticatedClient(m, sessionID, userInfo.ID, userInfo.Username, userInfo.Email, userInfo.Joined))
 
 			//Create new OTP and store in manager otps map, bound to this
 			//session so it can't be redeemed against a different one at the
@@ -746,21 +741,15 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Find the client with the matching session ID. Looked up and
-		// released under lock rather than held for the whole function —
-		// m.removeClient below acquires the same lock itself, and holding it
-		// across that call (or across the send() calls further down, each
-		// bounded by sendTimeout but still real wall-clock time against a
-		// slow client) would either deadlock or stall every other manager
-		// operation.
-		m.Lock()
-		var client *Client
-		for c := range m.clients {
-			if c.sessionID == sessionCookie.Value {
-				client = c
-				break
-			}
-		}
-		m.Unlock()
+		// released under RLock (this block only reads) rather than held for
+		// the whole function — m.removeClient below acquires its own write
+		// lock, and holding one here across that call (or across the send()
+		// calls further down, each bounded by sendTimeout but still real
+		// wall-clock time against a slow client) would either deadlock or
+		// stall every other manager operation.
+		m.RLock()
+		client, _ := m.clientBySessionIDLocked(sessionCookie.Value)
+		m.RUnlock()
 
 		if client == nil {
 			w.Header().Set("Content-Type", "application/json")
@@ -867,15 +856,12 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	// concurrent-dial stress test, not just a theoretical concern.
 	m.Lock()
 	var existing *Client
-	for c := range m.clients {
-		if c.sessionID == sessionID {
-			if c.expired() {
-				slog.Info("session expired, discarding stale client", "username", c.username)
-				delete(m.clients, c)
-			} else {
-				existing = c
-			}
-			break
+	if c, ok := m.clientBySessionIDLocked(sessionID); ok {
+		if c.expired() {
+			slog.Info("session expired, discarding stale client", "username", c.username)
+			m.deleteClientLocked(c)
+		} else {
+			existing = c
 		}
 	}
 
@@ -928,7 +914,7 @@ func (m *Manager) ServeWS(w http.ResponseWriter, r *http.Request) {
 	// acquired above (see the comment there) rather than release and
 	// re-acquire, or the same concurrent-brand-new-session race it exists
 	// to close would just reopen in the gap between them.
-	m.clients[client] = true
+	m.addClientLocked(client)
 	slog.Info("client added to manager", "remote_addr", conn.RemoteAddr())
 	m.Unlock()
 

@@ -77,7 +77,9 @@ func AddTestClient(sessionID, username string, userID int) *TestClientHandle {
 	// atomic.Int64 can't be set via the struct literal above (its fields
 	// are unexported) — must Store after construction.
 	client.touch()
-	manager.clients[client] = true
+	manager.Lock()
+	manager.addClientLocked(client)
+	manager.Unlock()
 	return &TestClientHandle{client: client}
 }
 
