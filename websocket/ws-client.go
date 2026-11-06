@@ -464,16 +464,7 @@ func (c *Client) writeMesssage(conn *websocket.Conn, done <-chan struct{}) {
 		case <-done:
 			slog.Debug("connection superseded or closed elsewhere, stopping writer", "username", c.username)
 			return
-		case msg, ok := <-c.egress:
-			if !ok {
-				if err := conn.WriteMessage(websocket.CloseMessage, nil); err != nil {
-					slog.Warn("failed to write close message", "username", c.username, "error", err)
-					LoggedInList.Remove(c.username)
-				}
-				slog.Info("egress channel closed, stopping writer", "username", c.username)
-				return //break out of for loop/select and triggers the defer cleanup.
-			}
-
+		case msg := <-c.egress:
 			// Never log msg/data's content here — it can carry private chat
 			// message text (SendMessageEvent.Message), so only the event
 			// type and size are safe to record.
