@@ -14,7 +14,6 @@ import (
 func ResetTestState() {
 	manager = newManager(context.Background())
 	LoggedInList.Reset()
-	LoggedInUsers = make(map[string]*Client)
 }
 
 // SetSendTimeoutForTest temporarily shrinks send()'s egress-channel timeout

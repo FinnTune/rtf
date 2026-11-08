@@ -543,6 +543,14 @@ func getChatHistory(event Event, c *Client) error {
 	if req.Offset+req.Limit > count {
 		req.Limit = count - req.Offset // Adjust the limit
 	}
+	// An Offset past the end of the conversation (e.g. a stale/bogus page
+	// request) makes the adjustment above go negative, and SQLite treats a
+	// negative LIMIT as "no limit" - currently harmless only because OFFSET
+	// alone already empties the result set in that case, not because this
+	// expresses the intended bound.
+	if req.Limit < 0 {
+		req.Limit = 0
+	}
 
 	rows, err := database.ForumDB.Query(`
     SELECT * FROM (

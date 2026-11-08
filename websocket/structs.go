@@ -104,9 +104,6 @@ type Alert struct {
 	LoggedIn     bool
 }
 
-// Global maps to store all users, posts, comments, categories, and sessions
-var LoggedInUsers = make(map[string]*Client)
-
 // loggedInSet tracks which usernames are currently online. It's mutated
 // concurrently from many goroutines — login/logout/checkLogin HTTP
 // handlers, the user-connect event, and every connected client's own
