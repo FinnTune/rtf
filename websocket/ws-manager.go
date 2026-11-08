@@ -1041,11 +1041,18 @@ func (m *Manager) routeEvent(event Event, c *Client) error {
 	}
 }
 
+// removeClient drops client from the manager and marks it logged out, both
+// under the same write lock — client.loggedIn is read elsewhere (e.g.
+// authenticatedClientFromRequest, checkLogin) under the manager's lock, so
+// writing it here outside that lock would be an unsynchronized concurrent
+// access to the same field, not just a logically-late update. Callers must
+// not set client.loggedIn = false themselves.
 func (m *Manager) removeClient(client *Client) {
 	m.Lock()
 	defer m.Unlock()
 
 	if _, ok := m.clients[client]; ok { //Checko if client exists in manager
+		client.loggedIn = false
 		client.closeConnection()
 		m.deleteClientLocked(client)
 	}

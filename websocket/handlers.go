@@ -760,16 +760,17 @@ func (m *Manager) serveLogout(w http.ResponseWriter, r *http.Request) {
 		}
 
 		slog.Info("logging out client", "username", client.username)
-		// If the client is found, the user is logged in
-		client.loggedIn = false
 		LoggedInList.Remove(client.username)
+		// removeClient clears client.loggedIn itself, under its own write
+		// lock — see its doc comment on why that write can't happen here
+		// instead, outside any lock.
 		m.removeClient(client)
 		broadcastUsersList(m)
 
 		// Send the login status to the client
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(UserLoginResponse{
-			LoggedIn: client.loggedIn,
+			LoggedIn: false,
 		})
 	}
 }
